@@ -1,39 +1,25 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Alert, Button, Card, Col, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Table, Tag,
-} from 'antd'
-import type { TableColumnsType } from 'antd'
-import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
+import { flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
+import { ArrowDown, ArrowDownUp, ArrowUp, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { VLAN, VLANFields } from '../api'
+import { Badge } from './ui/badge'
+import { Button } from './ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
+import { Input } from './ui/input'
+import { Textarea } from './ui/textarea'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 
-interface RoomOption {
-  id: number
-  name: string
+interface RoomOption { id: number; name: string }
+interface Props { editable: boolean; rooms: RoomOption[]; onSessionError: (error: unknown) => void; onChanged: () => void }
+const statusMeta: Record<string, { label: string; className: string }> = {
+  active: { label: '启用', className: 'border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400' },
+  reserved: { label: '预留', className: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-400' },
+  deprecated: { label: '停用', className: 'border-border bg-muted text-muted-foreground' },
 }
-
-interface Props {
-  editable: boolean
-  rooms: RoomOption[]
-  onSessionError: (error: unknown) => void
-  onChanged: () => void
-}
-
-const statusMeta: Record<string, { label: string; color: string }> = {
-  active: { label: '启用', color: 'green' },
-  reserved: { label: '预留', color: 'cyan' },
-  deprecated: { label: '停用', color: 'default' },
-}
-
-function statusTag(status: string) {
-  const meta = statusMeta[status] ?? { label: status, color: 'default' }
-  return <Tag color={meta.color}>{meta.label}</Tag>
-}
-
-function date(value: string) {
-  if (!value) return '—'
-  return new Date(value).toLocaleString('zh-CN', { hour12: false })
-}
+const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
+const emptyFields: VLANFields = { vid: 0, name: '', status: 'active', description: '', roomId: undefined }
 
 export function VLANView({ editable, rooms, onSessionError, onChanged }: Props) {
   const [vlans, setVlans] = useState<VLAN[]>([])
@@ -43,219 +29,83 @@ export function VLANView({ editable, rooms, onSessionError, onChanged }: Props) 
   const [modalError, setModalError] = useState('')
   const [feedback, setFeedback] = useState('')
   const [keyword, setKeyword] = useState('')
-  const [status, setStatus] = useState<string | undefined>()
+  const [status, setStatus] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<VLAN | null>(null)
-  const [form] = Form.useForm<VLANFields>()
+  const [deleting, setDeleting] = useState<VLAN | null>(null)
+  const [fields, setFields] = useState<VLANFields>(emptyFields)
+  const [sorting, setSorting] = useState<SortingState>([])
 
   useEffect(() => { void load() }, [])
-
   function report(e: unknown) {
-    if (e instanceof APIError && e.status === 401) {
-      onSessionError(e)
-      return
-    }
+    if (e instanceof APIError && e.status === 401) { onSessionError(e); return }
     setError(e instanceof Error ? e.message : '操作失败')
   }
-
   async function load() {
-    setLoading(true)
-    setError('')
-    try {
-      setVlans(await api<VLAN[]>('/vlans'))
-    } catch (e) {
-      report(e)
-    } finally {
-      setLoading(false)
-    }
+    setLoading(true); setError('')
+    try { setVlans(await api<VLAN[]>('/vlans')) } catch (e) { report(e) } finally { setLoading(false) }
   }
-
-  function openCreate() {
-    setEditing(null)
-    setFeedback('')
-    setError('')
-    setModalError('')
+  function showForm(vlan: VLAN | null) {
+    setEditing(vlan); setFeedback(''); setError(''); setModalError('')
+    setFields(vlan ? { vid: vlan.vid, name: vlan.name, status: vlan.status, description: vlan.description, roomId: vlan.roomId || undefined } : emptyFields)
     setModalOpen(true)
   }
-
-  function openEdit(vlan: VLAN) {
-    setEditing(vlan)
-    setFeedback('')
-    setError('')
-    setModalError('')
-    setModalOpen(true)
-  }
-
   async function save() {
-    const values = await form.validateFields()
-    setBusy(true)
-    setModalError('')
+    if (!Number.isInteger(fields.vid) || fields.vid < 1 || fields.vid > 4094) { setModalError('请输入 1–4094 的 VLAN ID'); return }
+    if (!fields.name.trim()) { setModalError('请输入 VLAN 名称'); return }
+    setBusy(true); setModalError('')
     try {
-      const body = {
-        vid: values.vid,
-        name: values.name,
-        status: values.status ?? 'active',
-        description: values.description ?? '',
-        roomId: values.roomId ?? 0,
-        version: editing?.version ?? 0,
-      }
+      const body = { ...fields, roomId: fields.roomId ?? 0, version: editing?.version ?? 0 }
       const wasEdit = !!editing
       if (editing) await api<VLAN>(`/vlans/${editing.id}`, 'PUT', body)
       else await api<VLAN>('/vlans', 'POST', body)
-      setModalOpen(false)
-      setEditing(null)
-      await load()
-      setFeedback(wasEdit ? 'VLAN 已更新' : 'VLAN 已创建')
-      onChanged()
+      setModalOpen(false); setEditing(null); await load()
+      setFeedback(wasEdit ? 'VLAN 已更新' : 'VLAN 已创建'); onChanged()
     } catch (e) {
       if (e instanceof APIError && e.status === 401) onSessionError(e)
       else setModalError(e instanceof Error ? e.message : '保存失败')
-    } finally {
-      setBusy(false)
-    }
+    } finally { setBusy(false) }
   }
-
   async function remove(vlan: VLAN) {
-    setBusy(true)
-    setError('')
-    try {
-      await api(`/vlans/${vlan.id}?version=${vlan.version}`, 'DELETE')
-      await load()
-      setFeedback('VLAN 已删除')
-      onChanged()
-    } catch (e) {
-      report(e)
-    } finally {
-      setBusy(false)
-    }
+    setBusy(true); setError('')
+    try { await api(`/vlans/${vlan.id}?version=${vlan.version}`, 'DELETE'); setDeleting(null); await load(); setFeedback('VLAN 已删除'); onChanged() }
+    catch (e) { setDeleting(null); report(e) } finally { setBusy(false) }
   }
-
   const visible = useMemo(() => {
     const query = keyword.trim().toLowerCase()
-    return vlans.filter(vlan => {
-      if (status && vlan.status !== status) return false
-      if (!query) return true
-      return [String(vlan.vid), vlan.name, vlan.description, vlan.roomName]
-        .some(value => value?.toLowerCase().includes(query))
-    })
+    return vlans.filter(vlan => (!status || vlan.status === status) && (!query || [String(vlan.vid), vlan.name, vlan.description, vlan.roomName].some(value => value?.toLowerCase().includes(query))))
   }, [keyword, status, vlans])
 
-  const columns: TableColumnsType<VLAN> = [
-    { title: 'VLAN ID', dataIndex: 'vid', key: 'vid', width: 90, sorter: (a, b) => a.vid - b.vid, render: value => <span className="mono">{value}</span> },
-    {
-      title: '名称', key: 'name', width: 360, sorter: (a, b) => a.name.localeCompare(b.name, 'zh-CN'),
-      render: (_, vlan) => (
-        <div className="vlan-name">
-          <strong>{vlan.name}</strong>
-          {vlan.description && <span className="muted">{vlan.description}</span>}
-        </div>
-      ),
-    },
-    { title: '状态', dataIndex: 'status', key: 'status', width: 90, render: statusTag },
-    { title: '所属数据中心', dataIndex: 'roomName', key: 'roomName', width: 150, render: value => value || '—' },
-    {
-      title: '关联网段', dataIndex: 'prefixCount', key: 'prefixCount', width: 100,
-      sorter: (a, b) => a.prefixCount - b.prefixCount,
-      render: value => <Tag color={value ? 'blue' : 'default'}>{value}</Tag>,
-    },
-    { title: '最近更新', dataIndex: 'updatedAt', key: 'updatedAt', width: 175, render: date },
-    ...(editable ? [{
-      title: '操作', key: 'actions', width: 110,
-      render: (_: unknown, vlan: VLAN) => (
-        <Space size={0}>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(vlan)}>编辑</Button>
-          <Popconfirm
-            title="删除该 VLAN？" description="仍有网段使用时不能删除。"
-            okText="删除" cancelText="取消" onConfirm={() => void remove(vlan)}
-          >
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} aria-label={`删除 VLAN ${vlan.vid}`} />
-          </Popconfirm>
-        </Space>
-      ),
-    }] : []),
+  const columns: ColumnDef<VLAN>[] = [
+    { accessorKey: 'vid', header: 'VLAN ID', cell: ({ row }) => <span className="font-mono">{row.original.vid}</span> },
+    { accessorKey: 'name', header: '名称', sortingFn: (a, b) => a.original.name.localeCompare(b.original.name, 'zh-CN'), cell: ({ row }) => <div className="flex flex-col gap-1"><strong>{row.original.name}</strong>{row.original.description && <span className="text-xs text-muted-foreground">{row.original.description}</span>}</div> },
+    { accessorKey: 'status', header: '状态', enableSorting: false, cell: ({ row }) => { const meta = statusMeta[row.original.status] ?? { label: row.original.status, className: '' }; return <Badge variant="outline" className={meta.className}>{meta.label}</Badge> } },
+    { accessorKey: 'roomName', header: '所属数据中心', enableSorting: false, cell: ({ row }) => row.original.roomName || '—' },
+    { accessorKey: 'prefixCount', header: '关联网段', cell: ({ row }) => <Badge variant={row.original.prefixCount ? 'secondary' : 'outline'}>{row.original.prefixCount}</Badge> },
+    { accessorKey: 'updatedAt', header: '最近更新', enableSorting: false, cell: ({ row }) => row.original.updatedAt ? new Date(row.original.updatedAt).toLocaleString('zh-CN', { hour12: false }) : '—' },
+    ...(editable ? [{ id: 'actions', header: '操作', cell: ({ row }: { row: { original: VLAN } }) => <div className="flex gap-1"><Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button><Button variant="ghost" size="icon" className="text-destructive" aria-label={`删除 VLAN ${row.original.vid}`} onClick={() => setDeleting(row.original)}><Trash2 /></Button></div> }] : []),
   ]
+  const table = useReactTable({ data: visible, columns, state: { sorting }, onSortingChange: setSorting, initialState: { pagination: { pageIndex: 0, pageSize: 20 } }, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getPaginationRowModel: getPaginationRowModel() })
 
-  return (
-    <Card
-      variant="borderless"
-      title={<Space><span>VLAN 管理</span><Tag>{vlans.length} 个 VLAN</Tag></Space>}
-      extra={(
-        <Space>
-          <Button loading={loading} onClick={() => void load()}><ReloadOutlined /> 刷新</Button>
-          {editable && <Button type="primary" onClick={openCreate}><PlusOutlined /> 新增 VLAN</Button>}
-        </Space>
-      )}
-    >
-      {error && <Alert type="error" showIcon closable message={error} className="ipam-alert" onClose={() => setError('')} />}
-      {feedback && <Alert type="success" showIcon closable message={feedback} className="ipam-alert" onClose={() => setFeedback('')} />}
-
-      <div className="table-toolbar vlan-toolbar">
-        <Input
-          allowClear prefix={<SearchOutlined />} className="table-search"
-          placeholder="搜索 VLAN ID、名称、描述或数据中心"
-          value={keyword} onChange={event => setKeyword(event.target.value)}
-        />
-        <Space wrap>
-          <Select
-            allowClear style={{ width: 130 }} placeholder="全部状态" value={status}
-            onChange={setStatus}
-            options={Object.entries(statusMeta).map(([value, meta]) => ({ value, label: meta.label }))}
-          />
-          <span className="muted">共 {visible.length} 个</span>
-        </Space>
-      </div>
-
-      <Table<VLAN>
-        rowKey="id" size="middle" columns={columns} dataSource={visible} loading={loading}
-        scroll={{ x: 'max-content' }} locale={{ emptyText: '暂无 VLAN，新增一个开始规划二层网络' }}
-        pagination={{ pageSize: 20, showSizeChanger: true, pageSizeOptions: ['10', '20', '50'], showTotal: total => `共 ${total} 个` }}
-      />
-
-      <Modal
-        open={modalOpen} title={editing ? `编辑 VLAN ${editing.vid}` : '新增 VLAN'} footer={null}
-        width={520} destroyOnHidden maskClosable={!busy}
-        onCancel={() => { if (!busy) { setModalOpen(false); setEditing(null); setModalError('') } }}
-      >
-        {modalError && <Alert type="error" showIcon message={modalError} className="bulk-alert" />}
-        <Form
-          key={editing?.id ?? 'new'} form={form} layout="vertical"
-          initialValues={editing
-            ? { vid: editing.vid, name: editing.name, status: editing.status, description: editing.description, roomId: editing.roomId || undefined }
-            : { status: 'active', description: '', roomId: undefined }}
-          onFinish={() => void save()}
-        >
-          <Row gutter={12}>
-            <Col span={8}>
-              <Form.Item label="VLAN ID" name="vid" rules={[{ required: true, message: '请输入 VLAN ID' }]}>
-                <InputNumber min={1} max={4094} precision={0} style={{ width: '100%' }} placeholder="1–4094" />
-              </Form.Item>
-            </Col>
-            <Col span={16}>
-              <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入 VLAN 名称' }]}>
-                <Input maxLength={80} placeholder="例如：服务器区" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item label="状态" name="status" rules={[{ required: true }]}>
-            <Select options={Object.entries(statusMeta).map(([value, meta]) => ({ value, label: meta.label }))} />
-          </Form.Item>
-          <Form.Item label="所属数据中心" name="roomId">
-            <Select
-              allowClear placeholder="可选"
-              options={rooms.map(room => ({ value: room.id, label: room.name }))}
-            />
-          </Form.Item>
-          <Form.Item label="描述" name="description">
-            <Input.TextArea rows={2} maxLength={200} showCount placeholder="用途、网段规划等说明" />
-          </Form.Item>
-          <div className="bulk-modal-actions">
-            <Space>
-              <Button type="primary" htmlType="submit" loading={busy}>保存</Button>
-              <Button disabled={busy} onClick={() => { setModalOpen(false); setEditing(null); setModalError('') }}>取消</Button>
-            </Space>
-          </div>
-        </Form>
-      </Modal>
-    </Card>
-  )
+  return <Card>
+    <CardHeader className="flex flex-row items-center justify-between gap-4"><CardTitle className="flex items-center gap-2">VLAN 管理 <Badge variant="secondary">{vlans.length} 个 VLAN</Badge></CardTitle><div className="flex gap-2"><Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>{editable && <Button onClick={() => showForm(null)}><Plus />新增 VLAN</Button>}</div></CardHeader>
+    <CardContent>
+      {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
+      {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-400">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
+      <div className="mb-4 flex items-center gap-3"><Input className="max-w-sm" placeholder="搜索 VLAN ID、名称、描述或数据中心" value={keyword} onChange={event => setKeyword(event.target.value)} /><select aria-label="筛选状态" className={`${selectClass} max-w-36`} value={status} onChange={event => setStatus(event.target.value)}><option value="">全部状态</option>{Object.entries(statusMeta).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}</select><span className="text-sm text-muted-foreground">共 {visible.length} 个</span></div>
+      <div className="overflow-x-auto"><Table><TableHeader>{table.getHeaderGroups().map(group => <TableRow key={group.id}>{group.headers.map(header => <TableHead key={header.id} aria-sort={header.column.getCanSort() ? (header.column.getIsSorted() === 'asc' ? 'ascending' : header.column.getIsSorted() === 'desc' ? 'descending' : 'none') : undefined}>{header.column.getCanSort() ? <button className="inline-flex items-center gap-1" onClick={header.column.getToggleSortingHandler()}>{flexRender(header.column.columnDef.header, header.getContext())}{header.column.getIsSorted() === 'asc' ? <ArrowUp className="size-3" aria-hidden="true" /> : header.column.getIsSorted() === 'desc' ? <ArrowDown className="size-3" aria-hidden="true" /> : <ArrowDownUp className="size-3" aria-hidden="true" />}</button> : flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{loading ? <TableRow><TableCell colSpan={columns.length}>加载中...</TableCell></TableRow> : table.getRowModel().rows.length ? table.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">暂无 VLAN，新增一个开始规划二层网络</TableCell></TableRow>}</TableBody></Table></div>
+      <div className="mt-4 flex items-center justify-end gap-2 text-sm"><span className="text-muted-foreground">共 {visible.length} 个</span><select aria-label="每页条数" className={`${selectClass} w-24`} value={table.getState().pagination.pageSize} onChange={event => table.setPageSize(Number(event.target.value))}>{[10, 20, 50].map(size => <option key={size} value={size}>{size} 条/页</option>)}</select><Button variant="outline" size="sm" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>上一页</Button><span>{table.getState().pagination.pageIndex + 1} / {Math.max(1, table.getPageCount())}</span><Button variant="outline" size="sm" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}>下一页</Button></div>
+    </CardContent>
+    <Dialog open={modalOpen} onOpenChange={next => { if (!busy) { setModalOpen(next); if (!next) setEditing(null) } }}><DialogContent><DialogHeader><DialogTitle>{editing ? `编辑 VLAN ${editing.vid}` : '新增 VLAN'}</DialogTitle></DialogHeader>
+      {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
+      <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save() }}>
+        <div className="grid grid-cols-3 gap-3"><div className="space-y-2"><label className="text-sm font-medium" htmlFor="vlan-id">VLAN ID</label><Input id="vlan-id" type="number" min={1} max={4094} required placeholder="1–4094" value={fields.vid || ''} onChange={event => setFields({ ...fields, vid: Number(event.target.value) })} /></div><div className="col-span-2 space-y-2"><label className="text-sm font-medium" htmlFor="vlan-name">名称</label><Input id="vlan-name" required maxLength={80} placeholder="例如：服务器区" value={fields.name} onChange={event => setFields({ ...fields, name: event.target.value })} /></div></div>
+        <div className="space-y-2"><label className="text-sm font-medium" htmlFor="vlan-status">状态</label><select id="vlan-status" className={selectClass} value={fields.status} onChange={event => setFields({ ...fields, status: event.target.value as VLANFields['status'] })}>{Object.entries(statusMeta).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}</select></div>
+        <div className="space-y-2"><label className="text-sm font-medium" htmlFor="vlan-room">所属数据中心</label><select id="vlan-room" className={selectClass} value={fields.roomId ?? ''} onChange={event => setFields({ ...fields, roomId: event.target.value ? Number(event.target.value) : undefined })}><option value="">可选</option>{rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}</select></div>
+        <div className="space-y-2"><label className="text-sm font-medium" htmlFor="vlan-description">描述</label><Textarea id="vlan-description" rows={2} maxLength={200} placeholder="用途、网段规划等说明" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /><div className="text-right text-xs text-muted-foreground">{fields.description.length} / 200</div></div>
+        <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={() => setModalOpen(false)}>取消</Button><Button type="submit" disabled={busy}>{busy ? '保存中...' : '保存'}</Button></DialogFooter>
+      </form>
+    </DialogContent></Dialog>
+    <Dialog open={!!deleting} onOpenChange={next => { if (!next && !busy) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>删除该 VLAN？</DialogTitle><DialogDescription>仍有网段使用时不能删除。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (deleting) void remove(deleting) }}>删除</Button></DialogFooter></DialogContent></Dialog>
+  </Card>
 }
