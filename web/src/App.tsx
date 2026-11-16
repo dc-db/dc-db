@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
-  Alert, App as AntApp, Button, Card, Checkbox, ConfigProvider, Descriptions,
+  Alert, App as UIApp, Button, Card, Checkbox, ConfigProvider, Descriptions,
   Drawer, Dropdown, Empty, Form, Input, Layout, List, Menu, Modal, Popover, Radio, Select,
   Space, Spin, Table, Tabs, Tag, Tooltip, Upload, theme,
-} from 'antd'
-import type { TableColumnsType } from 'antd'
-import zhCN from 'antd/locale/zh_CN'
+} from './components/AppControls'
+import type { TableColumnsType } from './components/AppControls'
+const zhCN = {}
 import {
-  AimOutlined, ApartmentOutlined, ApiOutlined, CloudServerOutlined,
-  DeleteOutlined, DesktopOutlined, DownloadOutlined, EditOutlined, FilterOutlined, GlobalOutlined, HistoryOutlined,
-  HddOutlined, HomeOutlined, LockOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, MoonOutlined, PlusOutlined, ReloadOutlined,
-  SearchOutlined, SettingOutlined, StarFilled, StarOutlined, SunOutlined, TagsOutlined, TeamOutlined, UploadOutlined, UserOutlined,
-} from '@ant-design/icons'
+  Crosshair as AimOutlined, Network as ApartmentOutlined, Cable as ApiOutlined, Server as CloudServerOutlined,
+  Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Filter as FilterOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
+  HardDrive as HddOutlined, House as HomeOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, PanelLeftClose as MenuFoldOutlined, PanelLeftOpen as MenuUnfoldOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
+  Search as SearchOutlined, Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
+} from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
 import type { Asset, AssetFields, Captcha, Change, ImportPreview, Kind, Link, LinkKind, Subnet, Tag as TagItem, User } from './api'
 import { assetLocations, locationLabel } from './facilities'
@@ -131,15 +131,15 @@ export default function App() {
         },
       }}
     >
-      <AntApp>
+      <UIApp>
         <Shell dark={dark} onToggleTheme={() => setDark(value => !value)} />
-      </AntApp>
+      </UIApp>
     </ConfigProvider>
   )
 }
 
 function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => void }) {
-  const { message } = AntApp.useApp()
+  const { message } = UIApp.useApp()
   const [user, setUser] = useState<User | null>(null)
   const [checking, setChecking] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -374,7 +374,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   useEffect(() => {
     setSelectedAssetIds([])
-  }, [page, keyword, platformFilter, lifecycleFilter, statusFilter, tagFilter, tagFilterMode, pageSize, pagination])
+  }, [page, keyword, platformFilter, lifecycleFilter, statusFilter, tagFilter, tagFilterMode])
 
   useEffect(() => {
     if (!assetPage) return
@@ -438,7 +438,15 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   }
 
   useEffect(() => {
-    if (!checking && !user) void loadCaptcha()
+    if (!checking && !user) {
+      setImportPreview(null)
+      setPendingImport(null)
+      setBulkOpen(false)
+      setBulkTagOpen(false)
+      setTagOpen(false)
+      setSelectedAssetIds([])
+      void loadCaptcha()
+    }
   }, [checking, user, dark])
 
   async function loadCaptcha() {
@@ -933,7 +941,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                 {asset.tags.slice(0, 3).map(tag => <Tag key={tag.id} color={tag.color}>{tag.name}</Tag>)}
                 {asset.tags.length > 3 && (
                   <Tooltip title={asset.tags.slice(3).map(tag => tag.name).join('、')}>
-                    <Tag>+{asset.tags.length - 3}</Tag>
+                    <Tag tabIndex={0}>+{asset.tags.length - 3}</Tag>
                   </Tooltip>
                 )}
               </Space>
@@ -1041,20 +1049,20 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               <Form.Item label="账号" name="username" rules={[{ required: true, message: '请输入账号' }]}>
                 <Input
                   size="large" autoComplete="username" value={loginForm.username}
-                  onChange={event => setLoginForm(current => ({ ...current, username: event.target.value }))}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => setLoginForm(current => ({ ...current, username: event.target.value }))}
                 />
               </Form.Item>
               <Form.Item label="密码" name="password" rules={[{ required: true, message: '请输入密码' }]}>
                 <Input.Password
                   size="large" autoComplete="current-password" value={loginForm.password}
-                  onChange={event => setLoginForm(current => ({ ...current, password: event.target.value }))}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => setLoginForm(current => ({ ...current, password: event.target.value }))}
                 />
               </Form.Item>
               <Form.Item label="验证码" required>
                 <div className="captcha-row">
                   <Input
                     size="large" value={captchaCode} maxLength={8} autoComplete="off" placeholder="请输入右侧字符"
-                    onChange={event => setCaptchaCode(event.target.value)}
+                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => setCaptchaCode(event.target.value)}
                   />
                   <button
                     type="button" className="captcha-image-button" title="点击刷新验证码"
@@ -1101,7 +1109,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                 children: item.children.map(child => ({ key: child.key, icon: child.icon, label: child.label })),
               }
             : { key: item.key, icon: item.icon, label: item.label })}
-          onClick={({ key }) => { if (key !== 'system') goTo(key as Page) }}
+          onClick={({ key }: { key: string }) => { if (key !== 'system') goTo(key as Page) }}
         />
       </Sider>
 
@@ -1137,12 +1145,12 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             )}
             <ThemeToggle dark={dark} onToggleTheme={onToggleTheme} />
             <Tooltip title="刷新">
-              <Button type="text" loading={busy} onClick={() => void loadAll()}><ReloadOutlined /></Button>
+              <Button type="text" loading={busy} aria-label="刷新" onClick={() => void loadAll()}><ReloadOutlined /></Button>
             </Tooltip>
             <Dropdown
               menu={{
                 items: [{ key: 'logout', icon: <LogoutOutlined />, label: '退出登录' }],
-                onClick: ({ key }) => { if (key === 'logout') void logout() },
+                onClick: ({ key }: { key: string }) => { if (key === 'logout') void logout() },
               }}
             >
               <Button type="text"><UserOutlined /> {user.username}</Button>
@@ -1217,12 +1225,12 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               title={<Space><span>{activePage.label}列表</span><Tag>{filtered.length} 条</Tag></Space>}
               extra={(
                 <Space wrap>
-                  <Upload
+                  {editable && <Upload
                     accept=".csv,text/csv" showUploadList={false}
-                    beforeUpload={file => { void previewCSV(file); return false }}
+                    beforeUpload={(file: File) => { void previewCSV(file); return false }}
                   >
                     <Button loading={importing || previewing}><UploadOutlined /> 导入 CSV</Button>
-                  </Upload>
+                  </Upload>}
                   <Button onClick={downloadTemplate}><DownloadOutlined /> 下载模板</Button>
                   <Button disabled={!filtered.length} onClick={exportCSV}><DownloadOutlined /> 导出 CSV</Button>
                 </Space>
@@ -1232,7 +1240,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                 <Input
                   className="table-search" allowClear placeholder="搜索名称、IP、宿主机…"
                   prefix={<SearchOutlined />} value={keyword}
-                  onChange={event => setKeyword(event.target.value)}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => setKeyword(event.target.value)}
                 />
                 <Space wrap>
                   <Select
@@ -1276,7 +1284,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                         <div className="filter-preset-form">
                           <Input
                             size="small" placeholder="条件名称" value={filterName}
-                            onChange={event => setFilterName(event.target.value)}
+                            onChange={(event: React.ChangeEvent<HTMLInputElement>) => setFilterName(event.target.value)}
                             onPressEnter={saveFilterPreset}
                           />
                           <Button size="small" type="primary" onClick={saveFilterPreset}>保存</Button>
@@ -1301,7 +1309,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                       <div className="column-options">
                         <Checkbox.Group
                           value={visibleColumns}
-                          onChange={values => updateVisibleColumns(values.map(String))}
+                          onChange={(values: string[]) => updateVisibleColumns(values.map(String))}
                         >
                           <Space direction="vertical">
                             {assetColumns.map(item => <Checkbox key={item.key} value={item.key}>{item.label}</Checkbox>)}
@@ -1425,7 +1433,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           <Form.Item label="操作方式">
             <Radio.Group
               value={bulkTagMode} optionType="button" buttonStyle="solid"
-              onChange={event => setBulkTagMode(event.target.value)}
+              onChange={(event: { target: { value: 'add' | 'remove' | 'replace' } }) => setBulkTagMode(event.target.value)}
               options={[
                 { value: 'add', label: '添加标签' },
                 { value: 'remove', label: '移除标签' },
@@ -1464,7 +1472,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         onCancel={() => { if (!bulkSaving) { setBulkOpen(false); setBulkError('') } }}
       >
         {bulkError && <Alert type="error" showIcon message={bulkError} className="bulk-alert" />}
-        <Form form={bulkForm} layout="vertical" onFinish={values => void saveBulkEdit(values)}>
+        <Form form={bulkForm} layout="vertical" onFinish={(values: Parameters<typeof saveBulkEdit>[0]) => void saveBulkEdit(values)}>
           <Form.Item label="运行状态" name="status" extra="留空表示不修改">
             <Select
               allowClear placeholder="不修改"
