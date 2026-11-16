@@ -17,8 +17,9 @@
 - 基础组件使用 `web/src/components/ui/` 中的 shadcn/ui 组件；图标使用 Lucide。需要新增基础能力时，先检查已有组件，再按项目现有方式引入或扩展。
 - 当前通用颜色变量定义在 `web/src/styles.css` 的 `:root` 和 `html[data-theme="dark"]`；`web/src/shadcn.css` 将这些变量映射到 shadcn/Tailwind 语义颜色并定义圆角。业务页面优先使用这些语义变量或工具类，不要再定义平行的全局颜色体系。
 - 当前主要语义包括页面背景 `--bg`、表面 `--surface`、正文 `--text`、次要文本 `--muted`、边框 `--line`、主色 `--primary`、弱背景 `--subtle`、悬停 `--hover` 和选中 `--selected`。表面、文字和边框要按语义组合，不能假设某个固定色值适用于两种主题。
+- 中性色是界面的基底：页面、卡片、表格、侧栏和主要按钮保持黑、白和灰阶；蓝色、绿色、琥珀色和红色只作为状态、选中、链接或图表的强调色，不用于大面积背景。当前强调语义为 `--info`（信息/链接/选中）、`--success`（在线/运行/成功）、`--warning`（暂停/预留）、`--danger`（离线/错误/破坏性操作），并成对提供 `-soft` 和 `-border` 浅底色与边框值。图表使用 `--chart-1` 到 `--chart-5`。
 - 系统首次访问跟随系统主题；用户选择保存在 `localStorage` 的 `dc-db-theme`，通过 `html[data-theme]` 应用。新增样式必须兼容现有机制，不另建主题开关或另存一份主题状态。
-- 状态色、图表色和部分业务样式目前仍有局部硬编码。新需求需要可复用的状态或图表色时，先在公共主题中成对定义浅色、暗色语义值，再迁移相关使用处；不要假设这套状态 token 已经存在。
+- 状态色、图表色和部分业务样式目前仍有局部硬编码。新需求需要可复用的状态或图表色时，优先使用已定义的强调 token，并同时检查浅色、暗色；新增 token 要在 `styles.css` 中成对定义，再接入使用处，不要在业务页面复制色值。
 - 机房平面和机柜使用现有 `--floor-*`、`--rack-*`、`--device-*` 等专用变量；Three.js 和 ECharts 中无法直接使用 CSS 变量的地方，应从同一语义来源取得或集中映射颜色，并检查两种主题。
 - `AppControls.tsx` 目前承载部分现有页面的兼容封装；`SearchableSelect.tsx` 提供可搜索选择。新页面优先直接组合基础组件或复用合适的共享业务组件，修改现有页面时避免无必要扩大兼容封装；不要假设所有页面已经共用同一个数据表格。
 
@@ -29,9 +30,9 @@
 - 页面保持「导航与标题 → 筛选和主要操作 → 内容 → 分页或后续操作」的顺序；同一类型页面的主要操作放在一致位置。
 - 优先采用左对齐、清晰分组和足够留白。卡片用于区分独立内容区域，不为每个字段或每行数据重复套卡片。
 - 间距以 4px 为基础，优先使用 4、8、12、16、24、32px；相同层级使用相同间距，页面局部有特殊需求时说明原因。
-- 基础圆角沿用 `shadcn.css` 的 4、6、8、12px 阶梯。相同控件保持同一圆角，不因页面不同随意变化。
+- 基础圆角沿用 `shadcn.css` 的 6、10、14px 阶梯；表格容器等需要更紧凑的局部容器可使用 8px。相同控件保持同一圆角，不因页面不同随意变化。
 - 字号保持清楚的页面标题、区块标题、正文和辅助信息层级；正文和表格默认以约 14px 为起点，辅助信息通常不小于 12px。使用项目现有字体栈，资产名、地址、数值等按内容展示；IP、CIDR 和其他需要逐字符辨识的值可用等宽字体。
-- 优先使用现有语义色和组件变体。主色用于主要操作、链接和选中状态；成功、警告、危险和中性状态应有稳定语义，不以颜色数量代替信息层级。
+- 优先使用现有语义色和组件变体。主色用于主要操作，信息色用于链接和选中，成功、警告、危险和中性状态应有稳定语义，不以颜色数量代替信息层级。
 
 ### 主题与对比度
 
@@ -90,5 +91,6 @@
 ## 参考资料
 
 - [shadcn/ui：主题](https://ui.shadcn.com/docs/theming)和[数据表格](https://ui.shadcn.com/docs/components/data-table)
+- [shadcn.io：Modern Minimal](https://www.shadcn.io/theme/modern-minimal)和[Graphite](https://www.shadcn.io/theme/graphite)：中性基底、单一强调色与全灰方案的取舍
 - [TanStack Table v8：排序](https://tanstack.com/table/v8/docs/guide/sorting)和[分页](https://tanstack.com/table/v8/docs/api/features/pagination)
 - W3C：[文字对比度](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)、[非文本对比度](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)、[颜色的使用](https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html)、[表单标签](https://www.w3.org/WAI/tutorials/forms/labels/)和[模态对话框模式](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/)

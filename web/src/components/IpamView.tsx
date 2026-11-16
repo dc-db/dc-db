@@ -27,19 +27,19 @@ type SubnetDraft = SubnetFields & { id?: number; version?: number }
 
 const subnetStatusMeta: Record<string, { label: string; color: string }> = {
   container: { label: '聚合', color: 'default' },
-  active: { label: '启用', color: 'blue' },
-  reserved: { label: '预留', color: 'default' },
+  active: { label: '启用', color: 'green' },
+  reserved: { label: '预留', color: 'orange' },
   deprecated: { label: '停用', color: 'default' },
 }
 const allocationStateMeta: Record<string, { label: string; color: string }> = {
-  active: { label: '启用', color: 'blue' },
-  reserved: { label: '预留', color: 'default' },
+  active: { label: '启用', color: 'green' },
+  reserved: { label: '预留', color: 'orange' },
   deprecated: { label: '停用', color: 'default' },
   dhcp: { label: 'DHCP', color: 'blue' },
   slaac: { label: 'SLAAC', color: 'default' },
 }
 const sourceMeta: Record<string, { label: string; color: string }> = {
-  gateway: { label: '网关', color: 'default' },
+  gateway: { label: '网关', color: 'orange' },
   asset: { label: '资产地址', color: 'default' },
   allocated: { label: '手工分配', color: 'blue' },
 }
@@ -473,7 +473,7 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
   }
   return <Card><CardHeader className="flex flex-row items-center justify-between gap-4"><CardTitle className="flex items-center gap-2">网段与 IP 地址 <Badge variant="secondary">{subnets.length} 个网段</Badge></CardTitle><div className="flex gap-2"><Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>{editable && <Button onClick={addSubnet}><Plus />新增网段</Button>}</div></CardHeader><CardContent>
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
-    {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-blue-500/30 bg-blue-500/10 p-3 text-sm text-blue-700 dark:text-blue-400">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
+    {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
     {draft && <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{draft.id ? '编辑网段' : '新增网段'}</CardTitle><Button variant="ghost" size="icon" aria-label="关闭" onClick={() => setDraft(null)}><X /></Button></CardHeader><CardContent><form onSubmit={event => { event.preventDefault(); void saveSubnet() }}><div className="grid grid-cols-2 gap-3">
       <label className={labelClass}>网段名称<Input required value={draft.name} maxLength={160} placeholder="例如：办公网" onChange={event => setDraft({ ...draft, name: event.target.value })} /></label>
       <label className={labelClass}>CIDR<Input required value={draft.cidr} maxLength={64} placeholder="例如：192.0.2.0/24" onChange={event => setDraft({ ...draft, cidr: event.target.value })} /></label>
@@ -485,7 +485,7 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
     </div><div className="mt-4 flex gap-2"><Button type="submit" disabled={busy}>保存网段</Button><Button type="button" variant="outline" onClick={() => setDraft(null)}>取消</Button></div></form></CardContent></Card>}
     {!subnets.length ? <div className="py-12 text-center text-muted-foreground">{loading ? '正在加载 IPAM 数据…' : '暂无网段，新增一个网段开始管理 IP 地址'}</div> : <div className="grid grid-cols-[minmax(280px,340px)_minmax(0,1fr)] gap-5">
       <div className="space-y-3"><Input placeholder="搜索名称、CIDR、VLAN、用途" value={subnetSearch} onChange={event => setSubnetSearch(event.target.value)} /><select aria-label="筛选网段状态" className={selectClass} value={subnetStatus ?? ''} onChange={event => setSubnetStatus(event.target.value || undefined)}><option value="">全部状态</option>{Object.entries(subnetStatusMeta).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}</select>
-        <div className="max-h-[700px] space-y-1 overflow-y-auto">{visibleSubnetRows.length ? visibleSubnetRows.map(({ subnet: item, depth, children }) => <div key={item.id} className={`flex items-start gap-1 rounded-md border p-3 ${item.id === selectedId ? 'border-primary bg-accent' : 'border-transparent hover:bg-accent/50'}`} style={{ paddingLeft: 12 + depth * 16 }}>
+        <div className="max-h-[700px] space-y-1 overflow-y-auto">{visibleSubnetRows.length ? visibleSubnetRows.map(({ subnet: item, depth, children }) => <div key={item.id} className={`flex items-start gap-1 rounded-md border p-3 ${item.id === selectedId ? 'border-info bg-info-soft' : 'border-transparent hover:bg-accent/50'}`} style={{ paddingLeft: 12 + depth * 16 }}>
           {children > 0 ? <Button type="button" variant="ghost" size="icon" className="size-6 shrink-0" aria-label={`${collapsed.has(item.id) ? '展开' : '收起'} ${item.name} 的子网`} aria-expanded={!collapsed.has(item.id)} onClick={() => toggleSubnet(item.id)}>{collapsed.has(item.id) ? <ChevronRight /> : <ChevronDown />}</Button> : <span className="w-6 shrink-0" />}
           <div className="min-w-0 flex-1"><button type="button" className="w-full rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-current={item.id === selectedId ? 'true' : undefined} onClick={() => void selectSubnet(item.id)}><span className="flex items-center justify-between gap-2"><span className="flex min-w-0 items-center gap-1"><strong>{item.name}</strong>{children > 0 && <Badge variant="secondary">{children}</Badge>}</span><Badge variant="outline" className="font-mono">{item.cidr}</Badge></span><span className="mt-1 block text-xs text-muted-foreground">{subnetStatusMeta[item.status]?.label ?? item.status}{item.role ? ` · ${item.role}` : ''} · VLAN {item.vlan ? (item.vlanName ? `${item.vlan} ${item.vlanName}` : item.vlan) : '—'} · 已用 {count(item.used)} / {count(item.usable)} · 空闲 {count(item.free)}</span></button><Progress aria-label={`${item.name} 地址使用率`} className="mt-2" value={item.usable > 0 ? Math.min(100, Math.round(item.used / item.usable * 100)) : 0} /></div>
         </div>) : <p className="py-8 text-center text-sm text-muted-foreground">没有匹配的网段</p>}</div></div>

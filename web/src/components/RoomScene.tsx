@@ -128,7 +128,7 @@ export function RoomScene(props: Props) {
     roomModel.add(new LineSegments(gridGeometry, new LineBasicMaterial({ color: dark ? 0x262626 : 0xd4d4d4 })))
 
     const frame = new MeshStandardMaterial({ color: dark ? 0x737373 : 0x525252 })
-    const selectedFrame = new MeshStandardMaterial({ color: dark ? 0xfafafa : 0x171717 })
+    const selectedFrame = new MeshStandardMaterial({ color: dark ? 0x60a5fa : 0x2563eb })
     const back = new MeshStandardMaterial({ color: dark ? 0x262626 : 0xd4d4d4 })
     const panelColors = dark ? { host: 0xd4d4d4, switch: 0xa3a3a3 } : deviceColors
     const panelMaterials = new Map<string, MeshStandardMaterial>()

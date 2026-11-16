@@ -28,8 +28,17 @@ interface Props {
 }
 
 const chartColors = (dark: boolean) => dark
-  ? ['#fafafa', '#a3a3a3', '#737373', '#60a5fa', '#f87171']
-  : ['#171717', '#737373', '#a3a3a3', '#2563eb', '#dc2626']
+  ? ['#60a5fa', '#2dd4bf', '#fbbf24', '#fb7185', '#a78bfa']
+  : ['#2563eb', '#0d9488', '#d97706', '#e11d48', '#7c3aed']
+
+function statusChartColor(status: string, dark: boolean) {
+  if (status === 'online') return dark ? '#60a5fa' : '#2563eb'
+  if (status === 'running') return dark ? '#34d399' : '#047857'
+  if (status === 'paused') return dark ? '#fbbf24' : '#b45309'
+  if (status === 'offline') return dark ? '#f87171' : '#b91c1c'
+  if (status === 'stopped') return dark ? '#737373' : '#a3a3a3'
+  return dark ? '#525252' : '#d4d4d4'
+}
 
 function DashboardCard({ children, title, extra }: { children: ReactNode; title: ReactNode; extra?: ReactNode }) {
   return <Card className="h-full gap-0 py-0"><CardHeader className="flex min-h-11 flex-row items-center justify-between gap-3 border-b px-4 py-2"><CardTitle>{title}</CardTitle>{extra}</CardHeader><CardContent className="p-4">{children}</CardContent></Card>
@@ -105,16 +114,13 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
         bottom: 0, left: 'center',
         textStyle: { color: dark ? '#a1a1a1' : '#737373' },
       },
-      color: dark
-        ? ['#60a5fa', '#737373', '#a3a3a3', '#f87171', '#525252']
-        : ['#2563eb', '#a3a3a3', '#737373', '#dc2626', '#d4d4d4'],
       series: [{
         type: 'pie',
         radius: ['45%', '70%'],
         center: ['50%', '44%'],
         itemStyle: { borderColor: dark ? '#0a0a0a' : '#fff', borderWidth: 2 },
         label: { show: false },
-        data: Array.from(counts, ([key, value]) => ({ value, name: labels[key] ?? key })),
+        data: Array.from(counts, ([key, value]) => ({ value, name: labels[key] ?? key, itemStyle: { color: statusChartColor(key, dark) } })),
       }],
     }
   }, [dark, stats.vms])
@@ -143,7 +149,7 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
       series: [{
         type: 'bar',
         barMaxWidth: 42,
-        itemStyle: { color: dark ? '#e5e5e5' : '#171717', borderRadius: [4, 4, 0, 0] },
+        itemStyle: { color: dark ? '#60a5fa' : '#2563eb', borderRadius: [4, 4, 0, 0] },
         data: Array.from(counts.values()),
       }],
     }
@@ -170,7 +176,7 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
       series: [{
         type: 'bar',
         barMaxWidth: 20,
-        itemStyle: { color: dark ? '#e5e5e5' : '#171717', borderRadius: [0, 4, 4, 0] },
+        itemStyle: { color: dark ? '#60a5fa' : '#2563eb', borderRadius: [0, 4, 4, 0] },
         label: { show: true, position: 'right', formatter: '{c}%', color: dark ? '#a1a1a1' : '#0a0a0a' },
         data: top.map(item => Math.round(item.used / Math.max(1, item.usable) * 100)),
       }],
@@ -217,17 +223,17 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
     <div>
       <div className="metric-row grid grid-cols-3 gap-4 xl:grid-cols-6">
         {[
-          { label: '资产总数', value: stats.active.length, icon: <HardDrive size="1em" aria-hidden="true" />, hint: '在册资产', target: 'assets' as Page },
-          { label: '物理机', value: stats.hosts.length, icon: <Server size="1em" aria-hidden="true" />, hint: '独立主机与虚拟化节点', target: 'host' as Page },
-          { label: '虚拟机', value: stats.vms.length, icon: <Monitor size="1em" aria-hidden="true" />, hint: `${stats.running} 台运行中`, target: 'vm' as Page },
-          { label: '交换机', value: stats.switches.length, icon: <ArrowLeftRight size="1em" aria-hidden="true" />, hint: '网络设备', target: 'switch' as Page },
-          { label: '数据中心', value: facilities.rooms.length, icon: <Building2 size="1em" aria-hidden="true" />, hint: `${facilities.racks.length} 台机柜`, target: 'facilities' as Page },
-          { label: 'IP 空闲', value: stats.free, icon: <Globe size="1em" aria-hidden="true" />, hint: `${subnets.length} 个网段 · 使用率 ${ipPercent}%`, target: 'ipam' as Page },
+          { label: '资产总数', value: stats.active.length, icon: <HardDrive size="1em" aria-hidden="true" />, hint: '在册资产', target: 'assets' as Page, tone: 'neutral' },
+          { label: '物理机', value: stats.hosts.length, icon: <Server size="1em" aria-hidden="true" />, hint: '独立主机与虚拟化节点', target: 'host' as Page, tone: 'blue' },
+          { label: '虚拟机', value: stats.vms.length, icon: <Monitor size="1em" aria-hidden="true" />, hint: `${stats.running} 台运行中`, target: 'vm' as Page, tone: 'teal' },
+          { label: '交换机', value: stats.switches.length, icon: <ArrowLeftRight size="1em" aria-hidden="true" />, hint: '网络设备', target: 'switch' as Page, tone: 'amber' },
+          { label: '数据中心', value: facilities.rooms.length, icon: <Building2 size="1em" aria-hidden="true" />, hint: `${facilities.racks.length} 台机柜`, target: 'facilities' as Page, tone: 'violet' },
+          { label: 'IP 空闲', value: stats.free, icon: <Globe size="1em" aria-hidden="true" />, hint: `${subnets.length} 个网段 · 使用率 ${ipPercent}%`, target: 'ipam' as Page, tone: 'green' },
         ].map(item => (
           <div key={item.label} className="min-w-0">
             <button type="button" className="metric-card w-full cursor-pointer border-0 bg-transparent p-0 text-left" onClick={() => onGo(item.target)}>
               <Card className="h-full"><CardContent>
-                <span className="metric-icon">{item.icon}</span>
+                <span className={`metric-icon tone-${item.tone}`}>{item.icon}</span>
                 <div className="mb-1 text-muted-foreground">{item.label}</div>
                 <div className="text-2xl font-semibold">{item.value.toLocaleString()}</div>
                 <div className="metric-hint">{item.hint}</div>

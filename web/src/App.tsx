@@ -44,9 +44,9 @@ const kinds: Record<Kind, { label: string; icon: ReactNode }> = {
 }
 const statuses: Record<string, { label: string; color: string }> = {
   online: { label: '在线', color: 'blue' },
-  running: { label: '运行中', color: 'blue' },
+  running: { label: '运行中', color: 'green' },
   stopped: { label: '已停止', color: 'default' },
-  paused: { label: '已暂停', color: 'default' },
+  paused: { label: '已暂停', color: 'orange' },
   offline: { label: '离线', color: 'red' },
   unknown: { label: '未知', color: 'default' },
 }
