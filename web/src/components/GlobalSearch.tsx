@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Input, Spin } from 'antd'
-import type { InputRef } from 'antd'
-import {
-  ApartmentOutlined, ClusterOutlined, CloudServerOutlined, GlobalOutlined,
-  SearchOutlined, AimOutlined, TagsOutlined, HistoryOutlined,
-} from '@ant-design/icons'
+import { Input } from './ui/input'
+import { Building2, Crosshair, Globe, History, LoaderCircle, Network, Search, Server, Tags, X } from 'lucide-react'
 import { api } from '../api'
 import type { SearchResult, SearchResultType } from '../api'
 
@@ -21,13 +17,13 @@ interface Props {
 }
 
 const typeMeta: Record<SearchResultType, { label: string; icon: ReactNode }> = {
-  asset: { label: '资产', icon: <CloudServerOutlined /> },
-  room: { label: '数据中心', icon: <ApartmentOutlined /> },
-  rack: { label: '机柜', icon: <ClusterOutlined /> },
-  tag: { label: '标签', icon: <TagsOutlined /> },
-  subnet: { label: '网段', icon: <GlobalOutlined /> },
-  vlan: { label: 'VLAN', icon: <TagsOutlined /> },
-  ip: { label: 'IP 地址', icon: <AimOutlined /> },
+  asset: { label: '资产', icon: <Server size={15} /> },
+  room: { label: '数据中心', icon: <Building2 size={15} /> },
+  rack: { label: '机柜', icon: <Network size={15} /> },
+  tag: { label: '标签', icon: <Tags size={15} /> },
+  subnet: { label: '网段', icon: <Globe size={15} /> },
+  vlan: { label: 'VLAN', icon: <Tags size={15} /> },
+  ip: { label: 'IP 地址', icon: <Crosshair size={15} /> },
 }
 
 const kindLabels: Record<string, string> = { host: '物理机', vm: '虚拟机', switch: '交换机' }
@@ -52,7 +48,7 @@ export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onV
       return []
     }
   })
-  const inputRef = useRef<InputRef>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const requestRef = useRef(0)
 
   useEffect(() => {
@@ -185,13 +181,14 @@ export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onV
 
   return (
     <div className="global-search">
+      <div className="relative flex items-center">
+      <Search size={15} className="absolute left-3 text-muted-foreground pointer-events-none" />
       <Input
         ref={inputRef}
-        allowClear prefix={<SearchOutlined />}
+        className="pl-9 pr-20"
         placeholder="搜索资产、标签、机柜、IP、VLAN…"
         value={query}
         autoComplete="off"
-        suffix={<kbd className="global-search-kbd">Ctrl K</kbd>}
         onChange={event => {
           const value = event.target.value
           setQuery(value)
@@ -202,6 +199,9 @@ export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onV
         onBlur={() => window.setTimeout(() => setOpen(false), 120)}
         onKeyDown={handleKeyDown}
       />
+      {query && <button type="button" className="absolute right-14 text-muted-foreground" aria-label="清除搜索" onMouseDown={event => event.preventDefault()} onClick={() => { setQuery(''); inputRef.current?.focus() }}><X size={14} /></button>}
+      <kbd className="global-search-kbd absolute right-2 pointer-events-none">Ctrl K</kbd>
+      </div>
       {visible && (
         <div className="global-search-panel" onMouseDown={event => event.preventDefault()}>
           {!query.trim() ? (
@@ -210,7 +210,7 @@ export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onV
                 <div className="global-search-group-title">最近搜索</div>
                 {recent.map(term => (
                   <button key={term} type="button" className="global-search-recent" onClick={() => runRecent(term)}>
-                    <HistoryOutlined />
+                    <History size={14} />
                     <span>{term}</span>
                   </button>
                 ))}
@@ -219,7 +219,7 @@ export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onV
             </>
           ) : (
             <>
-              {loading && <div className="global-search-state"><Spin size="small" /> 搜索中…</div>}
+              {loading && <div className="global-search-state"><LoaderCircle size={14} className="animate-spin" /> 搜索中…</div>}
               {!loading && error && <div className="global-search-state">{error}</div>}
               {!loading && !error && results.length === 0 && <div className="global-search-state">没有匹配结果</div>}
               {!loading && !error && grouped.map(group => (
