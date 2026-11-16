@@ -8,7 +8,7 @@
 
 ## 项目概览
 
-dc-db 用于集中管理企业 IT 资产、配置和资产关系，面向约 3000 台虚拟机、5000 台主机以内的单机场景。技术栈为 Go 1.26+、React 19 + TypeScript + Ant Design 6、ECharts 和 SQLite。开发和部署步骤见 [README.md](README.md)。
+dc-db 用于集中管理企业 IT 资产、配置和资产关系，面向约 3000 台虚拟机、5000 台主机以内的单机场景。技术栈为 Go 1.26+、React 19 + TypeScript、shadcn/ui、TanStack Table、ECharts 和 SQLite。开发和部署步骤见 [README.md](README.md)。
 
 ## 代码位置与改动范围
 
