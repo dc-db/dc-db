@@ -46,6 +46,16 @@ Open [http://127.0.0.1:8080](http://127.0.0.1:8080). The default initial sign-in
 
 The service binds to `127.0.0.1:8080` by default. Before the first start of a network-accessible installation, copy `config.example.yaml` to `config.yaml` and set `admin.password` to a unique password of at least 12 bytes. Set `cookie_secure: true` when serving the application through an HTTPS reverse proxy. The SQLite database file contains password hashes and asset data, so restrict access to the database file, backups, and asset exports. Accounts are created from the configuration on first start; existing accounts use their stored passwords.
 
+### Example data
+
+The repository's `demo-data.sql` contains fictional assets and related records for an isolated development environment. It is not imported automatically. Start the application once to create the database, stop it, and run the following against an empty development inventory (the SQLite command-line tool is required):
+
+```bash
+sqlite3 -bail dc-db.db ".read demo-data.sql"
+```
+
+If `config.yaml` specifies another database path, use the corresponding development database instead. Restart the service after importing. Do not run this script against a database containing real assets. The example data follows the current schema; use a newly created development database after schema changes.
+
 ## Configuration
 
 Every setting has a default, so the program runs without a configuration file. To customize it, copy the example:
