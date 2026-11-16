@@ -214,6 +214,8 @@ Verify a backup before relying on it. To restore, stop the service, replace the 
 
 ## Development
 
+See the [interface design guidelines](docs/design-system.md) for theme, component, and interaction conventions (in Chinese).
+
 After each code change passes the relevant checks, build a release bundle using the Linux deployment steps above and update the user-designated remote development server through the configured SSH target `<dev-ssh-target>`. Stop the service before replacing artifacts, preserve the remote `config.yaml` and SQLite database, then install and start the service. Check `http://<dev-host>/healthz` and the main flow affected by the change. Keep real connection details and credentials in controlled, Git-ignored local configuration.
 
 Do not start local or localhost services by default. Only when the user explicitly requests local debugging, after the first frontend build, use `npm --prefix web run dev` to start the frontend development server, which proxies `/api` to the Go service on port 8080. Start the Go service with `go run ./cmd/dc-db` and stop both services when debugging is complete. Run `go test ./...` for Go package checks and `npm --prefix web run check` for TypeScript type checking.
