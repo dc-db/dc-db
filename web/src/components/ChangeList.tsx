@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Button, Empty, Input, Select, Space, Tag, Timeline } from 'antd'
-import { DownloadOutlined } from '@ant-design/icons'
+import { Download } from 'lucide-react'
+import { Badge } from './ui/badge'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import type { Change } from '../api'
 
 interface Props {
@@ -146,53 +149,51 @@ export function ChangeList({ changes, hideAsset, filterable, onOpen }: Props) {
     })
   }, [action, changes, keyword])
 
-  if (!changes.length) return <Empty description="暂无变更记录" />
+  if (!changes.length) return <div className="p-6 text-center text-sm text-muted-foreground">暂无变更记录</div>
 
   return (
     <>
       {filterable && (
-        <div className="change-toolbar">
-          <Space wrap>
-            <Input
-              allowClear style={{ width: 280 }} placeholder="搜索资产、操作人或动作"
-              value={keyword} onChange={event => setKeyword(event.target.value)}
-            />
-            <Select
-              allowClear style={{ width: 160 }} placeholder="全部动作" value={action}
-              onChange={setAction}
-              options={actions.map(item => ({ value: item, label: actionLabels[item] ?? item }))}
-            />
-            <span className="muted">共 {visible.length} 条</span>
-            <Button icon={<DownloadOutlined />} disabled={!visible.length} onClick={() => downloadChanges(visible)}>导出当前结果</Button>
-          </Space>
+        <div className="change-toolbar flex flex-wrap items-center gap-2">
+          <Input
+            type="search" className="w-[280px]" placeholder="搜索资产、操作人或动作" aria-label="搜索资产、操作人或动作"
+            value={keyword} onChange={event => setKeyword(event.target.value)}
+          />
+          <Select value={action ?? '__all__'} onValueChange={value => setAction(value === '__all__' ? undefined : value)}>
+            <SelectTrigger className="w-[160px]" aria-label="筛选动作"><SelectValue placeholder="全部动作" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">全部动作</SelectItem>
+              {actions.map(item => <SelectItem key={item} value={item}>{actionLabels[item] ?? item}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <span className="muted">共 {visible.length} 条</span>
+          <Button variant="outline" disabled={!visible.length} onClick={() => downloadChanges(visible)}><Download aria-hidden="true" />导出当前结果</Button>
         </div>
       )}
-      {visible.length === 0 ? <Empty description="没有匹配的变更记录" /> : (
-        <Timeline
-          items={visible.map(change => ({
-            color: 'blue',
-            children: (
-              <div>
-                <div className="change-head">
-                  <Tag>{actionLabels[change.action] ?? change.action}</Tag>
-                  {!hideAsset && change.assetId ? (
-                    <Button type="link" size="small" onClick={() => onOpen?.(change.assetId)}>{change.assetName}</Button>
-                  ) : !hideAsset ? <strong>{change.assetName}</strong> : null}
-                  <span className="muted">{change.actor} · {date(change.createdAt)}</span>
-                </div>
-                {summary(change) && <p className="change-summary">{summary(change)}</p>}
-                {differences(change).map(diff => (
-                  <div key={diff.field} className="change-field">
-                    <span className="muted">{diff.field}</span>
-                    <del>{diff.before}</del>
-                    <span aria-hidden="true">→</span>
-                    <ins>{diff.after}</ins>
-                  </div>
-                ))}
+      {visible.length === 0 ? <div className="p-6 text-center text-sm text-muted-foreground">没有匹配的变更记录</div> : (
+        <ol className="m-0 list-none p-0">
+          {visible.map((change, index) => (
+            <li key={`${change.id}-${index}`} className="relative ml-1 border-l border-border pb-5 pl-5 last:border-transparent last:pb-0">
+              <span aria-hidden="true" className="absolute -left-[5px] top-1.5 size-[9px] rounded-full bg-primary" />
+              <div className="change-head">
+                <Badge variant="outline">{actionLabels[change.action] ?? change.action}</Badge>
+                {!hideAsset && change.assetId ? (
+                  <Button variant="link" size="sm" onClick={() => onOpen?.(change.assetId)}>{change.assetName}</Button>
+                ) : !hideAsset ? <strong>{change.assetName}</strong> : null}
+                <span className="muted">{change.actor} · {date(change.createdAt)}</span>
               </div>
-            ),
-          }))}
-        />
+              {summary(change) && <p className="change-summary">{summary(change)}</p>}
+              {differences(change).map(diff => (
+                <div key={diff.field} className="change-field">
+                  <span className="muted">{diff.field}</span>
+                  <del>{diff.before}</del>
+                  <span aria-hidden="true">→</span>
+                  <ins>{diff.after}</ins>
+                </div>
+              ))}
+            </li>
+          ))}
+        </ol>
       )}
     </>
   )

@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
-import { Button, Card, Col, Empty, Progress, Row, Statistic } from 'antd'
-import {
-  ApartmentOutlined, CloudServerOutlined, DesktopOutlined, GlobalOutlined,
-  HddOutlined, MenuOutlined, StarFilled, StarOutlined, SwapOutlined,
-} from '@ant-design/icons'
+import type { ReactNode } from 'react'
+import { ArrowLeftRight, Building2, Globe, HardDrive, List, Monitor, Server, Star } from 'lucide-react'
+import { Button } from './ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { Progress } from './ui/progress'
 import type { EChartsOption } from 'echarts'
 import type { Asset, Change, Subnet, Tag } from '../api'
 import type { Facilities } from '../facilities'
@@ -28,6 +28,14 @@ interface Props {
 }
 
 const colors = ['#1677ff', '#13c2c2', '#faad14', '#722ed1', '#52c41a']
+
+function DashboardCard({ children, title, extra }: { children: ReactNode; title: ReactNode; extra?: ReactNode }) {
+  return <Card className="h-full gap-0 py-0"><CardHeader className="flex min-h-11 flex-row items-center justify-between gap-3 border-b px-4 py-2"><CardTitle>{title}</CardTitle>{extra}</CardHeader><CardContent className="p-4">{children}</CardContent></Card>
+}
+
+function Empty({ description }: { description: string }) {
+  return <div className="p-6 text-center text-sm text-muted-foreground">{description}</div>
+}
 
 export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rackBookmarks, subnetBookmarks, tags, dark, onGo, onOpenAsset, onOpenRack, onOpenSubnet }: Props) {
   const stats = useMemo(() => {
@@ -203,44 +211,43 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
 
   return (
     <div>
-      <Row gutter={[16, 16]} className="metric-row">
+      <div className="metric-row grid grid-cols-3 gap-4 xl:grid-cols-6">
         {[
-          { label: '资产总数', value: stats.active.length, icon: <HddOutlined />, hint: '在册资产', target: 'assets' as Page },
-          { label: '物理机', value: stats.hosts.length, icon: <CloudServerOutlined />, hint: '独立主机与虚拟化节点', target: 'host' as Page },
-          { label: '虚拟机', value: stats.vms.length, icon: <DesktopOutlined />, hint: `${stats.running} 台运行中`, target: 'vm' as Page },
-          { label: '交换机', value: stats.switches.length, icon: <SwapOutlined />, hint: '网络设备', target: 'switch' as Page },
-          { label: '数据中心', value: facilities.rooms.length, icon: <ApartmentOutlined />, hint: `${facilities.racks.length} 台机柜`, target: 'facilities' as Page },
-          { label: 'IP 空闲', value: stats.free, icon: <GlobalOutlined />, hint: `${subnets.length} 个网段 · 使用率 ${ipPercent}%`, target: 'ipam' as Page },
+          { label: '资产总数', value: stats.active.length, icon: <HardDrive size="1em" aria-hidden="true" />, hint: '在册资产', target: 'assets' as Page },
+          { label: '物理机', value: stats.hosts.length, icon: <Server size="1em" aria-hidden="true" />, hint: '独立主机与虚拟化节点', target: 'host' as Page },
+          { label: '虚拟机', value: stats.vms.length, icon: <Monitor size="1em" aria-hidden="true" />, hint: `${stats.running} 台运行中`, target: 'vm' as Page },
+          { label: '交换机', value: stats.switches.length, icon: <ArrowLeftRight size="1em" aria-hidden="true" />, hint: '网络设备', target: 'switch' as Page },
+          { label: '数据中心', value: facilities.rooms.length, icon: <Building2 size="1em" aria-hidden="true" />, hint: `${facilities.racks.length} 台机柜`, target: 'facilities' as Page },
+          { label: 'IP 空闲', value: stats.free, icon: <Globe size="1em" aria-hidden="true" />, hint: `${subnets.length} 个网段 · 使用率 ${ipPercent}%`, target: 'ipam' as Page },
         ].map(item => (
-          <Col key={item.label} xs={24} sm={12} lg={8} xl={4}>
-            <Card
-              hoverable={!!item.target} className="metric-card"
-              style={{ cursor: item.target ? 'pointer' : 'default' }}
-              onClick={() => item.target && onGo(item.target)}
-            >
-              <span className="metric-icon">{item.icon}</span>
-              <Statistic title={item.label} value={item.value} />
-              <div className="metric-hint">{item.hint}</div>
-            </Card>
-          </Col>
+          <div key={item.label} className="min-w-0">
+            <button type="button" className="metric-card w-full cursor-pointer border-0 bg-transparent p-0 text-left" onClick={() => onGo(item.target)}>
+              <Card className="h-full"><CardContent>
+                <span className="metric-icon">{item.icon}</span>
+                <div className="mb-1 text-muted-foreground">{item.label}</div>
+                <div className="text-2xl font-semibold">{item.value.toLocaleString()}</div>
+                <div className="metric-hint">{item.hint}</div>
+              </CardContent></Card>
+            </button>
+          </div>
         ))}
-      </Row>
+      </div>
 
-      <Row gutter={[16, 16]} className="dashboard-section">
-        <Col xs={24} lg={14}>
-          <Card title={`我的收藏${favoriteCount ? ` (${favoriteCount})` : ''}`} size="small">
+      <div className="dashboard-section grid grid-cols-12 gap-4">
+        <div className="col-span-7 min-w-0">
+          <DashboardCard title={`我的收藏${favoriteCount ? ` (${favoriteCount})` : ''}`}>
             {favoriteCount ? (
               <>
                 {bookmarked.length > 0 && (
                   <div className="bookmark-grid">
                     {bookmarked.slice(0, 8).map(asset => (
                       <button key={asset.id} type="button" className="bookmark-item" onClick={() => onOpenAsset(asset.id)}>
-                        <span className="bookmark-icon">{asset.kind === 'host' ? <CloudServerOutlined /> : asset.kind === 'switch' ? <SwapOutlined /> : <DesktopOutlined />}</span>
+                        <span className="bookmark-icon">{asset.kind === 'host' ? <Server size="1em" aria-hidden="true" /> : asset.kind === 'switch' ? <ArrowLeftRight size="1em" aria-hidden="true" /> : <Monitor size="1em" aria-hidden="true" />}</span>
                         <span className="bookmark-copy">
                           <strong>{asset.name}</strong>
                           <small>{asset.kind === 'host' ? '物理机' : asset.kind === 'switch' ? '交换机' : '虚拟机'} · {asset.address || asset.owner || '—'}</small>
                         </span>
-                        <StarFilled className="bookmark-star" />
+                        <Star size="1em" className="bookmark-star" fill="currentColor" aria-hidden="true" />
                       </button>
                     ))}
                   </div>
@@ -251,7 +258,7 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
                     <div className="favorite-chips">
                       {bookmarkedRacks.slice(0, 8).map(rack => (
                         <button key={rack.id} type="button" className="favorite-chip" onClick={() => onOpenRack(rack.roomId, rack.id)}>
-                          <span className="favorite-chip-icon"><MenuOutlined /></span>
+                          <span className="favorite-chip-icon"><List size="1em" aria-hidden="true" /></span>
                           <span className="favorite-chip-copy">
                             <strong>{rack.name}</strong>
                             <small>{facilities.rooms.find(room => room.id === rack.roomId)?.name ?? '未绑定数据中心'} · {rack.heightU}U</small>
@@ -267,7 +274,7 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
                     <div className="favorite-chips">
                       {bookmarkedSubnets.slice(0, 8).map(subnet => (
                         <button key={subnet.id} type="button" className="favorite-chip" onClick={() => onOpenSubnet(subnet.id)}>
-                          <span className="favorite-chip-icon"><GlobalOutlined /></span>
+                          <span className="favorite-chip-icon"><Globe size="1em" aria-hidden="true" /></span>
                           <span className="favorite-chip-copy">
                             <strong>{subnet.name}</strong>
                             <small className="mono">{subnet.cidr} · 已用 {subnet.used}/{subnet.usable}</small>
@@ -279,56 +286,56 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
                 )}
               </>
             ) : (
-              <div className="bookmark-empty"><StarOutlined /> 在资产、机柜或网段详情点击星标，收藏常用对象。</div>
+              <div className="bookmark-empty"><Star size="1em" aria-hidden="true" /> 在资产、机柜或网段详情点击星标，收藏常用对象。</div>
             )}
-          </Card>
-        </Col>
-        <Col xs={24} lg={10}>
-          <Card
-            title="标签使用" size="small"
-            extra={<Button type="link" size="small" onClick={() => onGo('tags')}>管理标签</Button>}
+          </DashboardCard>
+        </div>
+        <div className="col-span-5 min-w-0">
+          <DashboardCard
+            title="标签使用"
+            extra={<Button variant="link" size="sm" onClick={() => onGo('tags')}>管理标签</Button>}
           >
             {tags.some(tag => (tag.assetCount ?? 0) > 0)
               ? <Chart option={tagOption} height={220} dark={dark} />
               : <div className="dashboard-chart-empty"><Empty description="暂无标签数据" /></div>}
-          </Card>
-        </Col>
-      </Row>
+          </DashboardCard>
+        </div>
+      </div>
 
-      <Row gutter={[16, 16]} className="dashboard-grid">
-        <Col xs={24} lg={8}>
-          <Card title="资源类型" size="small">
+      <div className="dashboard-grid mt-4 grid grid-cols-3 gap-4">
+        <div className="min-w-0">
+          <DashboardCard title="资源类型">
             {stats.active.length ? <Chart option={typeOption} dark={dark} /> : <div className="dashboard-chart-empty"><Empty description="暂无资产" /></div>}
-          </Card>
-        </Col>
-        <Col xs={24} lg={8}>
-          <Card title="虚拟机状态" size="small">
+          </DashboardCard>
+        </div>
+        <div className="min-w-0">
+          <DashboardCard title="虚拟机状态">
             {stats.vms.length ? <Chart option={vmStatusOption} dark={dark} /> : <div className="dashboard-chart-empty"><Empty description="暂无虚拟机" /></div>}
-          </Card>
-        </Col>
-        <Col xs={24} lg={8}>
-          <Card title="平台分布" size="small">
+          </DashboardCard>
+        </div>
+        <div className="min-w-0">
+          <DashboardCard title="平台分布">
             {stats.hosts.length + stats.vms.length ? <Chart option={platformOption} dark={dark} /> : <div className="dashboard-chart-empty"><Empty description="暂无物理机或虚拟机" /></div>}
-          </Card>
-        </Col>
-      </Row>
+          </DashboardCard>
+        </div>
+      </div>
 
-      <Row gutter={[16, 16]} className="dashboard-section">
-        <Col xs={24} lg={14}>
-          <Card title="网段使用率" size="small">
+      <div className="dashboard-section grid grid-cols-12 gap-4">
+        <div className="col-span-7 min-w-0">
+          <DashboardCard title="网段使用率">
             {subnets.length ? <Chart option={subnetOption} height={280} dark={dark} /> : <div className="dashboard-chart-empty"><Empty description="暂无网段" /></div>}
             <div style={{ marginTop: 12 }}>
-              <Progress percent={ipPercent} status={ipPercent > 85 ? 'exception' : 'normal'} />
+              <div className="mb-1 flex items-center gap-2"><Progress value={Math.min(100, Math.max(0, ipPercent))} aria-label="IP 使用率" className={ipPercent > 85 ? '[&>div]:bg-destructive' : undefined} /><span>{ipPercent}%</span></div>
               <div className="muted">可用 {stats.usable.toLocaleString()} · 已用 {stats.used.toLocaleString()} · 空闲 {stats.free.toLocaleString()}</div>
             </div>
-          </Card>
-        </Col>
-        <Col xs={24} lg={10}>
-          <Card title="最近变更" size="small">
+          </DashboardCard>
+        </div>
+        <div className="col-span-5 min-w-0">
+          <DashboardCard title="最近变更">
             {changes.length ? <ChangeList changes={changes.slice(0, 6)} onOpen={onOpenAsset} /> : <Empty description="暂无变更记录" />}
-          </Card>
-        </Col>
-      </Row>
+          </DashboardCard>
+        </div>
+      </div>
     </div>
   )
 }
