@@ -1589,7 +1589,13 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                   key: 'relations', label: `资源关系 (${related.length})`,
                   children: (
                     <>
-                      {related.length > 0 && <AssetRelationGraph asset={selected} links={related} assets={assets} dark={dark} />}
+                      {related.length > 0 && (
+                        <AssetRelationGraph
+                          key={`${selected.id}:${related.map(link => link.id).join('-')}`}
+                          asset={selected} links={related} assets={assets} dark={dark}
+                          onOpenAsset={id => void openAsset(id)}
+                        />
+                      )}
                       {editable && relationOptions.length > 0 && <Button size="small" onClick={startRelation}><PlusOutlined /> 添加关系</Button>}
                       {showRelationForm && (
                         <Form layout="inline" className="relation-form" onFinish={() => void updateLink()}>

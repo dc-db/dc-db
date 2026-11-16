@@ -206,6 +206,46 @@ html[data-theme="dark"] .import-error-row strong { color: #ff7875; }
 .detail-notes { margin-top: 16px; padding: 12px; border-radius: 6px; background: var(--subtle); color: var(--text); white-space: pre-wrap; }
 .inline-link { height: auto; padding: 0; }
 .relation-form { margin: 12px 0; }
+
+/* Relationship topology (React Flow) */
+.relation-topology { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.relation-topology-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.relation-topology-title { display: flex; align-items: center; gap: 7px; color: var(--text); font-size: 13px; }
+.relation-topology-title strong { font-weight: 600; }
+.relation-topology-canvas { height: 380px; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.relation-topology-canvas .react-flow { height: 100%; }
+.relation-topology-canvas .react-flow__node-asset { padding: 0; border: 0; background: transparent; box-shadow: none; }
+.relation-node { width: 100%; min-height: 92px; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid var(--relation-color); border-radius: 8px; background: var(--surface); color: var(--text); box-shadow: 0 2px 8px rgba(0, 0, 0, .06); cursor: grab; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.relation-node:hover { border-color: var(--primary); box-shadow: 0 5px 16px rgba(22, 119, 255, .14); }
+.relation-node.is-center { border-color: var(--primary); background: var(--selected); box-shadow: 0 4px 16px rgba(22, 119, 255, .16); }
+.relation-node-head { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.relation-node-icon { display: grid; place-items: center; flex: 0 0 auto; width: 28px; height: 28px; border-radius: 6px; background: var(--subtle); color: var(--relation-color); }
+.relation-node-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.relation-node-copy strong { overflow: hidden; color: var(--text); font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.relation-node-copy span { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.relation-node-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 9px; color: var(--muted); font-size: 10px; }
+.relation-node-relation { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.relation-node-status { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+.relation-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+.relation-node[data-status="online"] .relation-status-dot,
+.relation-node[data-status="running"] .relation-status-dot { background: #16a34a; }
+.relation-node[data-status="offline"] .relation-status-dot { background: #dc2626; }
+.relation-node[data-status="paused"] .relation-status-dot { background: #d97706; }
+.relation-node[data-status="stopped"] .relation-status-dot,
+.relation-node[data-status="unknown"] .relation-status-dot { background: #94a3b8; }
+.relation-handle { width: 6px; height: 6px; border: 1px solid var(--surface); background: var(--primary); }
+.react-flow__node.selected .relation-node { outline: 2px solid var(--primary); outline-offset: 2px; }
+.relation-topology-canvas .react-flow__controls { overflow: hidden; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 2px 8px rgba(0, 0, 0, .08); }
+.relation-topology-canvas .react-flow__controls-button { border-bottom-color: var(--line); background: var(--surface); color: var(--text); fill: var(--text); }
+.relation-topology-canvas .react-flow__controls-button:hover { background: var(--hover); }
+.relation-minimap { overflow: hidden; border: 1px solid var(--line); border-radius: 6px; background: var(--surface) !important; }
+.relation-more { padding: 4px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--muted); font-size: 10px; }
+.relation-topology-canvas .react-flow__attribution { color: var(--muted); font-size: 9px; background: transparent; }
+.relation-topology-canvas .react-flow__edge-text { fill: var(--muted); }
+@media (max-width: 900px) {
+  .relation-topology-canvas { height: 320px; }
+}
+
 .password-card { max-width: 560px; }
 .password-hint { margin-bottom: 16px; }
 .password-alert { margin-bottom: 16px; }
