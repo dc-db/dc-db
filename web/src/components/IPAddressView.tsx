@@ -1,65 +1,25 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Alert, Button, Card, Col, Form, Input, Modal, Popconfirm, Row, Select, Space, Statistic, Table, Tag,
-} from 'antd'
-import type { TableColumnsType } from 'antd'
-import {
-  DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined, SearchOutlined,
-} from '@ant-design/icons'
+import { flexRender, getCoreRowModel, getPaginationRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
+import { Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Asset, IPAddress, Subnet } from '../api'
+import { Badge } from './ui/badge'
+import { Button } from './ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
+import { Input } from './ui/input'
+import { Textarea } from './ui/textarea'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
+import { SearchableSelect } from './SearchableSelect'
 
-interface Props {
-  editable: boolean
-  assets: Asset[]
-  subnets: Subnet[]
-  onOpenAsset: (id: number) => void
-  onOpenSubnet: (id: number) => void
-  onSessionError: (error: unknown) => void
-  onChanged: () => void
-}
-
-const stateMeta: Record<string, { label: string; color: string }> = {
-  active: { label: '启用', color: 'green' },
-  reserved: { label: '预留', color: 'cyan' },
-  deprecated: { label: '停用', color: 'default' },
-  dhcp: { label: 'DHCP', color: 'purple' },
-  slaac: { label: 'SLAAC', color: 'purple' },
-}
-const sourceMeta: Record<string, { label: string; color: string }> = {
-  allocated: { label: '手工分配', color: 'blue' },
-  asset: { label: '资产地址', color: 'default' },
-  gateway: { label: '网关', color: 'gold' },
-}
-const roleLabels: Record<string, string> = {
-  loopback: '环回', secondary: '辅助', vip: 'VIP', vrrp: 'VRRP',
-  hsrp: 'HSRP', glbp: 'GLBP', anycast: 'Anycast',
-}
-
-interface AddressFormValues {
-  subnetId?: number
-  ip?: string
-  status: string
-  dnsName?: string
-  role?: string
-  assetId?: number
-  label?: string
-  notes?: string
-}
-
-function sourceTag(source: string) {
-  const meta = sourceMeta[source] ?? { label: source, color: 'default' }
-  return <Tag color={meta.color}>{meta.label}</Tag>
-}
-
-function stateTag(state: string) {
-  const meta = stateMeta[state] ?? { label: state, color: 'default' }
-  return <Tag color={meta.color}>{meta.label}</Tag>
-}
-
-function assetLabel(asset: Asset) {
-  return `${asset.name}（${asset.kind === 'vm' ? '虚拟机' : asset.kind === 'switch' ? '交换机' : '物理机'}）`
-}
+interface Props { editable: boolean; assets: Asset[]; subnets: Subnet[]; onOpenAsset: (id: number) => void; onOpenSubnet: (id: number) => void; onSessionError: (error: unknown) => void; onChanged: () => void }
+const stateMeta: Record<string, string> = { active: '启用', reserved: '预留', deprecated: '停用', dhcp: 'DHCP', slaac: 'SLAAC' }
+const sourceMeta: Record<string, string> = { allocated: '手工分配', asset: '资产地址', gateway: '网关' }
+const roleLabels: Record<string, string> = { loopback: '环回', secondary: '辅助', vip: 'VIP', vrrp: 'VRRP', hsrp: 'HSRP', glbp: 'GLBP', anycast: 'Anycast' }
+const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
+interface AddressFields { subnetId?: number; ip: string; status: string; dnsName: string; role: string; assetId?: number; label: string; notes: string }
+const emptyFields: AddressFields = { ip: '', status: 'active', dnsName: '', role: '', label: '', notes: '' }
+const assetLabel = (asset: Asset) => `${asset.name}（${asset.kind === 'vm' ? '虚拟机' : asset.kind === 'switch' ? '交换机' : '物理机'}）`
 
 export function IPAddressView({ editable, assets, subnets, onOpenAsset, onOpenSubnet, onSessionError, onChanged }: Props) {
   const [addresses, setAddresses] = useState<IPAddress[]>([])
@@ -69,291 +29,74 @@ export function IPAddressView({ editable, assets, subnets, onOpenAsset, onOpenSu
   const [modalError, setModalError] = useState('')
   const [feedback, setFeedback] = useState('')
   const [keyword, setKeyword] = useState('')
-  const [source, setSource] = useState<string | undefined>()
-  const [state, setState] = useState<string | undefined>()
-  const [subnetId, setSubnetId] = useState<number | undefined>()
+  const [source, setSource] = useState('')
+  const [state, setState] = useState('')
+  const [subnetId, setSubnetId] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<IPAddress | null>(null)
-  const [form] = Form.useForm<AddressFormValues>()
-
+  const [releasing, setReleasing] = useState<IPAddress | null>(null)
+  const [fields, setFields] = useState<AddressFields>(emptyFields)
   useEffect(() => { void load() }, [])
-
-  function report(e: unknown) {
-    if (e instanceof APIError && e.status === 401) {
-      onSessionError(e)
-      return
-    }
-    setError(e instanceof Error ? e.message : '操作失败')
-  }
-
-  async function load() {
-    setLoading(true)
-    setError('')
-    try {
-      setAddresses(await api<IPAddress[]>('/ip-addresses'))
-    } catch (e) {
-      report(e)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  function openCreate() {
-    setEditing(null)
-    setError('')
-    setModalError('')
-    setFeedback('')
+  function report(e: unknown) { if (e instanceof APIError && e.status === 401) { onSessionError(e); return }; setError(e instanceof Error ? e.message : '操作失败') }
+  async function load() { setLoading(true); setError(''); try { setAddresses(await api<IPAddress[]>('/ip-addresses')) } catch (e) { report(e) } finally { setLoading(false) } }
+  function showForm(address: IPAddress | null) {
+    setEditing(address); setError(''); setModalError(''); setFeedback('')
+    setFields(address ? { subnetId: address.subnetId, ip: address.ip, status: address.state, dnsName: address.dnsName ?? '', role: address.role ?? '', assetId: address.assetId || undefined, label: address.label ?? '', notes: address.notes ?? '' } : emptyFields)
     setModalOpen(true)
   }
-
-  function openEdit(address: IPAddress) {
-    setEditing(address)
-    setError('')
-    setModalError('')
-    setFeedback('')
-    setModalOpen(true)
-  }
-
   async function save() {
-    const values = await form.validateFields()
-    setBusy(true)
-    setModalError('')
+    if (!editing && (!fields.subnetId || !fields.ip.trim())) { setModalError('请选择网段并填写 IP 地址'); return }
+    setBusy(true); setModalError('')
     try {
-      const fields = {
-        assetId: values.assetId ?? 0,
-        label: values.label ?? '',
-        notes: values.notes ?? '',
-        status: values.status,
-        dnsName: values.dnsName ?? '',
-        role: values.role ?? '',
-      }
-      if (editing?.allocationId) {
-        await api(`/allocations/${editing.allocationId}`, 'PUT', { ...fields, version: editing.version ?? 0 })
-      } else {
-        if (!values.subnetId || !values.ip?.trim()) {
-          setModalError('请选择网段并填写 IP 地址')
-          return
-        }
-        await api(`/subnets/${values.subnetId}/allocations`, 'POST', { ...fields, ip: values.ip.trim() })
-      }
+      const body = { assetId: fields.assetId ?? 0, label: fields.label, notes: fields.notes, status: fields.status, dnsName: fields.dnsName, role: fields.role }
+      if (editing?.allocationId) await api(`/allocations/${editing.allocationId}`, 'PUT', { ...body, version: editing.version ?? 0 })
+      else await api(`/subnets/${fields.subnetId}/allocations`, 'POST', { ...body, ip: fields.ip.trim() })
       const wasEdit = !!editing
-      setModalOpen(false)
-      setEditing(null)
-      await load()
-      setFeedback(wasEdit ? 'IP 地址记录已更新' : 'IP 地址已分配')
-      onChanged()
-    } catch (e) {
-      if (e instanceof APIError && e.status === 401) onSessionError(e)
-      else setModalError(e instanceof Error ? e.message : '保存失败')
-    } finally {
-      setBusy(false)
-    }
+      setModalOpen(false); setEditing(null); await load(); setFeedback(wasEdit ? 'IP 地址记录已更新' : 'IP 地址已分配'); onChanged()
+    } catch (e) { if (e instanceof APIError && e.status === 401) onSessionError(e); else setModalError(e instanceof Error ? e.message : '保存失败') } finally { setBusy(false) }
   }
-
   async function release(address: IPAddress) {
     if (!address.allocationId) return
-    setBusy(true)
-    setError('')
-    try {
-      await api(`/allocations/${address.allocationId}?version=${address.version ?? 0}`, 'DELETE')
-      await load()
-      setFeedback('IP 地址已释放')
-      onChanged()
-    } catch (e) {
-      report(e)
-    } finally {
-      setBusy(false)
-    }
+    setBusy(true); setError('')
+    try { await api(`/allocations/${address.allocationId}?version=${address.version ?? 0}`, 'DELETE'); setReleasing(null); await load(); setFeedback('IP 地址已释放'); onChanged() }
+    catch (e) { setReleasing(null); report(e) } finally { setBusy(false) }
   }
-
   const visible = useMemo(() => {
     const query = keyword.trim().toLowerCase()
-    return addresses.filter(address => {
-      if (source && address.source !== source) return false
-      if (state && address.state !== state) return false
-      if (subnetId && address.subnetId !== subnetId) return false
-      if (!query) return true
-      return [address.ip, address.dnsName, address.assetName, address.label, address.notes, address.subnetName,
-        stateMeta[address.state]?.label, sourceMeta[address.source]?.label]
-        .some(value => value?.toLowerCase().includes(query))
-    })
+    return addresses.filter(address => (!source || address.source === source) && (!state || address.state === state) && (!subnetId || address.subnetId === Number(subnetId)) && (!query || [address.ip, address.dnsName, address.assetName, address.label, address.notes, address.subnetName, stateMeta[address.state], sourceMeta[address.source]].some(value => value?.toLowerCase().includes(query))))
   }, [addresses, keyword, source, state, subnetId])
-
-  const stats = useMemo(() => ({
-    total: addresses.length,
-    allocated: addresses.filter(address => address.source === 'allocated').length,
-    asset: addresses.filter(address => address.source === 'asset').length,
-    gateway: addresses.filter(address => address.source === 'gateway').length,
-  }), [addresses])
-
-  const columns: TableColumnsType<IPAddress> = [
-    {
-      title: 'IP 地址', dataIndex: 'ip', key: 'ip', width: 145,
-      render: value => <span className="mono">{value}</span>,
-    },
-    { title: '状态', dataIndex: 'state', key: 'state', width: 90, render: stateTag },
-    { title: '来源', dataIndex: 'source', key: 'source', width: 110, render: sourceTag },
-    { title: 'DNS 名称', dataIndex: 'dnsName', key: 'dnsName', render: value => value ? <span className="mono">{value}</span> : '—' },
-    { title: '角色', dataIndex: 'role', key: 'role', width: 90, render: value => roleLabels[value] ?? (value || '—') },
-    {
-      title: '资产 / 用途', key: 'owner',
-      render: (_, address) => (
-        <span>
-          {address.assetId && address.assetName
-            ? <Button type="link" className="inline-link" onClick={() => onOpenAsset(address.assetId!)}>{address.assetName}</Button>
-            : address.label || '—'}
-          {address.assetId && address.label && <span className="muted"> / {address.label}</span>}
-        </span>
-      ),
-    },
-    {
-      title: '网段', key: 'subnet',
-      render: (_, address) => (
-        <Button type="link" className="inline-link" onClick={() => onOpenSubnet(address.subnetId)}>{address.subnetName}</Button>
-      ),
-    },
-    { title: '备注', dataIndex: 'notes', key: 'notes', ellipsis: true, render: value => value || '—' },
-    ...(editable ? [{
-      title: '操作', key: 'actions', width: 120,
-      render: (_: unknown, address: IPAddress) => address.allocationId ? (
-        <Space size={0}>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(address)}>编辑</Button>
-          <Popconfirm title="释放该 IP？" okText="释放" cancelText="取消" onConfirm={() => void release(address)}>
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} aria-label={`释放 ${address.ip}`} />
-          </Popconfirm>
-        </Space>
-      ) : <span className="muted">—</span>,
-    }] : []),
+  const stats = [['全部地址', addresses.length], ['手工分配', addresses.filter(a => a.source === 'allocated').length], ['资产地址', addresses.filter(a => a.source === 'asset').length], ['网关', addresses.filter(a => a.source === 'gateway').length]] as const
+  const columns: ColumnDef<IPAddress>[] = [
+    { accessorKey: 'ip', header: 'IP 地址', cell: ({ row }) => <span className="font-mono">{row.original.ip}</span> },
+    { accessorKey: 'state', header: '状态', cell: ({ row }) => <Badge variant="outline">{stateMeta[row.original.state] ?? row.original.state}</Badge> },
+    { accessorKey: 'source', header: '来源', cell: ({ row }) => <Badge variant="secondary">{sourceMeta[row.original.source] ?? row.original.source}</Badge> },
+    { accessorKey: 'dnsName', header: 'DNS 名称', cell: ({ row }) => <span className="font-mono">{row.original.dnsName || '—'}</span> },
+    { accessorKey: 'role', header: '角色', cell: ({ row }) => roleLabels[row.original.role ?? ''] ?? (row.original.role || '—') },
+    { id: 'owner', header: '资产 / 用途', cell: ({ row }) => <span>{row.original.assetId && row.original.assetName ? <Button variant="link" className="h-auto p-0" onClick={() => onOpenAsset(row.original.assetId!)}>{row.original.assetName}</Button> : row.original.label || '—'}{row.original.assetId && row.original.label && <span className="text-muted-foreground"> / {row.original.label}</span>}</span> },
+    { id: 'subnet', header: '网段', cell: ({ row }) => <Button variant="link" className="h-auto p-0" onClick={() => onOpenSubnet(row.original.subnetId)}>{row.original.subnetName}</Button> },
+    { accessorKey: 'notes', header: '备注', cell: ({ row }) => row.original.notes || '—' },
+    ...(editable ? [{ id: 'actions', header: '操作', cell: ({ row }: { row: { original: IPAddress } }) => row.original.allocationId ? <div className="flex gap-1"><Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button><Button variant="ghost" size="icon" className="text-destructive" aria-label={`释放 ${row.original.ip}`} onClick={() => setReleasing(row.original)}><Trash2 /></Button></div> : '—' }] : []),
   ]
-
-  return (
-    <Card
-      variant="borderless"
-      title={<Space><span>IP 地址</span><Tag>{addresses.length} 条记录</Tag></Space>}
-      extra={(
-        <Space>
-          <Button loading={loading} onClick={() => void load()}><ReloadOutlined /> 刷新</Button>
-          {editable && <Button type="primary" onClick={openCreate}><PlusOutlined /> 分配 IP</Button>}
-        </Space>
-      )}
-    >
-      {error && <Alert type="error" showIcon closable message={error} className="ipam-alert" onClose={() => setError('')} />}
-      {feedback && <Alert type="success" showIcon closable message={feedback} className="ipam-alert" onClose={() => setFeedback('')} />}
-
-      <Row gutter={12} className="ipam-stats">
-        <Col span={6}><Card size="small"><Statistic title="全部地址" value={stats.total} /></Card></Col>
-        <Col span={6}><Card size="small"><Statistic title="手工分配" value={stats.allocated} /></Card></Col>
-        <Col span={6}><Card size="small"><Statistic title="资产地址" value={stats.asset} /></Card></Col>
-        <Col span={6}><Card size="small"><Statistic title="网关" value={stats.gateway} /></Card></Col>
-      </Row>
-
-      <div className="table-toolbar">
-        <Input
-          allowClear prefix={<SearchOutlined />} className="table-search"
-          placeholder="搜索 IP、DNS、资产、用途或网段"
-          value={keyword} onChange={event => setKeyword(event.target.value)}
-        />
-        <Space wrap>
-          <Select
-            allowClear style={{ width: 150 }} placeholder="全部网段" value={subnetId}
-            onChange={setSubnetId}
-            options={subnets.map(subnet => ({ value: subnet.id, label: `${subnet.name} · ${subnet.cidr}` }))}
-          />
-          <Select
-            allowClear style={{ width: 120 }} placeholder="全部来源" value={source}
-            onChange={setSource}
-            options={Object.entries(sourceMeta).map(([value, meta]) => ({ value, label: meta.label }))}
-          />
-          <Select
-            allowClear style={{ width: 120 }} placeholder="全部状态" value={state}
-            onChange={setState}
-            options={Object.entries(stateMeta).map(([value, meta]) => ({ value, label: meta.label }))}
-          />
-          <span className="muted">共 {visible.length} 条</span>
-        </Space>
-      </div>
-
-      <Table<IPAddress>
-        rowKey="key" size="middle" columns={columns} dataSource={visible} loading={loading}
-        scroll={{ x: 'max-content' }} locale={{ emptyText: '暂无匹配的 IP 地址' }}
-        pagination={{ pageSize: 20, showSizeChanger: true, pageSizeOptions: ['10', '20', '50'], showTotal: total => `共 ${total} 条` }}
-      />
-
-      <Modal
-        open={modalOpen} title={editing ? `编辑 ${editing.ip}` : '分配 IP 地址'} footer={null}
-        width={600} destroyOnHidden maskClosable={!busy}
-        onCancel={() => { if (!busy) { setModalOpen(false); setEditing(null); setModalError('') } }}
-      >
-        {modalError && <Alert type="error" showIcon message={modalError} className="bulk-alert" />}
-        <Form
-          key={editing?.key ?? 'new'} form={form} layout="vertical"
-          initialValues={editing
-            ? {
-                subnetId: editing.subnetId, ip: editing.ip, status: editing.state, dnsName: editing.dnsName,
-                role: editing.role, assetId: editing.assetId || undefined, label: editing.label, notes: editing.notes,
-              }
-            : { status: 'active', role: '', assetId: undefined }}
-          onFinish={() => void save()}
-        >
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item label="网段" name="subnetId" rules={[{ required: true, message: '请选择网段' }]}>
-                <Select
-                  disabled={!!editing} showSearch optionFilterProp="label" placeholder="选择网段"
-                  options={subnets.map(subnet => ({ value: subnet.id, label: `${subnet.name} · ${subnet.cidr}` }))}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="IP 地址" name="ip" rules={[{ required: true, message: '请输入 IP 地址' }]}>
-                <Input disabled={!!editing} className="mono" placeholder="例如：192.168.10.20" maxLength={64} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="状态" name="status" rules={[{ required: true }]}>
-                <Select options={Object.entries(stateMeta).map(([value, meta]) => ({ value, label: meta.label }))} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="角色" name="role">
-                <Select
-                  allowClear placeholder="可选"
-                  options={Object.entries(roleLabels).map(([value, label]) => ({ value, label }))}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="DNS 名称" name="dnsName">
-                <Input className="mono" maxLength={255} placeholder="例如：db-01.example.test" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="关联资产" name="assetId">
-                <Select
-                  allowClear showSearch optionFilterProp="label" placeholder="可选"
-                  options={assets.map(asset => ({ value: asset.id, label: assetLabel(asset) }))}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={24}>
-              <Form.Item label="用途 / 标签" name="label">
-                <Input maxLength={160} placeholder="例如：VIP、数据库主地址" />
-              </Form.Item>
-            </Col>
-            <Col span={24}>
-              <Form.Item label="备注" name="notes">
-                <Input.TextArea rows={2} maxLength={2000} placeholder="可选" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <div className="bulk-modal-actions">
-            <Space>
-              <Button type="primary" htmlType="submit" loading={busy}>保存</Button>
-              <Button disabled={busy} onClick={() => { setModalOpen(false); setEditing(null); setModalError('') }}>取消</Button>
-            </Space>
-          </div>
-        </Form>
-      </Modal>
-    </Card>
-  )
+  const table = useReactTable({ data: visible, columns, initialState: { pagination: { pageIndex: 0, pageSize: 20 } }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel() })
+  return <Card><CardHeader className="flex flex-row items-center justify-between gap-4"><CardTitle className="flex items-center gap-2">IP 地址 <Badge variant="secondary">{addresses.length} 条记录</Badge></CardTitle><div className="flex gap-2"><Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>{editable && <Button onClick={() => showForm(null)}><Plus />分配 IP</Button>}</div></CardHeader><CardContent>
+    {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
+    {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-400">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
+    <div className="mb-4 grid grid-cols-4 gap-3">{stats.map(([label, value]) => <div key={label} className="rounded-lg border p-4"><div className="text-sm text-muted-foreground">{label}</div><div className="mt-1 text-2xl font-semibold">{value}</div></div>)}</div>
+    <div className="mb-4 flex items-center gap-3"><Input className="max-w-sm" placeholder="搜索 IP、DNS、资产、用途或网段" value={keyword} onChange={event => setKeyword(event.target.value)} /><select aria-label="筛选网段" className={`${selectClass} max-w-44`} value={subnetId} onChange={event => setSubnetId(event.target.value)}><option value="">全部网段</option>{subnets.map(subnet => <option key={subnet.id} value={subnet.id}>{subnet.name} · {subnet.cidr}</option>)}</select><select aria-label="筛选来源" className={`${selectClass} max-w-32`} value={source} onChange={event => setSource(event.target.value)}><option value="">全部来源</option>{Object.entries(sourceMeta).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><select aria-label="筛选状态" className={`${selectClass} max-w-32`} value={state} onChange={event => setState(event.target.value)}><option value="">全部状态</option>{Object.entries(stateMeta).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><span className="text-sm text-muted-foreground">共 {visible.length} 条</span></div>
+    <div className="overflow-x-auto"><Table><TableHeader>{table.getHeaderGroups().map(group => <TableRow key={group.id}>{group.headers.map(header => <TableHead key={header.id}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{loading ? <TableRow><TableCell colSpan={columns.length}>加载中...</TableCell></TableRow> : table.getRowModel().rows.length ? table.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">暂无匹配的 IP 地址</TableCell></TableRow>}</TableBody></Table></div>
+    <div className="mt-4 flex items-center justify-end gap-2 text-sm"><span className="text-muted-foreground">共 {visible.length} 条</span><select aria-label="每页条数" className={`${selectClass} w-24`} value={table.getState().pagination.pageSize} onChange={event => table.setPageSize(Number(event.target.value))}>{[10, 20, 50].map(size => <option key={size} value={size}>{size} 条/页</option>)}</select><Button variant="outline" size="sm" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>上一页</Button><span>{table.getState().pagination.pageIndex + 1} / {Math.max(1, table.getPageCount())}</span><Button variant="outline" size="sm" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}>下一页</Button></div>
+  </CardContent><Dialog open={modalOpen} onOpenChange={next => { if (!busy) { setModalOpen(next); if (!next) setEditing(null) } }}><DialogContent className="sm:max-w-[600px]"><DialogHeader><DialogTitle>{editing ? `编辑 ${editing.ip}` : '分配 IP 地址'}</DialogTitle></DialogHeader>
+    {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
+    <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save() }}><div className="grid grid-cols-2 gap-3">
+      <div className="space-y-2"><span className="text-sm font-medium">网段</span><SearchableSelect label="网段" placeholder="选择网段" allowClear={false} disabled={!!editing} value={fields.subnetId ? String(fields.subnetId) : ''} onChange={value => setFields({ ...fields, subnetId: Number(value) || undefined })} options={subnets.map(subnet => ({ value: String(subnet.id), label: `${subnet.name} · ${subnet.cidr}` }))} /></div>
+      <div className="space-y-2"><label htmlFor="address-ip" className="text-sm font-medium">IP 地址</label><Input id="address-ip" required disabled={!!editing} maxLength={64} className="font-mono" placeholder="例如：192.0.2.20" value={fields.ip} onChange={event => setFields({ ...fields, ip: event.target.value })} /></div>
+      <div className="space-y-2"><label htmlFor="address-state" className="text-sm font-medium">状态</label><select id="address-state" className={selectClass} value={fields.status} onChange={event => setFields({ ...fields, status: event.target.value })}>{Object.entries(stateMeta).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+      <div className="space-y-2"><label htmlFor="address-role" className="text-sm font-medium">角色</label><select id="address-role" className={selectClass} value={fields.role} onChange={event => setFields({ ...fields, role: event.target.value })}><option value="">可选</option>{Object.entries(roleLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+      <div className="space-y-2"><label htmlFor="address-dns" className="text-sm font-medium">DNS 名称</label><Input id="address-dns" className="font-mono" maxLength={255} placeholder="例如：db-01.example.test" value={fields.dnsName} onChange={event => setFields({ ...fields, dnsName: event.target.value })} /></div>
+      <div className="space-y-2"><span className="text-sm font-medium">关联资产</span><SearchableSelect label="关联资产" placeholder="可选" value={fields.assetId ? String(fields.assetId) : ''} onChange={value => setFields({ ...fields, assetId: Number(value) || undefined })} options={assets.map(asset => ({ value: String(asset.id), label: assetLabel(asset) }))} /></div>
+      <div className="col-span-2 space-y-2"><label htmlFor="address-label" className="text-sm font-medium">用途 / 标签</label><Input id="address-label" maxLength={160} placeholder="例如：VIP、数据库主地址" value={fields.label} onChange={event => setFields({ ...fields, label: event.target.value })} /></div>
+      <div className="col-span-2 space-y-2"><label htmlFor="address-notes" className="text-sm font-medium">备注</label><Textarea id="address-notes" rows={2} maxLength={2000} placeholder="可选" value={fields.notes} onChange={event => setFields({ ...fields, notes: event.target.value })} /></div>
+    </div><DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={() => setModalOpen(false)}>取消</Button><Button type="submit" disabled={busy}>{busy ? '保存中...' : '保存'}</Button></DialogFooter></form></DialogContent></Dialog>
+    <Dialog open={!!releasing} onOpenChange={next => { if (!next && !busy) setReleasing(null) }}><DialogContent><DialogHeader><DialogTitle>释放该 IP？</DialogTitle><DialogDescription>确认释放 {releasing?.ip}。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setReleasing(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (releasing) void release(releasing) }}>释放</Button></DialogFooter></DialogContent></Dialog>
+  </Card>
 }
