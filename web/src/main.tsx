@@ -1,4 +1,5 @@
 import ReactDOM from 'react-dom/client'
+import '@fontsource-variable/geist'
 import './shadcn.css'
 import './styles.css'
 import App from './App'
