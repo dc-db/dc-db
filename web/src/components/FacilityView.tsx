@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Alert, Button, Card, Dropdown, Empty, Form, Input, InputNumber, List, Modal, Progress,
-  Popconfirm, Select, Space,
-} from 'antd'
-import {
-  ApartmentOutlined, AppstoreOutlined, CloudServerOutlined, ClusterOutlined, EditOutlined,
-  MoreOutlined, PieChartOutlined, PlusOutlined, SearchOutlined, TableOutlined,
-} from '@ant-design/icons'
+import type { ReactNode } from 'react'
+import { Building2, Boxes, ChartPie, Grid2X2, LayoutGrid, MoreHorizontal, Pencil, Plus, Server } from 'lucide-react'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
+import { Button } from './ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu'
+import { Input } from './ui/input'
+import { Progress } from './ui/progress'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { api, APIError } from '../api'
 import type { Asset, Link } from '../api'
 import { assetLocations, isMountKind, locationLabel, mountKinds, occupiedUnits, placementsConflict } from '../facilities'
@@ -46,6 +48,18 @@ interface MountDraft {
   units: number
   face: RackFace
   depth: PlacementDepth
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return <label className="flex flex-col gap-1 text-sm"><span>{label}</span>{children}</label>
+}
+
+function Choice<T extends string | number>({ label, value, options, onChange, disabled, className }: { label: string; value?: T; options: { value: T; label: string }[]; onChange: (value: T) => void; disabled?: boolean; className?: string }) {
+  return <Select value={value === undefined ? undefined : String(value)} onValueChange={selected => { const option = options.find(item => String(item.value) === selected); if (option) onChange(option.value) }} disabled={disabled}><SelectTrigger aria-label={label} className={className}><SelectValue placeholder="请选择" /></SelectTrigger><SelectContent>{options.map(option => <SelectItem key={String(option.value)} value={String(option.value)}>{option.label}</SelectItem>)}</SelectContent></Select>
+}
+
+function ConfirmDelete({ title, disabled, onConfirm, children }: { title: string; disabled: boolean; onConfirm: () => void; children: ReactNode }) {
+  return <AlertDialog><AlertDialogTrigger asChild><Button type="button" variant="destructive" disabled={disabled}>{children}</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{title}</AlertDialogTitle><AlertDialogDescription>此操作无法撤销。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={onConfirm}>删除</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
 }
 
 export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, layout, assets, links, editable, dark, focus, reload, onOpenAsset, bookmarkedRacks, onToggleRackBookmark, onSessionError }: Props) {
@@ -372,69 +386,22 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   }
 
   const mountForm = rack && mountDraft ? (
-    <Form layout="inline" className="facility-form mount-form" onFinish={saveMount}>
-      <Form.Item label="录入方式">
-        <Select
-          style={{ width: 150 }} value={mountDraft.mode}
-          onChange={mode => changeMountMode({ ...mountDraft, mode })}
-          options={[{ value: 'existing', label: '关联已有资产' }, { value: 'new', label: '新建资产并上架' }]}
-        />
-      </Form.Item>
-      {mountDraft.mode === 'existing' ? (
-        <>
-          <Form.Item label="选择设备">
-            <Select
-              style={{ width: 250 }} value={mountDraft.assetId}
-              onChange={assetId => changeDevice({ ...mountDraft, assetId })}
-              options={[
-                { value: 0, label: '请选择资产' },
-                ...candidates.map(asset => ({
-                  value: asset.id,
-                  label: `${asset.name} · ${mountKinds[asset.kind as MountKind]} #${asset.id}${mounted.has(asset.id) ? ' · 已上架' : ''}`,
-                })),
-              ]}
-            />
-          </Form.Item>
-          {mountLocation && <Form.Item label="当前位置">{locationLabel(mountLocation)}</Form.Item>}
-        </>
-      ) : (
-        <>
-          <Form.Item label="设备类型">
-            <Select
-              style={{ width: 110 }} value={mountDraft.kind}
-              onChange={kind => changeMountMode({ ...mountDraft, kind })}
-              options={Object.entries(mountKinds).map(([value, label]) => ({ value, label }))}
-            />
-          </Form.Item>
-          <Form.Item label="设备名称"><Input value={mountDraft.name} maxLength={160} onChange={event => setMountDraft({ ...mountDraft, name: event.target.value })} /></Form.Item>
-          <Form.Item label="管理地址 / IP"><Input value={mountDraft.address} maxLength={160} onChange={event => setMountDraft({ ...mountDraft, address: event.target.value })} /></Form.Item>
-        </>
-      )}
-      <Form.Item label="起始 U 位"><InputNumber min={1} max={rack.heightU} value={mountDraft.startU} onChange={value => setMountDraft({ ...mountDraft, startU: value ?? 1 })} /></Form.Item>
-      <Form.Item label="占用 U 数"><InputNumber min={1} max={rack.heightU} value={mountDraft.units} onChange={value => setMountDraft({ ...mountDraft, units: value ?? 1 })} /></Form.Item>
-      <Form.Item label="安装面">
-        <Select
-          style={{ width: 100 }} value={mountDraft.face}
-          onChange={face => setMountDraft({ ...mountDraft, face })}
-          options={[{ value: 'front', label: '前面' }, { value: 'rear', label: '后面' }]}
-        />
-      </Form.Item>
-      <Form.Item label="深度">
-        <Select
-          style={{ width: 110 }} value={mountDraft.depth}
-          onChange={depth => setMountDraft({ ...mountDraft, depth })}
-          options={[{ value: 'full', label: '全深设备' }, { value: 'half', label: '半深设备' }]}
-        />
-      </Form.Item>
-      <Form.Item>
-        <Space>
-          <Button type="primary" htmlType="submit" loading={busy} disabled={mountDraft.mode === 'existing' && !mountDraft.assetId}>
-            {mountDraft.mode === 'existing' && mountDraft.version ? '保存位置' : '保存上架'}
-          </Button>
-          <Button onClick={() => setMountDraft(null)}>取消</Button>
-        </Space>
-      </Form.Item>
-    </Form>
+    <form className="facility-form mount-form flex flex-wrap items-end gap-3" onSubmit={event => { event.preventDefault(); saveMount() }}>
+      <Field label="录入方式"><Choice label="录入方式" value={mountDraft.mode} onChange={mode => changeMountMode({ ...mountDraft, mode })} options={[{ value: 'existing', label: '关联已有资产' }, { value: 'new', label: '新建资产并上架' }]} /></Field>
+      {mountDraft.mode === 'existing' ? <>
+        <Field label="选择设备"><Choice label="选择设备" value={mountDraft.assetId} onChange={assetId => changeDevice({ ...mountDraft, assetId })} options={[{ value: 0, label: '请选择资产' }, ...candidates.map(asset => ({ value: asset.id, label: `${asset.name} · ${mountKinds[asset.kind as MountKind]} #${asset.id}${mounted.has(asset.id) ? ' · 已上架' : ''}` }))]} /></Field>
+        {mountLocation && <div className="text-sm">当前位置：{locationLabel(mountLocation)}</div>}
+      </> : <>
+        <Field label="设备类型"><Choice label="设备类型" value={mountDraft.kind} onChange={kind => changeMountMode({ ...mountDraft, kind })} options={Object.entries(mountKinds).map(([value, label]) => ({ value: value as MountKind, label }))} /></Field>
+        <Field label="设备名称"><Input value={mountDraft.name} maxLength={160} onChange={event => setMountDraft({ ...mountDraft, name: event.target.value })} /></Field>
+        <Field label="管理地址 / IP"><Input value={mountDraft.address} maxLength={160} onChange={event => setMountDraft({ ...mountDraft, address: event.target.value })} /></Field>
+      </>}
+      <Field label="起始 U 位"><Input type="number" className="w-24" min={1} max={rack.heightU} value={mountDraft.startU} onChange={event => setMountDraft({ ...mountDraft, startU: Number(event.target.value) || 1 })} /></Field>
+      <Field label="占用 U 数"><Input type="number" className="w-24" min={1} max={rack.heightU} value={mountDraft.units} onChange={event => setMountDraft({ ...mountDraft, units: Number(event.target.value) || 1 })} /></Field>
+      <Field label="安装面"><Choice label="安装面" value={mountDraft.face} onChange={face => setMountDraft({ ...mountDraft, face })} options={[{ value: 'front', label: '前面' }, { value: 'rear', label: '后面' }]} /></Field>
+      <Field label="深度"><Choice label="深度" value={mountDraft.depth} onChange={depth => setMountDraft({ ...mountDraft, depth })} options={[{ value: 'full', label: '全深设备' }, { value: 'half', label: '半深设备' }]} /></Field>
+      <div className="flex gap-2"><Button type="submit" disabled={busy || (mountDraft.mode === 'existing' && !mountDraft.assetId)}>{mountDraft.mode === 'existing' && mountDraft.version ? '保存位置' : '保存上架'}</Button><Button type="button" variant="outline" onClick={() => setMountDraft(null)}>取消</Button></div>
+    </form>
   ) : null
 
   return (
@@ -442,243 +409,62 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
       <div className="facility-layout">
         <aside className="facility-sidebar">
           <div className="facility-sidebar-head">
-            <div className="facility-sidebar-title">
-              <ApartmentOutlined />
-              <strong>数据中心</strong>
-              <span>{rooms.length}</span>
-            </div>
-            {editable && (
-              <Dropdown
-                trigger={['click']}
-                menu={{
-                  items: [
-                    { key: 'add', label: '新增数据中心', icon: <PlusOutlined /> },
-                    { key: 'edit', label: '编辑当前数据中心', icon: <EditOutlined />, disabled: !room },
-                  ],
-                  onClick: ({ key }) => {
-                    if (key === 'add') editRoom()
-                    if (key === 'edit' && room) editRoom(room)
-                  },
-                }}
-              >
-                <Button type="text" size="small" icon={<MoreOutlined />} aria-label="数据中心操作" />
-              </Dropdown>
-            )}
+            <div className="facility-sidebar-title"><Building2 size="1em" aria-hidden="true" /><strong>数据中心</strong><span>{rooms.length}</span></div>
+            {editable && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="数据中心操作"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => editRoom()}><Plus />新增数据中心</DropdownMenuItem><DropdownMenuItem disabled={!room} onSelect={() => { if (room) editRoom(room) }}><Pencil />编辑当前数据中心</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
           </div>
-          <Input
-            allowClear prefix={<SearchOutlined />} placeholder="搜索数据中心"
-            value={roomSearch} onChange={event => setRoomSearch(event.target.value)}
-          />
+          <Input type="search" placeholder="搜索数据中心" aria-label="搜索数据中心" value={roomSearch} onChange={event => setRoomSearch(event.target.value)} />
           <div className="facility-tree">
             {filteredRooms.map(item => {
               const count = layout.racks.filter(rack => rack.roomId === item.id).length
-              return (
-                <button
-                  key={item.id} type="button"
-                  className={`facility-tree-item${item.id === activeRoomId ? ' active' : ''}`}
-                  title={`${item.name} · ${count} 台机柜`}
-                  onClick={() => selectRoom(item.id)}
-                >
-                  <ClusterOutlined />
-                  <span className="facility-tree-name">{item.name}</span>
-                  <span className="facility-tree-count">{count}</span>
-                </button>
-              )
+              return <button key={item.id} type="button" className={`facility-tree-item${item.id === activeRoomId ? ' active' : ''}`} title={`${item.name} · ${count} 台机柜`} onClick={() => selectRoom(item.id)}><Boxes size="1em" aria-hidden="true" /><span className="facility-tree-name">{item.name}</span><span className="facility-tree-count">{count}</span></button>
             })}
             {!filteredRooms.length && <div className="facility-tree-empty">暂无匹配的数据中心</div>}
           </div>
         </aside>
-
         <div className="facility-main">
-      {error && <Alert type="error" showIcon message={error} />}
-      {feedback && <Alert type="success" showIcon message={feedback} />}
-
-      {!room ? (
-        <Card variant="borderless">
-          <Empty description="暂无数据中心">
-            {editable && <Button type="primary" onClick={() => editRoom()}>新增数据中心</Button>}
-          </Empty>
-        </Card>
-      ) : (
-        <div className="facility-workspace">
-          <div className="dc-summary">
-            <div className="dc-stat">
-              <div className="dc-stat-icon racks"><ClusterOutlined /></div>
-              <div className="dc-stat-copy"><span>机柜数</span><strong>{racks.length}</strong><small>台机柜</small></div>
-            </div>
-            <div className="dc-stat">
-              <div className="dc-stat-icon devices"><CloudServerOutlined /></div>
-              <div className="dc-stat-copy"><span>设备数</span><strong>{roomPlacements.length}</strong><small>台设备</small></div>
-            </div>
-            <div className="dc-stat dc-stat-usage">
-              <div className="dc-stat-icon usage"><PieChartOutlined /></div>
-              <div className="dc-stat-copy"><span>利用率</span><strong>{roomUtilization}%</strong><small>已用 {usedRoomU}U · 空闲 {Math.max(0, totalRoomU - usedRoomU)}U</small></div>
-              <Progress type="circle" percent={roomUtilization} size={64} strokeWidth={8} />
-            </div>
-          </div>
-
-          <Card
-            variant="borderless" className="floor-panel"
-            title={<span>{room.name}</span>}
-            extra={editable ? <Button size="small" type="primary" disabled={busy} onClick={() => editRack()}><PlusOutlined /> 新增机柜</Button> : null}
-          >
-            {rackDraft && (
-              <Form layout="inline" className="facility-form rack-form" onFinish={saveRack}>
-                <Form.Item label="机柜编号"><Input value={rackDraft.name} placeholder="例如：A-01" maxLength={80} onChange={event => setRackDraft({ ...rackDraft, name: event.target.value })} /></Form.Item>
-                <Form.Item label="高度（U）"><InputNumber min={1} max={80} value={rackDraft.heightU} onChange={value => setRackDraft({ ...rackDraft, heightU: value ?? 1 })} /></Form.Item>
-                <Form.Item label="列"><InputNumber min={1} max={room.columns} value={rackDraft.column} onChange={value => setRackDraft({ ...rackDraft, column: value ?? 1 })} /></Form.Item>
-                <Form.Item label="行"><InputNumber min={1} max={room.rows} value={rackDraft.row} onChange={value => setRackDraft({ ...rackDraft, row: value ?? 1 })} /></Form.Item>
-                <Form.Item label="朝向">
-                  <Select
-                    style={{ width: 100 }} value={rackDraft.rotation}
-                    onChange={value => setRackDraft({ ...rackDraft, rotation: value })}
-                    options={[{ value: 0, label: '向下' }, { value: 90, label: '向左' }, { value: 180, label: '向上' }, { value: 270, label: '向右' }]}
-                  />
-                </Form.Item>
-                <Form.Item>
-                  <Space>
-                    <Button type="primary" htmlType="submit" loading={busy}>保存机柜</Button>
-                    <Button onClick={() => setRackDraft(null)}>取消</Button>
-                    {rackDraft.id && rack?.id === rackDraft.id && !devices.length && (
-                      <Popconfirm title="删除该空机柜？" okText="删除" cancelText="取消" onConfirm={() => removeRack(rack)}>
-                        <Button danger disabled={busy}>删除空机柜</Button>
-                      </Popconfirm>
-                    )}
-                  </Space>
-                </Form.Item>
-              </Form>
-            )}
-
-            <div className="floor-toolbar">
-              <Space>
-                <Button type={view === 'cards' ? 'primary' : 'default'} size="small" onClick={() => setView('cards')}><ClusterOutlined /> 机柜视图</Button>
-                <Button type={view === 'floor' ? 'primary' : 'default'} size="small" onClick={() => setView('floor')}><TableOutlined /> 平面布局</Button>
-                <Button type={view === '3d' ? 'primary' : 'default'} size="small" onClick={() => setView('3d')}><AppstoreOutlined /> 3D 总览</Button>
-              </Space>
-              <Space wrap>
-                {view === 'cards' ? (
-                  <Input
-                    style={{ width: 300 }} allowClear placeholder="搜索机柜名称…"
-                    prefix={<SearchOutlined />} value={rackKeyword} onChange={event => setRackKeyword(event.target.value)}
-                  />
-                ) : (
-                  <Input
-                    style={{ width: 300 }} allowClear placeholder="搜索已上架资产、数据中心或机柜…"
-                    prefix={<SearchOutlined />} value={search} onChange={event => setSearch(event.target.value)}
-                  />
-                )}
-                {view !== 'cards' && racks.length > 0 && (
-                  <Space>
-                    <span className="muted">机柜</span>
-                    <Select
-                      style={{ width: 140 }} value={rackId ?? undefined} disabled={busy} onChange={openRack}
-                      options={racks.map(item => ({ value: item.id, label: item.name }))}
-                    />
-                  </Space>
-                )}
-              </Space>
-            </div>
-
-            {view !== 'cards' && search.trim() && (
-              <List
-                className="location-results" size="small" dataSource={searchResults}
-                locale={{ emptyText: '暂无匹配的上架位置' }}
-                renderItem={({ asset, location }) => (
-                  <List.Item>
-                    <Button type="link" className="location-result" onClick={() => showLocation(location)}>
-                      <strong>{asset.name}</strong><span className="muted">{locationLabel(location)}</span>
-                    </Button>
-                  </List.Item>
-                )}
-              />
-            )}
-
-            {view === 'cards' ? (
-              <RackCardGrid
-                racks={racks} placements={roomPlacements} assets={byId}
-                keyword={rackKeyword} onOpen={openRack}
-              />
-            ) : view === 'floor' ? (
-              <div className="floor-scroll">
-                <div className="floor-grid" style={{ gridTemplateColumns: `repeat(${room.columns}, minmax(54px, 1fr))` }}>
-                  {cells.map(cell => (
-                    <div
-                      key={cell.key} className={`floor-cell${dragRack && !cell.rack ? ' drop-cell' : ''}`}
-                      title={`第 ${cell.row} 行，第 ${cell.column} 列`}
-                      onDragOver={event => allowDrop(event, !!cell.rack)}
-                      onDrop={event => moveRack(event, cell.column, cell.row, !!cell.rack)}
-                    >
-                      {cell.rack ? (
-                        <button
-                          className="rack-tile" type="button" aria-pressed={cell.rack.id === rackId}
-                          draggable={editable && !busy} onClick={() => openRack(cell.rack!.id)}
-                          onDragStart={event => startDrag(event, cell.rack!)} onDragEnd={() => setDragRack(null)}
-                        >
-                          <CloudServerOutlined />
-                          <strong>{cell.rack.name}</strong>
-                          <span className="rack-direction" aria-hidden="true" style={{ transform: `rotate(${cell.rack.rotation}deg)` }}>↓</span>
-                        </button>
-                      ) : <span className="muted cell-dot" aria-hidden="true">·</span>}
-                    </div>
-                  ))}
-                </div>
-                {editable && racks.length > 0 && <p className="floor-hint muted">拖动机柜到空格；点击机柜打开机柜视图，拖动设备调整 U 位。</p>}
+          {error && <div role="alert" className="mb-3 rounded-md border border-destructive p-3 text-destructive">{error}</div>}
+          {feedback && <div role="status" className="mb-3 rounded-md border border-border p-3">{feedback}</div>}
+          {!room ? <Card><CardContent className="p-6 text-center text-muted-foreground"><p>暂无数据中心</p>{editable && <Button onClick={() => editRoom()}>新增数据中心</Button>}</CardContent></Card> : (
+            <div className="facility-workspace">
+              <div className="dc-summary">
+                <div className="dc-stat"><div className="dc-stat-icon racks"><Boxes size="1em" aria-hidden="true" /></div><div className="dc-stat-copy"><span>机柜数</span><strong>{racks.length}</strong><small>台机柜</small></div></div>
+                <div className="dc-stat"><div className="dc-stat-icon devices"><Server size="1em" aria-hidden="true" /></div><div className="dc-stat-copy"><span>设备数</span><strong>{roomPlacements.length}</strong><small>台设备</small></div></div>
+                <div className="dc-stat dc-stat-usage"><div className="dc-stat-icon usage"><ChartPie size="1em" aria-hidden="true" /></div><div className="dc-stat-copy"><span>利用率</span><strong>{roomUtilization}%</strong><small>已用 {usedRoomU}U · 空闲 {Math.max(0, totalRoomU - usedRoomU)}U</small><Progress value={roomUtilization} aria-label="数据中心利用率" /></div></div>
               </div>
-            ) : (
-              <RoomScene
-                room={room} racks={racks} placements={roomPlacements} assets={byId}
-                selectedRack={rackId} selectedAsset={focused} dark={dark}
-                onRack={openRack} onDevice={openSceneDevice}
-              />
-            )}
-          </Card>
-
-        </div>
-      )}
+              <Card className="floor-panel">
+                <CardHeader className="flex flex-row items-center justify-between"><CardTitle>{room.name}</CardTitle>{editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}</CardHeader>
+                <CardContent>
+                  {rackDraft && <form className="facility-form rack-form flex flex-wrap items-end gap-3" onSubmit={event => { event.preventDefault(); saveRack() }}>
+                    <Field label="机柜编号"><Input value={rackDraft.name} placeholder="例如：A-01" maxLength={80} onChange={event => setRackDraft({ ...rackDraft, name: event.target.value })} /></Field>
+                    <Field label="高度（U）"><Input type="number" className="w-24" min={1} max={80} value={rackDraft.heightU} onChange={event => setRackDraft({ ...rackDraft, heightU: Number(event.target.value) || 1 })} /></Field>
+                    <Field label="列"><Input type="number" className="w-20" min={1} max={room.columns} value={rackDraft.column} onChange={event => setRackDraft({ ...rackDraft, column: Number(event.target.value) || 1 })} /></Field>
+                    <Field label="行"><Input type="number" className="w-20" min={1} max={room.rows} value={rackDraft.row} onChange={event => setRackDraft({ ...rackDraft, row: Number(event.target.value) || 1 })} /></Field>
+                    <Field label="朝向"><Choice label="朝向" value={rackDraft.rotation} onChange={rotation => setRackDraft({ ...rackDraft, rotation })} options={[{ value: 0, label: '向下' }, { value: 90, label: '向左' }, { value: 180, label: '向上' }, { value: 270, label: '向右' }]} /></Field>
+                    <div className="flex gap-2"><Button type="submit" disabled={busy}>保存机柜</Button><Button type="button" variant="outline" onClick={() => setRackDraft(null)}>取消</Button>{rackDraft.id && rack?.id === rackDraft.id && !devices.length && <ConfirmDelete title="删除该空机柜？" disabled={busy} onConfirm={() => removeRack(rack)}>删除空机柜</ConfirmDelete>}</div>
+                  </form>}
+                  <div className="floor-toolbar">
+                    <div className="flex gap-2"><Button variant={view === 'cards' ? 'default' : 'outline'} size="sm" onClick={() => setView('cards')}><Boxes />机柜视图</Button><Button variant={view === 'floor' ? 'default' : 'outline'} size="sm" onClick={() => setView('floor')}><Grid2X2 />平面布局</Button><Button variant={view === '3d' ? 'default' : 'outline'} size="sm" onClick={() => setView('3d')}><LayoutGrid />3D 总览</Button></div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {view === 'cards' ? <Input type="search" className="w-[300px]" aria-label="搜索机柜名称" placeholder="搜索机柜名称…" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} /> : <Input type="search" className="w-[300px]" aria-label="搜索已上架资产、数据中心或机柜" placeholder="搜索已上架资产、数据中心或机柜…" value={search} onChange={event => setSearch(event.target.value)} />}
+                      {view !== 'cards' && racks.length > 0 && <><span className="muted">机柜</span><Choice label="机柜" className="w-[140px]" value={rackId ?? undefined} disabled={busy} onChange={openRack} options={racks.map(item => ({ value: item.id, label: item.name }))} /></>}
+                    </div>
+                  </div>
+                  {view !== 'cards' && search.trim() && <div className="location-results">{searchResults.length ? searchResults.map(({ asset, location }) => <div key={asset.id} className="border-b py-1"><Button variant="link" className="location-result" onClick={() => showLocation(location)}><strong>{asset.name}</strong><span className="muted">{locationLabel(location)}</span></Button></div>) : <div className="p-3 text-sm text-muted-foreground">暂无匹配的上架位置</div>}</div>}
+                  {view === 'cards' ? <RackCardGrid racks={racks} placements={roomPlacements} assets={byId} keyword={rackKeyword} onOpen={openRack} /> : view === 'floor' ? (
+                    <div className="floor-scroll"><div className="floor-grid" style={{ gridTemplateColumns: `repeat(${room.columns}, minmax(54px, 1fr))` }}>{cells.map(cell => <div key={cell.key} className={`floor-cell${dragRack && !cell.rack ? ' drop-cell' : ''}`} title={`第 ${cell.row} 行，第 ${cell.column} 列`} onDragOver={event => allowDrop(event, !!cell.rack)} onDrop={event => moveRack(event, cell.column, cell.row, !!cell.rack)}>{cell.rack ? <button className="rack-tile" type="button" aria-pressed={cell.rack.id === rackId} draggable={editable && !busy} onClick={() => openRack(cell.rack!.id)} onDragStart={event => startDrag(event, cell.rack!)} onDragEnd={() => setDragRack(null)}><Server size="1em" aria-hidden="true" /><strong>{cell.rack.name}</strong><span className="rack-direction" aria-hidden="true" style={{ transform: `rotate(${cell.rack.rotation}deg)` }}>↓</span></button> : <span className="muted cell-dot" aria-hidden="true">·</span>}</div>)}</div>{editable && racks.length > 0 && <p className="floor-hint muted">拖动机柜到空格；点击机柜打开机柜视图，拖动设备调整 U 位。</p>}</div>
+                  ) : <RoomScene room={room} racks={racks} placements={roomPlacements} assets={byId} selectedRack={rackId} selectedAsset={focused} dark={dark} onRack={openRack} onDevice={openSceneDevice} />}
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </div>
-      <Modal
-        open={!!roomDraft} title={roomDraft?.id ? '编辑数据中心' : '新增数据中心'}
-        footer={null} width={520} destroyOnHidden
-        onCancel={() => setRoomDraft(null)}
-      >
-        {roomDraft && (
-          <Form layout="vertical" onFinish={saveRoom}>
-            <Form.Item
-              label="数据中心名称" required
-              rules={[{ required: true, message: '请输入数据中心名称' }]}
-            >
-              <Input
-                value={roomDraft.name} placeholder="例如：北京数据中心" maxLength={160}
-                onChange={event => setRoomDraft({ ...roomDraft, name: event.target.value })}
-              />
-            </Form.Item>
-            <div className="room-modal-actions">
-              <Space>
-                <Button type="primary" htmlType="submit" loading={busy}>保存数据中心</Button>
-                <Button onClick={() => setRoomDraft(null)}>取消</Button>
-                {roomDraft.id && room?.id === roomDraft.id && !racks.length && (
-                  <Popconfirm title="删除该空数据中心？" okText="删除" cancelText="取消" onConfirm={() => removeRoom(room)}>
-                    <Button danger disabled={busy}>删除空数据中心</Button>
-                  </Popconfirm>
-                )}
-              </Space>
-            </div>
-          </Form>
-        )}
-      </Modal>
-
-      <RackDetailDrawer
-        open={rackDrawerOpen} rack={rack ?? null} room={room ?? null}
-        devices={devices} assets={byId} editable={editable} busy={busy}
-        bookmarked={!!rack && bookmarkedRacks.includes(rack.id)} onToggleBookmark={() => { if (rack) onToggleRackBookmark(rack.id) }}
-        focused={focused} feedback={feedback} error={error} mountForm={mountForm}
-        onClose={closeRackDrawer} onOpenAsset={onOpenAsset}
-        onEditRack={value => { setRackDrawerOpen(false); editRack(value) }}
-        onMount={() => editMount()}
-        onEditPlacement={value => editMount(value)}
-        onUnmount={unmountDevice} onMove={moveDevice} onMountAt={editMountAt}
-      />
+      <Dialog open={!!roomDraft} onOpenChange={open => { if (!open) setRoomDraft(null) }}>
+        <DialogContent><DialogHeader><DialogTitle>{roomDraft?.id ? '编辑数据中心' : '新增数据中心'}</DialogTitle><DialogDescription>维护数据中心名称。</DialogDescription></DialogHeader>
+          {roomDraft && <form className="space-y-4" onSubmit={event => { event.preventDefault(); saveRoom() }}><Field label="数据中心名称"><Input required value={roomDraft.name} placeholder="例如：北京数据中心" maxLength={160} onChange={event => setRoomDraft({ ...roomDraft, name: event.target.value })} /></Field><div className="room-modal-actions flex flex-wrap gap-2"><Button type="submit" disabled={busy}>保存数据中心</Button><Button type="button" variant="outline" onClick={() => setRoomDraft(null)}>取消</Button>{roomDraft.id && room?.id === roomDraft.id && !racks.length && <ConfirmDelete title="删除该空数据中心？" disabled={busy} onConfirm={() => removeRoom(room)}>删除空数据中心</ConfirmDelete>}</div></form>}
+        </DialogContent>
+      </Dialog>
+      <RackDetailDrawer open={rackDrawerOpen} rack={rack ?? null} room={room ?? null} devices={devices} assets={byId} editable={editable} busy={busy} bookmarked={!!rack && bookmarkedRacks.includes(rack.id)} onToggleBookmark={() => { if (rack) onToggleRackBookmark(rack.id) }} focused={focused} feedback={feedback} error={error} mountForm={mountForm} onClose={closeRackDrawer} onOpenAsset={onOpenAsset} onEditRack={value => { setRackDrawerOpen(false); editRack(value) }} onMount={() => editMount()} onEditPlacement={value => editMount(value)} onUnmount={unmountDevice} onMove={moveDevice} onMountAt={editMountAt} />
     </div>
   )
 }
