@@ -1,5 +1,5 @@
-import { ClusterOutlined, CloudServerOutlined, RightOutlined } from '@ant-design/icons'
-import { Empty, Progress } from 'antd'
+import { ChevronRight, Network, Server } from 'lucide-react'
+import { Progress } from './ui/progress'
 import type { Asset } from '../api'
 import { occupiedUnits, placementFaceLabel } from '../facilities'
 import type { Placement, Rack } from '../facilities'
@@ -17,10 +17,10 @@ export function RackCardGrid({ racks, placements, assets, keyword, onOpen }: Pro
   const filtered = needle ? racks.filter(rack => rack.name.toLowerCase().includes(needle)) : racks
 
   if (!racks.length) {
-    return <Empty description="当前数据中心还没有机柜" />
+    return <p className="muted text-center py-8">当前数据中心还没有机柜</p>
   }
   if (!filtered.length) {
-    return <Empty description="没有匹配的机柜" />
+    return <p className="muted text-center py-8">没有匹配的机柜</p>
   }
 
   return (
@@ -65,13 +65,13 @@ export function RackCardGrid({ racks, placements, assets, keyword, onOpen }: Pro
             </div>
 
             <div className="rack-card-meta">
-              <span><CloudServerOutlined /> {devices.length} 台设备</span>
+              <span><Server size={14} /> {devices.length} 台设备</span>
               <span className="muted">{used} / {rack.heightU}U</span>
             </div>
-            <Progress percent={percent} showInfo={false} size="small" />
+            <Progress value={percent} className="h-2" />
             <div className="rack-card-foot">
-              <span><ClusterOutlined /> 机柜详情</span>
-              <span>查看详情 <RightOutlined /></span>
+              <span><Network size={14} /> 机柜详情</span>
+              <span>查看详情 <ChevronRight size={14} /></span>
             </div>
           </button>
         )

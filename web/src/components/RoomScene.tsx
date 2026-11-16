@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Button } from 'antd'
+import { Button } from './ui/button'
 import {
   AmbientLight, BoxGeometry, BufferGeometry, CanvasTexture, Color, DirectionalLight,
   Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshStandardMaterial,
@@ -302,7 +302,7 @@ export function RoomScene(props: Props) {
       {unavailable ? (
         <div className="room-scene-message" role="status">当前浏览器无法显示 3D。可切换到平面布局继续查看和编辑。</div>
       ) : (
-        <Button size="small" className="scene-reset" onClick={resetCamera}>重置视角</Button>
+        <Button size="sm" variant="outline" className="scene-reset" onClick={resetCamera}>重置视角</Button>
       )}
     </div>
   )

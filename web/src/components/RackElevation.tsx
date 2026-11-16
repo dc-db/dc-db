@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { Segmented } from 'antd'
+import { Button } from './ui/button'
 import type { Asset } from '../api'
 import { occupiedUnits, placementFaceLabel, placementsConflict, uRange } from '../facilities'
 import type { Placement, Rack, RackFace } from '../facilities'
@@ -113,13 +113,10 @@ export function RackElevation({ rack, devices, assets, focused, editable, busy, 
     <div className="rack-elevation" style={{ '--rack-u-height': `${unitHeight}px` } as CSSProperties}>
       <div className="rack-stage-head">
         <div className="rack-face-switch">
-          <Segmented
-            size="small" value={face} onChange={value => setFace(value as RackFace)}
-            options={[
-              { value: 'front', label: '前视图' },
-              { value: 'rear', label: '后视图' },
-            ]}
-          />
+          <div role="group" aria-label="机柜查看方向" className="flex gap-1">
+            <Button type="button" size="sm" variant={face === 'front' ? 'secondary' : 'ghost'} aria-pressed={face === 'front'} onClick={() => setFace('front')}>前视图</Button>
+            <Button type="button" size="sm" variant={face === 'rear' ? 'secondary' : 'ghost'} aria-pressed={face === 'rear'} onClick={() => setFace('rear')}>后视图</Button>
+          </div>
           <span className="muted">
             {visibleDevices.length} 台设备 · 已占用 {occupied.size}U
             {face === 'rear' ? '（含全深设备）' : ''}
