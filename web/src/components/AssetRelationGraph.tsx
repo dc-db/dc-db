@@ -22,9 +22,9 @@ interface Props {
 const MAX_GRAPH_NEIGHBORS = 12
 
 const kindMeta: Record<Kind, { label: string; icon: LucideIcon; color: string }> = {
-  host: { label: '物理机', icon: Server, color: '#1677ff' },
-  vm: { label: '虚拟机', icon: Monitor, color: '#13c2c2' },
-  switch: { label: '交换机', icon: Cable, color: '#52c41a' },
+  host: { label: '物理机', icon: Server, color: 'var(--relation-host)' },
+  vm: { label: '虚拟机', icon: Monitor, color: 'var(--relation-vm)' },
+  switch: { label: '交换机', icon: Cable, color: 'var(--relation-switch)' },
 }
 
 const statusLabels: Record<string, string> = {

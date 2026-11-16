@@ -32,14 +32,14 @@ interface SceneState {
 }
 
 const unitHeight = 0.043
-const deviceColors: Record<string, number> = { host: 0x3975cc, switch: 0x168e86 }
+const deviceColors: Record<string, number> = { host: 0x404040, switch: 0x737373 }
 
 export function RoomScene(props: Props) {
   const mount = useRef<HTMLDivElement>(null)
   const [unavailable, setUnavailable] = useState(false)
   const scene = useMemo(() => {
     const value = new Scene()
-    value.background = new Color(0xeff5fc)
+    value.background = new Color(0xfafafa)
     value.add(new AmbientLight(0xffffff, 1.65))
     const key = new DirectionalLight(0xffffff, 2.1)
     key.position.set(6, 10, 7)
@@ -87,9 +87,9 @@ export function RoomScene(props: Props) {
     canvas.height = 64
     const ctx = canvas.getContext('2d')
     if (!ctx) return null
-    ctx.fillStyle = dark ? (selected ? '#1559c1' : '#262626') : (selected ? '#1559c1' : '#193252')
+    ctx.fillStyle = dark ? (selected ? '#e5e5e5' : '#262626') : (selected ? '#171717' : '#525252')
     ctx.fillRect(0, 0, 256, 64)
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle = dark && selected ? '#0a0a0a' : '#ffffff'
     ctx.font = 'bold 31px system-ui, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
@@ -106,7 +106,7 @@ export function RoomScene(props: Props) {
     disposeRoom()
     const p = propsRef.current
     const dark = p.dark
-    scene.background = new Color(dark ? 0x141414 : 0xeff5fc)
+    scene.background = new Color(dark ? 0x0a0a0a : 0xfafafa)
     const roomModel = new Group()
     const cabinets = new Group()
     roomModel.add(cabinets)
@@ -115,7 +115,7 @@ export function RoomScene(props: Props) {
     state.current.cabinets = cabinets
 
     const { columns, rows } = p.room
-    const floor = new Mesh(new PlaneGeometry(columns, rows), new MeshStandardMaterial({ color: dark ? 0x262626 : 0xdfe8f3 }))
+    const floor = new Mesh(new PlaneGeometry(columns, rows), new MeshStandardMaterial({ color: dark ? 0x171717 : 0xe5e5e5 }))
     floor.rotation.x = -Math.PI / 2
     floor.position.set(columns / 2, 0, rows / 2)
     roomModel.add(floor)
@@ -125,12 +125,12 @@ export function RoomScene(props: Props) {
     for (let row = 0; row <= rows; row++) grid.push(0, .003, row, columns, .003, row)
     const gridGeometry = new BufferGeometry()
     gridGeometry.setAttribute('position', new Float32BufferAttribute(grid, 3))
-    roomModel.add(new LineSegments(gridGeometry, new LineBasicMaterial({ color: dark ? 0x434343 : 0xa5b9d1 })))
+    roomModel.add(new LineSegments(gridGeometry, new LineBasicMaterial({ color: dark ? 0x262626 : 0xd4d4d4 })))
 
-    const frame = new MeshStandardMaterial({ color: dark ? 0x8c8c8c : 0x405777 })
-    const selectedFrame = new MeshStandardMaterial({ color: dark ? 0x1677ff : 0x1e64ce })
-    const back = new MeshStandardMaterial({ color: dark ? 0x1f1f1f : 0x253950 })
-    const panelColors = dark ? { host: 0x4096ff, switch: 0x13c2c2 } : deviceColors
+    const frame = new MeshStandardMaterial({ color: dark ? 0x737373 : 0x525252 })
+    const selectedFrame = new MeshStandardMaterial({ color: dark ? 0xfafafa : 0x171717 })
+    const back = new MeshStandardMaterial({ color: dark ? 0x262626 : 0xd4d4d4 })
+    const panelColors = dark ? { host: 0xd4d4d4, switch: 0xa3a3a3 } : deviceColors
     const panelMaterials = new Map<string, MeshStandardMaterial>()
     const byRack = new Map<number, Placement[]>()
     for (const placement of p.placements) {
@@ -175,7 +175,7 @@ export function RoomScene(props: Props) {
         const materialKey = focused ? 'selected' : kind
         let material = panelMaterials.get(materialKey)
         if (!material) {
-          material = new MeshStandardMaterial({ color: focused ? 0xf5ad28 : (panelColors[kind] ?? 0x3975cc) })
+          material = new MeshStandardMaterial({ color: focused ? 0x2563eb : (panelColors[kind] ?? 0x404040) })
           panelMaterials.set(materialKey, material)
         }
         const tall = placement.units * unitHeight

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
-import { ChevronDown, ChevronRight, Plus, RefreshCw, Star, X } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus, RefreshCw, Star, X } from 'lucide-react'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
@@ -27,19 +27,19 @@ type SubnetDraft = SubnetFields & { id?: number; version?: number }
 
 const subnetStatusMeta: Record<string, { label: string; color: string }> = {
   container: { label: '聚合', color: 'default' },
-  active: { label: '启用', color: 'green' },
-  reserved: { label: '预留', color: 'cyan' },
+  active: { label: '启用', color: 'blue' },
+  reserved: { label: '预留', color: 'default' },
   deprecated: { label: '停用', color: 'default' },
 }
 const allocationStateMeta: Record<string, { label: string; color: string }> = {
-  active: { label: '启用', color: 'green' },
-  reserved: { label: '预留', color: 'cyan' },
+  active: { label: '启用', color: 'blue' },
+  reserved: { label: '预留', color: 'default' },
   deprecated: { label: '停用', color: 'default' },
-  dhcp: { label: 'DHCP', color: 'purple' },
-  slaac: { label: 'SLAAC', color: 'purple' },
+  dhcp: { label: 'DHCP', color: 'blue' },
+  slaac: { label: 'SLAAC', color: 'default' },
 }
 const sourceMeta: Record<string, { label: string; color: string }> = {
-  gateway: { label: '网关', color: 'gold' },
+  gateway: { label: '网关', color: 'default' },
   asset: { label: '资产地址', color: 'default' },
   allocated: { label: '手工分配', color: 'blue' },
 }
@@ -170,7 +170,6 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
   const [freePage, setFreePage] = useState(1)
   const [freePageSize, setFreePageSize] = useState(10)
   const [freeLoading, setFreeLoading] = useState(false)
-  const [freeJump, setFreeJump] = useState('')
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
 
@@ -474,7 +473,7 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
   }
   return <Card><CardHeader className="flex flex-row items-center justify-between gap-4"><CardTitle className="flex items-center gap-2">网段与 IP 地址 <Badge variant="secondary">{subnets.length} 个网段</Badge></CardTitle><div className="flex gap-2"><Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>{editable && <Button onClick={addSubnet}><Plus />新增网段</Button>}</div></CardHeader><CardContent>
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
-    {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-400">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
+    {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-blue-500/30 bg-blue-500/10 p-3 text-sm text-blue-700 dark:text-blue-400">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
     {draft && <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{draft.id ? '编辑网段' : '新增网段'}</CardTitle><Button variant="ghost" size="icon" aria-label="关闭" onClick={() => setDraft(null)}><X /></Button></CardHeader><CardContent><form onSubmit={event => { event.preventDefault(); void saveSubnet() }}><div className="grid grid-cols-2 gap-3">
       <label className={labelClass}>网段名称<Input required value={draft.name} maxLength={160} placeholder="例如：办公网" onChange={event => setDraft({ ...draft, name: event.target.value })} /></label>
       <label className={labelClass}>CIDR<Input required value={draft.cidr} maxLength={64} placeholder="例如：192.0.2.0/24" onChange={event => setDraft({ ...draft, cidr: event.target.value })} /></label>
@@ -494,7 +493,7 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
       {detail.notes && <p className="mt-3 text-sm text-muted-foreground">{detail.notes}</p>}<div className="mt-4 grid grid-cols-3 gap-3">{[['可用地址', detail.usable], ['已占用', detail.used], ['空闲', detail.free]].map(([label, value]) => <div key={label} className="rounded-lg border p-3"><div className="text-sm text-muted-foreground">{label}</div><div className="text-xl font-semibold">{value}</div></div>)}</div><div className="mt-2 flex items-center gap-2"><Progress aria-label="地址使用率" value={utilization} /><span className="text-xs text-muted-foreground">{utilization}%</span></div>
       {editable && <Card id="allocate-ip-card" className="mt-4"><CardHeader><CardTitle>分配 IP</CardTitle></CardHeader><CardContent><form onSubmit={event => { event.preventDefault(); void allocate() }}><div className="grid grid-cols-2 gap-3"><label className={labelClass}>IP 地址<Input value={allocation.ip} maxLength={64} placeholder="例如：192.0.2.20" onChange={event => setAllocation({ ...allocation, ip: event.target.value })} /></label>{renderAllocationFields(allocation, next => setAllocation({ ...allocation, ...next }))}</div><div className="mt-4 flex gap-2"><Button type="submit" disabled={busy}>分配</Button><Button type="button" variant="outline" disabled={!detail.freeIps.length} onClick={() => setAllocation({ ...allocation, ip: detail.freeIps[0] ?? '' })}>使用下一个空闲 IP</Button></div></form></CardContent></Card>}
       <div className="mt-6 flex items-center justify-between gap-3"><h3 className="font-semibold">已占用 IP</h3><Input className="max-w-xs" placeholder="搜索 IP、DNS、资产、角色或标签" value={search} onChange={event => setSearch(event.target.value)} /></div><div className="mt-2 max-h-[300px] overflow-auto">{renderTable(usageTable, '没有匹配的已占用 IP')}</div>
-      <div className="mt-6 flex items-center justify-between gap-3"><h3 className="font-semibold">空闲 IP</h3><span className="text-sm text-muted-foreground">共 {count(freeTotal)} 个 · 分页浏览，点击“分配此地址”填入上方表单</span></div><div className="mt-2">{freeLoading ? <p className="py-8 text-center text-sm text-muted-foreground">正在加载空闲 IP…</p> : renderTable(freeTable, detail.free ? '没有可显示的空闲 IP' : '该网段已无空闲 IP')}</div><div className="mt-3 flex flex-wrap items-center justify-end gap-2 text-sm"><span className="whitespace-nowrap text-muted-foreground">共 {count(freeTotal)} 个空闲地址</span><select aria-label="每页空闲地址数量" className={`${selectBaseClass} w-24 shrink-0`} value={freePageSize} onChange={event => changeFreePage(1, Number(event.target.value))}>{[10, 20, 50].map(size => <option key={size} value={size}>{size} 条/页</option>)}</select><Button variant="outline" size="sm" disabled={freeLoading || freePage <= 1} onClick={() => changeFreePage(freePage - 1, freePageSize)}>上一页</Button><span className="whitespace-nowrap">{freePage} / {Math.max(1, Math.ceil(freeTotal / freePageSize))}</span><Button variant="outline" size="sm" disabled={freeLoading || freePage * freePageSize >= freeTotal} onClick={() => changeFreePage(freePage + 1, freePageSize)}>下一页</Button>{freeTotal > 100 && <form className="flex items-center gap-1" onSubmit={event => { event.preventDefault(); const page = Number(freeJump); if (Number.isInteger(page) && page >= 1 && page <= Math.ceil(freeTotal / freePageSize)) changeFreePage(page, freePageSize) }}><Input aria-label="跳转页码" type="number" min={1} max={Math.ceil(freeTotal / freePageSize)} className="w-20" value={freeJump} onChange={event => setFreeJump(event.target.value)} /><Button variant="outline" size="sm" type="submit">跳转</Button></form>}</div>
+      <div className="mt-6 flex items-center justify-between gap-3"><h3 className="font-semibold">空闲 IP</h3><span className="text-sm text-muted-foreground">共 {count(freeTotal)} 个 · 分页浏览，点击“分配此地址”填入上方表单</span></div><div className="mt-2">{freeLoading ? <p className="py-8 text-center text-sm text-muted-foreground">正在加载空闲 IP…</p> : renderTable(freeTable, detail.free ? '没有可显示的空闲 IP' : '该网段已无空闲 IP')}</div><div className="mt-3 flex flex-wrap items-center justify-end gap-2 text-sm"><span className="whitespace-nowrap text-muted-foreground">共 {count(freeTotal)} 个空闲地址</span><label className="flex items-center gap-2 whitespace-nowrap text-muted-foreground">每页<select aria-label="每页空闲地址数量" className={`${selectBaseClass} w-20 shrink-0`} value={freePageSize} onChange={event => changeFreePage(1, Number(event.target.value))}>{[10, 20, 50].map(size => <option key={size} value={size}>{size}</option>)}</select>条</label><span className="whitespace-nowrap text-muted-foreground">第 {freePage} / {Math.max(1, Math.ceil(freeTotal / freePageSize))} 页</span><div className="flex items-center gap-1"><Button variant="outline" size="icon-sm" aria-label="第一页" disabled={freeLoading || freePage <= 1} onClick={() => changeFreePage(1, freePageSize)}><ChevronsLeft /></Button><Button variant="outline" size="icon-sm" aria-label="上一页" disabled={freeLoading || freePage <= 1} onClick={() => changeFreePage(freePage - 1, freePageSize)}><ChevronLeft /></Button><Button variant="outline" size="icon-sm" aria-label="下一页" disabled={freeLoading || freePage * freePageSize >= freeTotal} onClick={() => changeFreePage(freePage + 1, freePageSize)}><ChevronRight /></Button><Button variant="outline" size="icon-sm" aria-label="最后一页" disabled={freeLoading || freePage * freePageSize >= freeTotal} onClick={() => changeFreePage(Math.max(1, Math.ceil(freeTotal / freePageSize)), freePageSize)}><ChevronsRight /></Button></div></div>
       </> : <div className="py-12 text-center text-muted-foreground">选择左侧网段查看地址</div>}</div></div>}
   </CardContent><Dialog open={!!editingAllocation} onOpenChange={next => { if (!next && !busy) { setEditingAllocation(null); setAllocationError('') } }}><DialogContent className="sm:max-w-[560px]"><DialogHeader><DialogTitle>编辑 {editingAllocation?.ip}</DialogTitle></DialogHeader>{allocationError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{allocationError}</div>}<form onSubmit={event => { event.preventDefault(); void updateAllocation() }}><div className="grid grid-cols-2 gap-3">{renderAllocationFields(editFields, setEditFields)}</div><DialogFooter className="mt-4"><Button type="button" variant="outline" disabled={busy} onClick={() => setEditingAllocation(null)}>取消</Button><Button type="submit" disabled={busy}>保存</Button></DialogFooter></form></DialogContent></Dialog>
     <Dialog open={deleting} onOpenChange={next => { if (!busy) setDeleting(next) }}><DialogContent><DialogHeader><DialogTitle>确定删除该网段？</DialogTitle><DialogDescription>确认删除 {selected?.name}。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setDeleting(false)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { setDeleting(false); void deleteSubnet() }}>删除</Button></DialogFooter></DialogContent></Dialog>

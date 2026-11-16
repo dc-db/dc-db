@@ -2,7 +2,7 @@ import React, { createContext, useContext, useRef, useState } from 'react'
 import type { ReactNode, CSSProperties } from 'react'
 import { flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table'
 import type { ColumnDef, SortingState } from '@tanstack/react-table'
-import { CircleAlert, CircleCheck, Eye, EyeOff, LoaderCircle, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronsUpDown, CircleAlert, CircleCheck, Eye, EyeOff, LoaderCircle, X } from 'lucide-react'
 import { Button as UiButton } from '@/components/ui/button'
 import { Input as UiInput } from '@/components/ui/input'
 import { Checkbox as UiCheckbox } from '@/components/ui/checkbox'
@@ -24,7 +24,7 @@ export function Space({ children, direction, wrap, size, className }: Common) { 
 export function Alert({ type, message, className, closable, onClose, showIcon }: Common) { return <div role="alert" className={`control-alert ${type ?? ''} ${className ?? ''}`}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>{showIcon && (type === 'success' ? <CircleCheck size={16} aria-hidden /> : <CircleAlert size={16} aria-hidden />)}{message}</span>{closable && <button type="button" onClick={onClose} aria-label="关闭"><X size={16} /></button>}</div> }
 export function Spin({ size }: Common) { return <LoaderCircle aria-label="加载中" className="animate-spin" size={size === 'large' ? 28 : 18} /> }
 export function Empty({ description }: Common) { return <div className="control-empty">{description ?? '暂无数据'}</div> }
-export function Tag({ children, color, className, style, ...props }: Common) { const c = color && !['default','green','red','orange'].includes(color) ? color : undefined; return <span {...props} className={`control-tag ${color ?? ''} ${className ?? ''}`} style={{ ...style, ...(c ? { color: c, borderColor: c } : {}) }}>{children}</span> }
+export function Tag({ children, color, className, style, ...props }: Common) { const c = color && !['default','blue','green','red','orange'].includes(color) ? color : undefined; return <span {...props} className={`control-tag ${color ?? ''} ${className ?? ''}`} style={{ ...style, ...(c ? { color: c, borderColor: c } : {}) }}>{children}</span> }
 export function Tooltip({ children, title }: Common) { return <UiTooltip><TooltipTrigger asChild>{children}</TooltipTrigger><TooltipContent>{title}</TooltipContent></UiTooltip> }
 export function ConfigProvider({ children }: Common) { return <TooltipProvider>{children}</TooltipProvider> }
 export const theme = { darkAlgorithm: {}, defaultAlgorithm: {} }
@@ -77,19 +77,39 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, p
   React.useEffect(() => { setSorting(current => current.filter(item => defs.some(col => col.id === item.id))) }, [columns.map(c => c.key ?? String(c.dataIndex)).join('|')])
   const table = useReactTable({ data: dataSource, columns: defs, state: { sorting }, onSortingChange: setSorting, enableSortingRemoval: false, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel() })
   const sorted = table.getRowModel().rows; const pageSize = pagination ? pagination.pageSize : sorted.length; const totalPages = pagination ? Math.max(1, Math.ceil(pagination.total / pageSize)) : 1; const current = pagination ? Math.min(Math.max(1, pagination.current), totalPages) : 1; const rows = pagination ? sorted.slice((current - 1) * pageSize, current * pageSize) : sorted; const keys = rows.map(row => row.original[rowKey] as string | number); const selected = rowSelection?.selectedRowKeys ?? []; const all = keys.length > 0 && keys.every(key => selected.includes(key));
-  const [pageInput, setPageInput] = useState(String(current))
-  const [pageError, setPageError] = useState('')
-  const pageErrorId = React.useId()
-  React.useEffect(() => { setPageInput(String(current)); setPageError('') }, [current])
   React.useEffect(() => { if (pagination && pagination.current !== current) pagination.onChange(current, pageSize) }, [pagination && pagination.current, current, pageSize])
   return <div className="control-table-area" aria-busy={loading}>
     {loading && <div className="control-table-loading" role="status"><LoaderCircle className="animate-spin" size={18} />加载中</div>}
     <div className="control-table-wrap" inert={loading || undefined}>
       <table className="control-table"><thead>{table.getHeaderGroups().map(group => <tr key={group.id}>
         {rowSelection && <th><UiCheckbox aria-label="选择本页全部" checked={all ? true : keys.some(k => selected.includes(k)) ? 'indeterminate' : false} onCheckedChange={v => rowSelection.onChange(v ? Array.from(new Set([...selected, ...keys])) : selected.filter(k => !keys.includes(k)))} /></th>}
-        {group.headers.map(header => { const sorted = header.column.getIsSorted(); const width = columns.find(c => (c.key ?? String(c.dataIndex)) === header.column.id)?.width; return <th key={header.id} style={width ? { minWidth: width } : undefined} aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined}>{header.column.getCanSort() ? <button type="button" onClick={header.column.getToggleSortingHandler()}>{flexRender(header.column.columnDef.header, header.getContext())} <span aria-hidden>{sorted === 'asc' ? '↑' : sorted === 'desc' ? '↓' : '↕'}</span></button> : flexRender(header.column.columnDef.header, header.getContext())}</th> })}
+        {group.headers.map(header => { const sorted = header.column.getIsSorted(); const width = columns.find(c => (c.key ?? String(c.dataIndex)) === header.column.id)?.width; return <th key={header.id} style={width ? { minWidth: width } : undefined} aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined}>{header.column.getCanSort() ? <button type="button" onClick={header.column.getToggleSortingHandler()}>{flexRender(header.column.columnDef.header, header.getContext())} <span className="control-sort-icon" aria-hidden>{sorted === 'asc' ? <ArrowUp size={12} /> : sorted === 'desc' ? <ArrowDown size={12} /> : <ChevronsUpDown size={12} />}</span></button> : flexRender(header.column.columnDef.header, header.getContext())}</th> })}
       </tr>)}</thead><tbody>{rows.map(row => <tr key={String(row.original[rowKey])}>{rowSelection && <td><UiCheckbox aria-label="选择该行" checked={selected.includes(row.original[rowKey] as string | number)} onCheckedChange={v => rowSelection.onChange(v ? [...selected, row.original[rowKey] as string | number] : selected.filter(k => k !== row.original[rowKey]))} /></td>}{row.getVisibleCells().map(cell => <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}</tr>)}{!rows.length && <tr><td colSpan={columns.length + (rowSelection ? 1 : 0)}><Empty description={locale?.emptyText} /></td></tr>}</tbody></table>
-      {pagination && <div className="control-pagination"><span>{pagination.showTotal?.(pagination.total)}</span><Button size="small" disabled={current <= 1} onClick={() => pagination.onChange(current - 1, pageSize)}>上一页</Button><span>{current} / {totalPages}</span><Button size="small" disabled={current >= totalPages} onClick={() => pagination.onChange(current + 1, pageSize)}>下一页</Button><select aria-label="每页条数" value={pageSize} onChange={e => pagination.onChange(1, Number(e.target.value))}>{pagination.pageSizeOptions?.map(size => <option key={size} value={size}>{size} 条/页</option>)}</select><form style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onSubmit={event => { event.preventDefault(); const page = Number(pageInput); if (!/^\d+$/.test(pageInput) || !Number.isSafeInteger(page) || page < 1 || page > totalPages) { setPageError(`请输入 1 到 ${totalPages} 之间的页码`); return } setPageError(''); setPageInput(String(page)); pagination.onChange(page, pageSize) }}><label htmlFor={`${pageErrorId}-input`}>跳至</label><input id={`${pageErrorId}-input`} aria-label="跳转页码" aria-invalid={!!pageError} aria-describedby={pageError ? pageErrorId : undefined} inputMode="numeric" value={pageInput} onChange={event => { setPageInput(event.target.value); setPageError('') }} style={{ width: 56, padding: '5px 6px', color: 'var(--text)', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 5 }} /><Button size="small" htmlType="submit">跳转</Button>{pageError && <span id={pageErrorId} role="alert">{pageError}</span>}</form></div>}
+      {pagination && (
+        <div className="control-pagination">
+          <span className="control-pagination-selected">
+            {rowSelection ? `${selected.length} 条已选` : pagination.showTotal?.(pagination.total)}
+          </span>
+          <div className="control-pagination-controls">
+            {pagination.showSizeChanger !== false && (
+              <label className="control-page-size">
+                每页
+                <select aria-label="每页条数" value={pageSize} onChange={e => pagination.onChange(1, Number(e.target.value))}>
+                  {(pagination.pageSizeOptions ?? ['10', '20', '50']).map(size => <option key={size} value={size}>{size}</option>)}
+                </select>
+                条
+              </label>
+            )}
+            <span className="control-page-count">第 {current} / {totalPages} 页</span>
+            <div className="control-page-buttons">
+              <UiButton variant="outline" size="icon-sm" aria-label="第一页" disabled={current <= 1} onClick={() => pagination.onChange(1, pageSize)}><ChevronsLeft /></UiButton>
+              <UiButton variant="outline" size="icon-sm" aria-label="上一页" disabled={current <= 1} onClick={() => pagination.onChange(current - 1, pageSize)}><ChevronLeft /></UiButton>
+              <UiButton variant="outline" size="icon-sm" aria-label="下一页" disabled={current >= totalPages} onClick={() => pagination.onChange(current + 1, pageSize)}><ChevronRight /></UiButton>
+              <UiButton variant="outline" size="icon-sm" aria-label="最后一页" disabled={current >= totalPages} onClick={() => pagination.onChange(totalPages, pageSize)}><ChevronsRight /></UiButton>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   </div>
 }

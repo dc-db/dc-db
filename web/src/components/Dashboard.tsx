@@ -27,7 +27,9 @@ interface Props {
   onOpenSubnet: (id: number) => void
 }
 
-const colors = ['#1677ff', '#13c2c2', '#faad14', '#722ed1', '#52c41a']
+const chartColors = (dark: boolean) => dark
+  ? ['#fafafa', '#a3a3a3', '#737373', '#60a5fa', '#f87171']
+  : ['#171717', '#737373', '#a3a3a3', '#2563eb', '#dc2626']
 
 function DashboardCard({ children, title, extra }: { children: ReactNode; title: ReactNode; extra?: ReactNode }) {
   return <Card className="h-full gap-0 py-0"><CardHeader className="flex min-h-11 flex-row items-center justify-between gap-3 border-b px-4 py-2"><CardTitle>{title}</CardTitle>{extra}</CardHeader><CardContent className="p-4">{children}</CardContent></Card>
@@ -62,21 +64,21 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
   const typeOption = useMemo<EChartsOption>(() => ({
     tooltip: {
       trigger: 'item',
-      backgroundColor: dark ? '#1f1f1f' : '#ffffff',
-      borderColor: dark ? '#303030' : '#f0f0f0',
-      textStyle: { color: dark ? '#f0f0f0' : '#1f1f1f' },
+      backgroundColor: dark ? '#171717' : '#ffffff',
+      borderColor: dark ? '#262626' : '#e5e5e5',
+      textStyle: { color: dark ? '#fafafa' : '#0a0a0a' },
     },
     legend: {
       bottom: 0, left: 'center',
-      textStyle: { color: dark ? '#d9d9d9' : '#595959' },
+      textStyle: { color: dark ? '#a1a1a1' : '#737373' },
     },
-    color: colors,
+    color: chartColors(dark),
     series: [{
       type: 'pie',
       radius: ['45%', '70%'],
       center: ['50%', '44%'],
       avoidLabelOverlap: true,
-      itemStyle: { borderColor: dark ? '#1f1f1f' : '#fff', borderWidth: 2 },
+      itemStyle: { borderColor: dark ? '#0a0a0a' : '#fff', borderWidth: 2 },
       label: { show: false },
       data: [
         { value: stats.hosts.length, name: '物理机' },
@@ -95,20 +97,22 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
     return {
       tooltip: {
         trigger: 'item',
-        backgroundColor: dark ? '#1f1f1f' : '#ffffff',
-        borderColor: dark ? '#303030' : '#f0f0f0',
-        textStyle: { color: dark ? '#f0f0f0' : '#1f1f1f' },
+        backgroundColor: dark ? '#171717' : '#ffffff',
+        borderColor: dark ? '#262626' : '#e5e5e5',
+        textStyle: { color: dark ? '#fafafa' : '#0a0a0a' },
       },
       legend: {
         bottom: 0, left: 'center',
-        textStyle: { color: dark ? '#d9d9d9' : '#595959' },
+        textStyle: { color: dark ? '#a1a1a1' : '#737373' },
       },
-      color: ['#52c41a', '#bfbfbf', '#faad14', '#ff4d4f', '#1677ff'],
+      color: dark
+        ? ['#60a5fa', '#737373', '#a3a3a3', '#f87171', '#525252']
+        : ['#2563eb', '#a3a3a3', '#737373', '#dc2626', '#d4d4d4'],
       series: [{
         type: 'pie',
         radius: ['45%', '70%'],
         center: ['50%', '44%'],
-        itemStyle: { borderColor: dark ? '#1f1f1f' : '#fff', borderWidth: 2 },
+        itemStyle: { borderColor: dark ? '#0a0a0a' : '#fff', borderWidth: 2 },
         label: { show: false },
         data: Array.from(counts, ([key, value]) => ({ value, name: labels[key] ?? key })),
       }],
@@ -122,24 +126,24 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
     return {
       tooltip: {
         trigger: 'axis',
-        backgroundColor: dark ? '#1f1f1f' : '#ffffff',
-        borderColor: dark ? '#303030' : '#f0f0f0',
-        textStyle: { color: dark ? '#f0f0f0' : '#1f1f1f' },
+        backgroundColor: dark ? '#171717' : '#ffffff',
+        borderColor: dark ? '#262626' : '#e5e5e5',
+        textStyle: { color: dark ? '#fafafa' : '#0a0a0a' },
       },
       grid: { left: 8, right: 12, bottom: 8, top: 20, containLabel: true },
       xAxis: {
         type: 'category', data: Array.from(counts.keys(), key => labels[key] ?? key), axisTick: { show: false },
-        axisLabel: { color: dark ? '#d9d9d9' : '#595959' },
+        axisLabel: { color: dark ? '#a1a1a1' : '#737373' },
       },
       yAxis: {
         type: 'value', minInterval: 1,
-        axisLabel: { color: dark ? '#d9d9d9' : '#595959' },
-        splitLine: { lineStyle: { color: dark ? '#303030' : '#f0f0f0' } },
+        axisLabel: { color: dark ? '#a1a1a1' : '#737373' },
+        splitLine: { lineStyle: { color: dark ? '#262626' : '#e5e5e5' } },
       },
       series: [{
         type: 'bar',
         barMaxWidth: 42,
-        itemStyle: { color: '#1677ff', borderRadius: [4, 4, 0, 0] },
+        itemStyle: { color: dark ? '#e5e5e5' : '#171717', borderRadius: [4, 4, 0, 0] },
         data: Array.from(counts.values()),
       }],
     }
@@ -150,24 +154,24 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
     return {
       tooltip: {
         trigger: 'axis', axisPointer: { type: 'shadow' },
-        backgroundColor: dark ? '#1f1f1f' : '#ffffff',
-        borderColor: dark ? '#303030' : '#f0f0f0',
-        textStyle: { color: dark ? '#f0f0f0' : '#1f1f1f' },
+        backgroundColor: dark ? '#171717' : '#ffffff',
+        borderColor: dark ? '#262626' : '#e5e5e5',
+        textStyle: { color: dark ? '#fafafa' : '#0a0a0a' },
       },
       grid: { left: 8, right: 24, bottom: 8, top: 10, containLabel: true },
       xAxis: {
-        type: 'value', max: 100, axisLabel: { formatter: '{value}%', color: dark ? '#d9d9d9' : '#595959' },
-        splitLine: { lineStyle: { color: dark ? '#303030' : '#f0f0f0' } },
+        type: 'value', max: 100, axisLabel: { formatter: '{value}%', color: dark ? '#a1a1a1' : '#737373' },
+        splitLine: { lineStyle: { color: dark ? '#262626' : '#e5e5e5' } },
       },
       yAxis: {
         type: 'category', data: top.map(item => `${item.name} ${item.cidr}`),
-        axisLabel: { color: dark ? '#d9d9d9' : '#595959' },
+        axisLabel: { color: dark ? '#a1a1a1' : '#737373' },
       },
       series: [{
         type: 'bar',
         barMaxWidth: 20,
-        itemStyle: { color: '#13c2c2', borderRadius: [0, 4, 4, 0] },
-        label: { show: true, position: 'right', formatter: '{c}%', color: dark ? '#d9d9d9' : '#1f1f1f' },
+        itemStyle: { color: dark ? '#e5e5e5' : '#171717', borderRadius: [0, 4, 4, 0] },
+        label: { show: true, position: 'right', formatter: '{c}%', color: dark ? '#a1a1a1' : '#0a0a0a' },
         data: top.map(item => Math.round(item.used / Math.max(1, item.usable) * 100)),
       }],
     }
@@ -182,23 +186,23 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
     return {
       tooltip: {
         trigger: 'axis', axisPointer: { type: 'shadow' },
-        backgroundColor: dark ? '#1f1f1f' : '#ffffff',
-        borderColor: dark ? '#303030' : '#f0f0f0',
-        textStyle: { color: dark ? '#f0f0f0' : '#1f1f1f' },
+        backgroundColor: dark ? '#171717' : '#ffffff',
+        borderColor: dark ? '#262626' : '#e5e5e5',
+        textStyle: { color: dark ? '#fafafa' : '#0a0a0a' },
       },
       grid: { left: 8, right: 34, bottom: 8, top: 10, containLabel: true },
       xAxis: {
         type: 'value', minInterval: 1,
-        axisLabel: { color: dark ? '#d9d9d9' : '#595959' },
-        splitLine: { lineStyle: { color: dark ? '#303030' : '#f0f0f0' } },
+        axisLabel: { color: dark ? '#a1a1a1' : '#737373' },
+        splitLine: { lineStyle: { color: dark ? '#262626' : '#e5e5e5' } },
       },
       yAxis: {
         type: 'category', data: top.map(tag => tag.name),
-        axisLabel: { color: dark ? '#d9d9d9' : '#595959' },
+        axisLabel: { color: dark ? '#a1a1a1' : '#737373' },
       },
       series: [{
         type: 'bar', barMaxWidth: 18,
-        label: { show: true, position: 'right', color: dark ? '#d9d9d9' : '#1f1f1f' },
+        label: { show: true, position: 'right', color: dark ? '#a1a1a1' : '#0a0a0a' },
         data: top.map(tag => ({
           value: tag.assetCount ?? 0,
           itemStyle: { color: tag.color, borderRadius: [0, 4, 4, 0] },

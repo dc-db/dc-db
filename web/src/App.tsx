@@ -43,10 +43,10 @@ const kinds: Record<Kind, { label: string; icon: ReactNode }> = {
   switch: { label: '交换机', icon: <ApiOutlined /> },
 }
 const statuses: Record<string, { label: string; color: string }> = {
-  online: { label: '在线', color: 'green' },
-  running: { label: '运行中', color: 'green' },
+  online: { label: '在线', color: 'blue' },
+  running: { label: '运行中', color: 'blue' },
   stopped: { label: '已停止', color: 'default' },
-  paused: { label: '已暂停', color: 'orange' },
+  paused: { label: '已暂停', color: 'default' },
   offline: { label: '离线', color: 'red' },
   unknown: { label: '未知', color: 'default' },
 }
@@ -114,7 +114,7 @@ export default function App() {
     } catch {
       // Storage may be unavailable in private browsing.
     }
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#141414' : '#f5f5f5')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0a0a0a' : '#ffffff')
   }, [dark])
 
   return (
@@ -123,11 +123,11 @@ export default function App() {
       theme={{
         algorithm: dark ? theme.darkAlgorithm : theme.defaultAlgorithm,
         token: {
-          colorPrimary: '#1677ff',
-          borderRadius: 6,
-          colorBgContainer: dark ? '#1f1f1f' : '#ffffff',
-          colorBgLayout: dark ? '#141414' : '#f5f5f5',
-          colorBgElevated: dark ? '#262626' : '#ffffff',
+          colorPrimary: dark ? '#e5e5e5' : '#171717',
+          borderRadius: 8,
+          colorBgContainer: dark ? '#0a0a0a' : '#ffffff',
+          colorBgLayout: dark ? '#0a0a0a' : '#ffffff',
+          colorBgElevated: dark ? '#171717' : '#ffffff',
         },
       }}
     >
