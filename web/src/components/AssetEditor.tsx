@@ -1,6 +1,9 @@
 import { useState } from 'react'
-import { Alert, Button, Col, Form, Input, InputNumber, Row, Select, Space } from 'antd'
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Textarea } from './ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { Plus, Trash2 } from 'lucide-react'
 import type { Asset, AssetFields, Kind } from '../api'
 
 interface Props {
@@ -27,6 +30,16 @@ const attributeTypeOptions = [
   { value: 'boolean', label: '布尔' },
   { value: 'json', label: 'JSON' },
 ]
+
+function Choice({ value, options, onChange, disabled, className }: {
+  value: string; options: { value: string; label: string }[]; onChange: (value: string) => void
+  disabled?: boolean; className?: string
+}) {
+  return <Select value={value || '__empty__'} disabled={disabled} onValueChange={next => onChange(next === '__empty__' ? '' : next)}>
+    <SelectTrigger className={className}><SelectValue /></SelectTrigger>
+    <SelectContent>{options.map(option => <SelectItem key={option.value || '__empty__'} value={option.value || '__empty__'}>{option.label}</SelectItem>)}</SelectContent>
+  </Select>
+}
 
 function attributesToRows(attributes: Record<string, unknown>): AttributeRow[] {
   return Object.entries(attributes).map(([key, value], index) => {
@@ -130,135 +143,32 @@ export function AssetEditor({ asset, defaultKind, busy, error, onSave, onCancel 
   }
 
   return (
-    <Form layout="vertical" onFinish={save}>
-      {(validation || error) && <Alert type="error" showIcon message={validation || error} style={{ marginBottom: 16 }} />}
-      <Row gutter={16}>
-        <Col span={12}>
-          <Form.Item label="资源类型" required>
-            <Select
-              value={fields.kind}
-              disabled={!!asset}
-              onChange={value => update('kind', value)}
-              options={[{ value: 'host', label: '物理机' }, { value: 'switch', label: '交换机' }, { value: 'vm', label: '虚拟机' }]}
-            />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item label="资源名称" required>
-            <Input value={fields.name} maxLength={160} onChange={event => update('name', event.target.value)} />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item label="平台">
-            <Select
-              value={fields.platform}
-              onChange={value => update('platform', value)}
-              options={[{ value: '', label: '未指定' }, { value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM / libvirt' }]}
-            />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item label="状态">
-            <Select
-              value={fields.status}
-              onChange={value => update('status', value)}
-              options={[
-                { value: 'unknown', label: '未知' }, { value: 'online', label: '在线' }, { value: 'offline', label: '离线' },
-                { value: 'running', label: '运行中' }, { value: 'stopped', label: '已停止' }, { value: 'paused', label: '已暂停' },
-              ]}
-            />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item label="负责人">
-            <Input value={fields.owner} maxLength={160} placeholder="姓名或团队" onChange={event => update('owner', event.target.value)} />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item label="环境">
-            <Input value={fields.environment} maxLength={40} placeholder="例如：生产" onChange={event => update('environment', event.target.value)} />
-          </Form.Item>
-        </Col>
-        <Col span={24}>
-          <Form.Item label="管理地址 / IP">
-            <Input value={fields.address} maxLength={160} placeholder="例如：192.0.2.11" onChange={event => update('address', event.target.value)} />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item label="CPU 核数 / vCPU">
-            <InputNumber min={0} max={65536} value={fields.cpu} style={{ width: '100%' }} onChange={value => update('cpu', value ?? 0)} />
-          </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item label="内存（MiB）">
-            <InputNumber min={0} max={1073741824} value={fields.memoryMiB} style={{ width: '100%' }} onChange={value => update('memoryMiB', value ?? 0)} />
-          </Form.Item>
-        </Col>
-        {asset && (
-          <Col span={24}>
-            <Form.Item label="生命周期">
-              <Select
-                value={fields.lifecycle}
-                onChange={value => update('lifecycle', value)}
-                options={[{ value: 'active', label: '在册' }, { value: 'retired', label: '已退役' }]}
-              />
-            </Form.Item>
-          </Col>
-        )}
-        <Col span={24}>
-          <Form.Item label="备注">
-            <Input.TextArea value={fields.notes} rows={3} maxLength={2500} onChange={event => update('notes', event.target.value)} />
-          </Form.Item>
-        </Col>
-        <Col span={24}>
-          <Form.Item label="扩展属性" extra="键值对；复杂的嵌套结构请选择 JSON 类型">
-            <div className="attribute-editor">
-              {attributeRows.map(row => (
-                <div key={row.id} className="attribute-row">
-                  <Input
-                    className="attribute-key" placeholder="键" maxLength={80}
-                    value={row.key} onChange={event => updateAttribute(row.id, { key: event.target.value })}
-                  />
-                  <Select
-                    className="attribute-type" value={row.type} options={attributeTypeOptions}
-                    onChange={value => updateAttribute(row.id, {
-                      type: value,
-                      ...(value === 'boolean' ? { value: row.value === 'false' ? 'false' : 'true' } : {}),
-                    })}
-                  />
-                  {row.type === 'boolean' ? (
-                    <Select
-                      className="attribute-value" value={row.value === 'false' ? 'false' : 'true'}
-                      onChange={value => updateAttribute(row.id, { value })}
-                      options={[{ value: 'true', label: 'true' }, { value: 'false', label: 'false' }]}
-                    />
-                  ) : row.type === 'json' ? (
-                    <Input.TextArea
-                      className="attribute-value mono" autoSize={{ minRows: 1, maxRows: 4 }} spellCheck={false}
-                      value={row.value} onChange={event => updateAttribute(row.id, { value: event.target.value })}
-                    />
-                  ) : (
-                    <Input
-                      className="attribute-value" placeholder="值"
-                      inputMode={row.type === 'number' ? 'decimal' : undefined}
-                      value={row.value} onChange={event => updateAttribute(row.id, { value: event.target.value })}
-                    />
-                  )}
-                  <Button
-                    type="text" danger icon={<DeleteOutlined />} aria-label="删除扩展属性"
-                    onClick={() => removeAttribute(row.id)}
-                  />
-                </div>
-              ))}
-              <Button type="dashed" icon={<PlusOutlined />} onClick={addAttribute}>添加属性</Button>
-            </div>
-          </Form.Item>
-        </Col>
-      </Row>
-      <Space style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <Button onClick={onCancel}>取消</Button>
-        <Button type="primary" htmlType="submit" loading={busy}>{busy ? '正在保存…' : '保存资产'}</Button>
-      </Space>
-    </Form>
+    <form onSubmit={event => { event.preventDefault(); save() }} className="grid grid-cols-2 gap-4">
+      {(validation || error) && <p role="alert" className="col-span-2 text-destructive">{validation || error}</p>}
+      <label className="grid gap-2">资源类型 *<Choice value={fields.kind} disabled={!!asset} onChange={value => update('kind', value as Kind)} options={[{ value: 'host', label: '物理机' }, { value: 'switch', label: '交换机' }, { value: 'vm', label: '虚拟机' }]} /></label>
+      <label className="grid gap-2">资源名称 *<Input required value={fields.name} maxLength={160} onChange={event => update('name', event.target.value)} /></label>
+      <label className="grid gap-2">平台<Choice value={fields.platform} onChange={value => update('platform', value as AssetFields['platform'])} options={[{ value: '', label: '未指定' }, { value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM / libvirt' }]} /></label>
+      <label className="grid gap-2">状态<Choice value={fields.status} onChange={value => update('status', value as AssetFields['status'])} options={[{ value: 'unknown', label: '未知' }, { value: 'online', label: '在线' }, { value: 'offline', label: '离线' }, { value: 'running', label: '运行中' }, { value: 'stopped', label: '已停止' }, { value: 'paused', label: '已暂停' }]} /></label>
+      <label className="grid gap-2">负责人<Input value={fields.owner} maxLength={160} placeholder="姓名或团队" onChange={event => update('owner', event.target.value)} /></label>
+      <label className="grid gap-2">环境<Input value={fields.environment} maxLength={40} placeholder="例如：生产" onChange={event => update('environment', event.target.value)} /></label>
+      <label className="col-span-2 grid gap-2">管理地址 / IP<Input value={fields.address} maxLength={160} placeholder="例如：192.0.2.11" onChange={event => update('address', event.target.value)} /></label>
+      <label className="grid gap-2">CPU 核数 / vCPU<Input type="number" min={0} max={65536} value={fields.cpu} onChange={event => update('cpu', Number(event.target.value))} /></label>
+      <label className="grid gap-2">内存（MiB）<Input type="number" min={0} max={1073741824} value={fields.memoryMiB} onChange={event => update('memoryMiB', Number(event.target.value))} /></label>
+      {asset && <label className="col-span-2 grid gap-2">生命周期<Choice value={fields.lifecycle} onChange={value => update('lifecycle', value as AssetFields['lifecycle'])} options={[{ value: 'active', label: '在册' }, { value: 'retired', label: '已退役' }]} /></label>}
+      <label className="col-span-2 grid gap-2">备注<Textarea value={fields.notes} rows={3} maxLength={2500} onChange={event => update('notes', event.target.value)} /></label>
+      <div className="col-span-2 grid gap-2">
+        <div>扩展属性 <span className="muted">键值对；复杂的嵌套结构请选择 JSON 类型</span></div>
+        <div className="attribute-editor">
+          {attributeRows.map(row => <div key={row.id} className="attribute-row">
+            <Input className="attribute-key" placeholder="键" maxLength={80} value={row.key} onChange={event => updateAttribute(row.id, { key: event.target.value })} />
+            <Choice className="attribute-type" value={row.type} options={attributeTypeOptions} onChange={value => updateAttribute(row.id, { type: value as AttributeType, ...(value === 'boolean' ? { value: row.value === 'false' ? 'false' : 'true' } : {}) })} />
+            {row.type === 'boolean' ? <Choice className="attribute-value" value={row.value === 'false' ? 'false' : 'true'} onChange={value => updateAttribute(row.id, { value })} options={[{ value: 'true', label: 'true' }, { value: 'false', label: 'false' }]} /> : row.type === 'json' ? <Textarea className="attribute-value mono" rows={1} spellCheck={false} value={row.value} onChange={event => updateAttribute(row.id, { value: event.target.value })} /> : <Input className="attribute-value" placeholder="值" inputMode={row.type === 'number' ? 'decimal' : undefined} value={row.value} onChange={event => updateAttribute(row.id, { value: event.target.value })} />}
+            <Button type="button" variant="ghost" size="icon" aria-label="删除扩展属性" onClick={() => removeAttribute(row.id)}><Trash2 /></Button>
+          </div>)}
+          <Button type="button" variant="outline" onClick={addAttribute}><Plus />添加属性</Button>
+        </div>
+      </div>
+      <div className="col-span-2 flex justify-end gap-2"><Button type="button" variant="outline" onClick={onCancel}>取消</Button><Button type="submit" disabled={busy}>{busy ? '正在保存…' : '保存资产'}</Button></div>
+    </form>
   )
 }
