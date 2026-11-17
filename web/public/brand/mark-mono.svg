@@ -1,5 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" color="#171717">
-  <title>DC-DB monochrome port</title>
-  <desc>Single-color port with two symmetric indicator lights.</desc>
-  <path fill="currentColor" fill-rule="evenodd" d="M6 12H58V48H44V56H20V48H6Z M14 20V40H28V48H36V40H50V20Z"/><path fill="currentColor" d="M20 16H24V30H20Z M30 16H34V30H30Z M40 16H44V30H40Z"/><path fill="currentColor" d="M6 4H16V8H6Z"/><path fill="currentColor" d="M48 4H58V8H48Z"/>
+<!--
+Based on Lucide Building2 / building-complex: https://lucide.dev/icons/building-complex
+Modified for DC-DB: replace the arched door with a third horizontal line, add grayscale line accents and theme-aware black/white backgrounds.
+ISC License
+
+Copyright (c) 2026 Lucide Icons and Contributors
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+-->
+  <title>DC-DB monochrome mark</title>
+  <desc>Building outline and three horizontal lines in currentColor, adapted from Lucide Building2 (building-complex). Transparent background.</desc>
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="scale(2.666666667)"><path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"/><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/><path d="M10 8h4" stroke="currentColor"/><path d="M10 12h4" stroke="currentColor"/><path d="M10 16h4" stroke="currentColor"/></g>
 </svg>
