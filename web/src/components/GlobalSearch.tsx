@@ -185,8 +185,9 @@ export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onV
       <Search size={15} className="absolute left-3 text-muted-foreground pointer-events-none" />
       <Input
         ref={inputRef}
-        className="pl-9 pr-20"
-        placeholder="搜索资产、标签、机柜、IP、VLAN…"
+        className="pl-9 pr-9"
+        aria-label="搜索"
+        placeholder="搜索"
         value={query}
         autoComplete="off"
         onChange={event => {
@@ -199,8 +200,7 @@ export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onV
         onBlur={() => window.setTimeout(() => setOpen(false), 120)}
         onKeyDown={handleKeyDown}
       />
-      {query && <button type="button" className="absolute right-14 text-muted-foreground" aria-label="清除搜索" onMouseDown={event => event.preventDefault()} onClick={() => { setQuery(''); inputRef.current?.focus() }}><X size={14} /></button>}
-      <kbd className="global-search-kbd absolute right-2 pointer-events-none">Ctrl K</kbd>
+      {query && <button type="button" className="absolute right-3 text-muted-foreground" aria-label="清除搜索" onMouseDown={event => event.preventDefault()} onClick={() => { setQuery(''); inputRef.current?.focus() }}><X size={14} /></button>}
       </div>
       {visible && (
         <div className="global-search-panel" onMouseDown={event => event.preventDefault()}>

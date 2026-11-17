@@ -11,7 +11,7 @@ import {
   Crosshair as AimOutlined, Network as ApartmentOutlined, Cable as ApiOutlined, Server as CloudServerOutlined,
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Filter as FilterOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
   HardDrive as HddOutlined, House as HomeOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, PanelLeftClose as MenuFoldOutlined, PanelLeftOpen as MenuUnfoldOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
-  Search as SearchOutlined, Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
+  Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
 import type { Asset, AssetFields, Captcha, Change, ImportPreview, Kind, Link, LinkKind, Subnet, Tag as TagItem, User } from './api'
@@ -1219,28 +1219,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           )}
 
           {(page === 'assets' || page === 'host' || page === 'vm' || page === 'switch') && (
-            <Card
-              variant="borderless"
-              title={<Space><span>{activePage.label}列表</span><Tag>{filtered.length} 条</Tag></Space>}
-              extra={(
-                <Space wrap>
-                  {editable && <Upload
-                    accept=".csv,text/csv" showUploadList={false}
-                    beforeUpload={(file: File) => { void previewCSV(file); return false }}
-                  >
-                    <Button loading={importing || previewing}><UploadOutlined /> 导入 CSV</Button>
-                  </Upload>}
-                  <Button onClick={downloadTemplate}><DownloadOutlined /> 下载模板</Button>
-                  <Button disabled={!filtered.length} onClick={exportCSV}><DownloadOutlined /> 导出 CSV</Button>
-                </Space>
-              )}
-            >
+            <Card variant="borderless">
               <div className="table-toolbar">
-                <Input
-                  className="table-search" allowClear placeholder="搜索名称、IP、宿主机…"
-                  prefix={<SearchOutlined />} value={keyword}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => setKeyword(event.target.value)}
-                />
                 <Space wrap>
                   <Select
                     style={{ width: 145 }} allowClear placeholder="全部平台" value={platformFilter}
@@ -1320,6 +1300,16 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                   >
                     <Button size="small" icon={<SettingOutlined />}>列</Button>
                   </Popover>
+                </Space>
+                <Space wrap>
+                  {editable && <Upload
+                    accept=".csv,text/csv" showUploadList={false}
+                    beforeUpload={(file: File) => { void previewCSV(file); return false }}
+                  >
+                    <Button loading={importing || previewing}><UploadOutlined /> 导入 CSV</Button>
+                  </Upload>}
+                  <Button onClick={downloadTemplate}><DownloadOutlined /> 下载模板</Button>
+                  <Button disabled={!filtered.length} onClick={exportCSV}><DownloadOutlined /> 导出 CSV</Button>
                 </Space>
               </div>
               {editable && selectedAssetIds.length > 0 && (
