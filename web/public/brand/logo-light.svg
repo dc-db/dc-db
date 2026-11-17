@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 306 80" >
 <!--
 Based on Lucide Building2 / building-complex: https://lucide.dev/icons/building-complex
-Modified for DC-DB: replace the arched door with a third horizontal line, add grayscale line accents and theme-aware black/white backgrounds.
+Modified for DC-DB: reduce the building to its central bay and reinterpret it as a server chassis with three grayscale slot bars.
 ISC License
 
 Copyright (c) 2026 Lucide Icons and Contributors
@@ -19,8 +19,8 @@ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -->
   <title>DC-DB</title>
-  <desc>Building outline with grayscale horizontal lines and Geist 650 outlined lettering, on a solid theme-matched background.</desc>
+  <desc>Server chassis with grayscale horizontal bars and Geist 650 outlined lettering, on a solid white background.</desc>
   <rect width="306" height="80" fill="#ffffff"/>
-  <g color="#171717" transform="translate(0 5)"><rect width="64" height="64" fill="#ffffff"/><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="scale(2.666666667)"><path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"/><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/><path d="M10 8h4" stroke="currentColor"/><path d="M10 12h4" stroke="#808080"/><path d="M10 16h4" stroke="#b3b3b3"/></g></g>
+  <g color="#171717" transform="translate(0 5)"><rect width="64" height="64" fill="#ffffff"/><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="scale(2.666666667)"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 8h8" stroke="currentColor"/><path d="M8 12h8" stroke="#808080"/><path d="M8 16h8" stroke="#b3b3b3"/></g></g>
   <path fill="#171717" transform="translate(86 61) scale(0.067 -0.067)" d="M77 0V710H317.5Q489 710 581.25 617.5Q673.5 525.0 673.5 354.0Q673.5 184.0 582.75 92.0Q492 0 323.5 0.0ZM218.0 120.5H317.5Q424.5 120.5 476.25 178.25Q528 236 528.0 354.5Q528 474 476.25 531.75Q424.5 589.5 317.5 589.5H218.0ZM1065.5 -16.0Q968.5 -16.0 893.75 28.25Q819.0 72.5 776.75 155.25Q734.5 238.0 734.5 354.0Q734.5 467.5 775.5 551.0Q816.5 634.5 891.5 680.25Q966.5 726.0 1067.5 726.0Q1205.0 726 1281.25 658.0Q1357.5 590.0 1380.0 466L1233.0 459.5Q1220.5 528.0 1179.0 566.75Q1137.5 605.5 1067.5 605.5Q1009.0 605.5 967.0 574.5Q925.0 543.5 902.5 487.0Q880.0 430.5 880.0 354Q880.0 276.5 903.0 220.5Q926.0 164.5 968.0 134.5Q1010.0 104.5 1066.5 104.5Q1142.0 104.5 1183.5 146.5Q1225.0 188.5 1236.0 262.5L1383.5 256.0Q1369.5 171.0 1329.0 110.25Q1288.5 49.5 1222.5 16.75Q1156.5 -16.0 1065.5 -16.0ZM1439.0 234V349.5H1780.5V234.0ZM1876.0 0V710H2116.5Q2288.0 710 2380.25 617.5Q2472.5 525.0 2472.5 354.0Q2472.5 184.0 2381.75 92.0Q2291.0 0 2122.5 0.0ZM2017.0 120.5H2116.5Q2223.5 120.5 2275.25 178.25Q2327.0 236 2327.0 354.5Q2327.0 474 2275.25 531.75Q2223.5 589.5 2116.5 589.5H2017.0ZM2568.0 0V710H2839.0Q2970.0 710 3038.75 663.75Q3107.5 617.5 3107.5 517.5Q3107.5 473.0 3089.25 440.0Q3071.0 407 3036.0 388.0Q3001.0 369 2951.5 366.0L2951.0 368Q3041.0 363.5 3089.25 317.5Q3137.5 271.5 3137.5 195.5Q3137.5 97.0 3069.0 48.5Q3000.5 0.0 2874.0 0ZM2709.0 117H2867.5Q2925.5 117.0 2960.0 140.75Q2994.5 164.5 2994.5 211.5Q2994.5 258.5 2960.25 283.25Q2926.0 308 2867.5 308.0H2709.0ZM2709.0 414H2835.0Q2895.0 414 2929.75 437.0Q2964.5 460.0 2964.5 503.5Q2964.5 549.5 2930.75 571.25Q2897.0 593 2835.0 593H2709.0Z"/>
 </svg>

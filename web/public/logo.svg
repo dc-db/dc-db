@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="dc-db-mark">
 <!--
 Based on Lucide Building2 / building-complex: https://lucide.dev/icons/building-complex
-Modified for DC-DB: replace the arched door with a third horizontal line, add grayscale line accents and theme-aware black/white backgrounds.
+Modified for DC-DB: reduce the building to its central bay and reinterpret it as a server chassis with three grayscale slot bars.
 ISC License
 
 Copyright (c) 2026 Lucide Icons and Contributors
@@ -20,5 +20,5 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 -->
   <title>DC-DB</title>
   <style>.dc-db-mark{color:#171717;--brand-mark-bg:#ffffff;--brand-mark-mid:#808080;--brand-mark-soft:#b3b3b3}@media(prefers-color-scheme:dark){.dc-db-mark{color:#fafafa;--brand-mark-bg:#000000;--brand-mark-mid:#b3b3b3;--brand-mark-soft:#808080}}</style>
-  <rect width="64" height="64" fill="var(--brand-mark-bg, #ffffff)"/><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="scale(2.666666667)"><path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"/><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/><path d="M10 8h4" stroke="currentColor"/><path d="M10 12h4" stroke="var(--brand-mark-mid, #808080)"/><path d="M10 16h4" stroke="var(--brand-mark-soft, #b3b3b3)"/></g>
+  <rect width="64" height="64" fill="var(--brand-mark-bg, #ffffff)"/><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="scale(2.666666667)"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 8h8" stroke="currentColor"/><path d="M8 12h8" stroke="var(--brand-mark-mid, #808080)"/><path d="M8 16h8" stroke="var(--brand-mark-soft, #b3b3b3)"/></g>
 </svg>
