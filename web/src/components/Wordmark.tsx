@@ -1,8 +1,10 @@
 export function Wordmark() {
   return (
-    <span className="wordmark" aria-label="dc-db">
-      <span className="wordmark-dc">dc</span>
-      <span className="wordmark-db">-db</span>
+    <span className="wordmark" role="img" aria-label="DC-DB">
+      <svg className="wordmark-symbol" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+        <use href="/brand/mark.svg#dc-db-symbol" />
+      </svg>
+      <span className="wordmark-text" aria-hidden="true">DC-DB</span>
     </span>
   )
 }

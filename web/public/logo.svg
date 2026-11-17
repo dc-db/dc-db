@@ -1,44 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <title>dc-db</title>
-  <desc>Two interlocking blue rings with dimensional highlights.</desc>
-  <defs>
-    <linearGradient id="upper-edge" x1="7" y1="5" x2="39" y2="43" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#C4EEFF" />
-      <stop offset=".42" stop-color="#2195E8" />
-      <stop offset="1" stop-color="#0750A9" />
-    </linearGradient>
-    <linearGradient id="upper-surface" x1="9" y1="6" x2="37" y2="40" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#B6E9FF" />
-      <stop offset=".28" stop-color="#5BC4FF" />
-      <stop offset=".65" stop-color="#228FE1" />
-      <stop offset="1" stop-color="#1469C6" />
-    </linearGradient>
-    <linearGradient id="lower-edge" x1="27" y1="24" x2="58" y2="62" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#71C6FF" />
-      <stop offset=".5" stop-color="#1769C3" />
-      <stop offset="1" stop-color="#073270" />
-    </linearGradient>
-    <linearGradient id="lower-surface" x1="28" y1="25" x2="58" y2="60" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#61BDFF" />
-      <stop offset=".37" stop-color="#2D8FE3" />
-      <stop offset=".73" stop-color="#1D66BF" />
-      <stop offset="1" stop-color="#12438F" />
-    </linearGradient>
-    <clipPath id="front-fold">
-      <path d="M0 0V64H64L38 38C36 37 35 34 33 32C32 31 31 30 30 30L0 0Z" />
-    </clipPath>
-    <g id="upper-ring">
-      <rect x="10" y="10" width="26" height="26" rx="9" stroke="url(#upper-edge)" stroke-width="12" />
-      <rect x="10" y="10" width="26" height="26" rx="9" stroke="url(#upper-surface)" stroke-width="10.2" />
-      <path d="M10 22v-3a9 9 0 0 1 9-9h7" stroke="#F1FAFF" stroke-opacity=".58" stroke-width="1.8" stroke-linecap="round" />
-    </g>
-    <g id="lower-ring">
-      <rect x="28" y="28" width="26" height="26" rx="9" stroke="url(#lower-edge)" stroke-width="12" />
-      <rect x="28" y="28" width="26" height="26" rx="9" stroke="url(#lower-surface)" stroke-width="10.2" />
-      <path d="M35 54h10a9 9 0 0 0 9-9v-5" stroke="#082F70" stroke-opacity=".3" stroke-width="1.6" stroke-linecap="round" />
-    </g>
-  </defs>
-  <use href="#upper-ring" />
-  <use href="#lower-ring" />
-  <use href="#upper-ring" clip-path="url(#front-fold)" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>DC-DB data tower</title>
+  <path fill="#6366f1" fill-rule="evenodd" d="M11 5H31C45 5 57 8.6 57 13V17C57 21.4 45 25 31 25H11A5 5 0 0 1 6 20V10A5 5 0 0 1 11 5ZM15 13H25A2 2 0 0 1 25 17H15A2 2 0 0 1 15 13Z"/><path fill="#3b82f6" fill-rule="evenodd" d="M6 29H31C42 29 51 27 57 24V35C57 39.4 45 43 31 43H11A5 5 0 0 1 6 38ZM15 33H25A2 2 0 0 1 25 37H15A2 2 0 0 1 15 33Z"/><path fill="#06b6d4" fill-rule="evenodd" d="M6 47H31C42 47 51 45 57 42V51C57 55.4 45 59 31 59H11A5 5 0 0 1 6 54ZM15 50H25A2 2 0 0 1 25 54H15A2 2 0 0 1 15 50Z"/>
 </svg>
