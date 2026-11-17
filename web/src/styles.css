@@ -6,8 +6,10 @@
   --surface: #ffffff;
   --text: #0a0a0a;
   --brand-mark-bg: #ffffff;
-  --brand-mark-mid: #808080;
-  --brand-mark-soft: #b3b3b3;
+  --brand-mark-front: #0a0a0a;
+  --brand-mark-detail: #ffffff;
+  --brand-mark-cyan: #22d3ee;
+  --brand-mark-coral: #f43f5e;
   --muted: #737373;
   --line: #e5e5e5;
   --primary: #171717;
@@ -74,9 +76,11 @@ html[data-theme="dark"] {
   --bg: #0a0a0a;
   --surface: #0a0a0a;
   --text: #fafafa;
-  --brand-mark-bg: #000000;
-  --brand-mark-mid: #b3b3b3;
-  --brand-mark-soft: #808080;
+  --brand-mark-bg: #0a0a0a;
+  --brand-mark-front: #fafafa;
+  --brand-mark-detail: #0a0a0a;
+  --brand-mark-cyan: #22d3ee;
+  --brand-mark-coral: #f43f5e;
   --muted: #a1a1a1;
   --line: rgba(255, 255, 255, .1);
   --primary: #e5e5e5;

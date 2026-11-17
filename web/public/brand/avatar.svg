@@ -1,25 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512">
-<!--
-Based on Lucide Building2 / building-complex: https://lucide.dev/icons/building-complex
-Modified for DC-DB: reduce the mark to three grayscale server slot bars.
-ISC License
-
-Copyright (c) 2026 Lucide Icons and Contributors
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--->
-  <title>DC-DB avatar</title>
-  <desc>Three white and grayscale server slot bars on pure black.</desc>
-  <rect width="64" height="64" fill="#000000"/>
-  <g color="#fafafa" transform="translate(6.4 6.4) scale(.8)"><rect width="64" height="64" fill="#000000"/><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" transform="scale(2.666666667)"><path d="M5 6h14" stroke-width="3" stroke="currentColor"/><path d="M5 12h14" stroke-width="3" stroke="#b3b3b3"/><path d="M5 18h14" stroke-width="3" stroke="#808080"/></g></g>
+  <title>DC-DB layered server avatar</title>
+  <desc>Three white server blades with cyan and coral offset layers on black.</desc>
+  <rect width="64" height="64" fill="#0A0A0A"/><g transform="translate(-2.6 -1.6)" fill="#22D3EE">
+<rect x="10" y="13" width="44" height="10" rx="3"/>
+<rect x="10" y="27" width="44" height="10" rx="3"/>
+<rect x="10" y="41" width="44" height="10" rx="3"/>
+</g><g transform="translate(2.6 1.6)" fill="#F43F5E">
+<rect x="10" y="13" width="44" height="10" rx="3"/>
+<rect x="10" y="27" width="44" height="10" rx="3"/>
+<rect x="10" y="41" width="44" height="10" rx="3"/>
+</g><g fill="#FFFFFF">
+<rect x="10" y="13" width="44" height="10" rx="3"/>
+<rect x="10" y="27" width="44" height="10" rx="3"/>
+<rect x="10" y="41" width="44" height="10" rx="3"/>
+</g><g fill="#0A0A0A">
+<circle cx="17" cy="18" r="1.6"/>
+<circle cx="17" cy="32" r="1.6"/>
+<circle cx="17" cy="46" r="1.6"/>
+<rect x="40" y="16" width="1.8" height="4" rx=".6"/>
+<rect x="44" y="16" width="1.8" height="4" rx=".6"/>
+<rect x="48" y="16" width="1.8" height="4" rx=".6"/>
+<rect x="40" y="30" width="1.8" height="4" rx=".6"/>
+<rect x="44" y="30" width="1.8" height="4" rx=".6"/>
+<rect x="48" y="30" width="1.8" height="4" rx=".6"/>
+<rect x="40" y="44" width="1.8" height="4" rx=".6"/>
+<rect x="44" y="44" width="1.8" height="4" rx=".6"/>
+<rect x="48" y="44" width="1.8" height="4" rx=".6"/>
+</g>
 </svg>

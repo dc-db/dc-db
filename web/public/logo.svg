@@ -1,24 +1,37 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="dc-db-mark">
-<!--
-Based on Lucide Building2 / building-complex: https://lucide.dev/icons/building-complex
-Modified for DC-DB: reduce the mark to three grayscale server slot bars.
-ISC License
-
-Copyright (c) 2026 Lucide Icons and Contributors
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
--->
-  <title>DC-DB</title>
-  <style>.dc-db-mark{color:#171717;--brand-mark-bg:#ffffff;--brand-mark-mid:#808080;--brand-mark-soft:#b3b3b3}@media(prefers-color-scheme:dark){.dc-db-mark{color:#fafafa;--brand-mark-bg:#000000;--brand-mark-mid:#b3b3b3;--brand-mark-soft:#808080}}</style>
-  <rect width="64" height="64" fill="var(--brand-mark-bg, #ffffff)"/><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" transform="scale(2.666666667)"><path d="M5 6h14" stroke-width="3" stroke="currentColor"/><path d="M5 12h14" stroke-width="3" stroke="var(--brand-mark-mid, #808080)"/><path d="M5 18h14" stroke-width="3" stroke="var(--brand-mark-soft, #b3b3b3)"/></g>
+  <title>DC-DB layered server mark</title>
+  <desc>Three server blades with cyan and coral offset layers. Black or white background follows the theme.</desc>
+  <style>.dc-db-mark{color:#0A0A0A;--brand-mark-bg:#FFFFFF;--brand-mark-front:#0A0A0A;--brand-mark-detail:#FFFFFF;--brand-mark-cyan:#22D3EE;--brand-mark-coral:#F43F5E}@media(prefers-color-scheme:dark){.dc-db-mark{color:#FAFAFA;--brand-mark-bg:#0A0A0A;--brand-mark-front:#FAFAFA;--brand-mark-detail:#0A0A0A}}</style>
+  <rect width="64" height="64" fill="var(--brand-mark-bg, #FFFFFF)"/>
+  <g>
+    <g transform="translate(-2.6 -1.6)" fill="var(--brand-mark-cyan, #22D3EE)">
+<rect x="10" y="13" width="44" height="10" rx="3"/>
+<rect x="10" y="27" width="44" height="10" rx="3"/>
+<rect x="10" y="41" width="44" height="10" rx="3"/>
+</g>
+    <g transform="translate(2.6 1.6)" fill="var(--brand-mark-coral, #F43F5E)">
+<rect x="10" y="13" width="44" height="10" rx="3"/>
+<rect x="10" y="27" width="44" height="10" rx="3"/>
+<rect x="10" y="41" width="44" height="10" rx="3"/>
+</g>
+    <g fill="var(--brand-mark-front, #0A0A0A)">
+<rect x="10" y="13" width="44" height="10" rx="3"/>
+<rect x="10" y="27" width="44" height="10" rx="3"/>
+<rect x="10" y="41" width="44" height="10" rx="3"/>
+</g>
+    <g fill="var(--brand-mark-detail, #FFFFFF)">
+<circle cx="17" cy="18" r="1.6"/>
+<circle cx="17" cy="32" r="1.6"/>
+<circle cx="17" cy="46" r="1.6"/>
+<rect x="40" y="16" width="1.8" height="4" rx=".6"/>
+<rect x="44" y="16" width="1.8" height="4" rx=".6"/>
+<rect x="48" y="16" width="1.8" height="4" rx=".6"/>
+<rect x="40" y="30" width="1.8" height="4" rx=".6"/>
+<rect x="44" y="30" width="1.8" height="4" rx=".6"/>
+<rect x="48" y="30" width="1.8" height="4" rx=".6"/>
+<rect x="40" y="44" width="1.8" height="4" rx=".6"/>
+<rect x="44" y="44" width="1.8" height="4" rx=".6"/>
+<rect x="48" y="44" width="1.8" height="4" rx=".6"/>
+</g>
+  </g>
 </svg>
