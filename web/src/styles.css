@@ -168,16 +168,18 @@ a { color: var(--info); }
 .captcha-placeholder { color: var(--muted); font-size: 12px; }
 .app-layout { min-height: 100vh; }
 .app-sider { background: var(--surface) !important; border-right: 1px solid var(--line); min-height: 100vh; }
-.brand { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 60px; padding: 0 10px 0 16px; font-size: 19px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; }
+.brand { display: flex; align-items: center; height: 60px; padding: 0 14px; font-size: 20px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; }
+.brand .wordmark { gap: .2em; }
+.brand .wordmark-symbol { width: 36px; height: 36px; }
 .brand-word { display: flex; align-items: center; min-width: 0; overflow: hidden; cursor: pointer; }
-.brand-collapse { flex: 0 0 auto; color: var(--muted); }
-.brand-collapse:hover { color: var(--text) !important; }
 .app-menu { flex: 1; border-inline-end: 0 !important; }
 .nav-tree-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .nav-tree-label > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-tree-count { flex: 0 0 auto; min-width: 18px; height: 18px; padding: 0 5px; border: 1px solid var(--line); border-radius: 9px; background: var(--subtle); color: var(--muted); font-size: 10px; line-height: 16px; text-align: center; }
 .app-header { height: 56px; padding: 0 16px; background: var(--surface) !important; color: var(--text); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
 .app-header-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.header-sidebar-toggle { flex: 0 0 auto; margin-left: -8px; color: var(--muted); }
+.header-sidebar-toggle:hover { color: var(--text) !important; }
 .app-header-title h1 { margin: 0; overflow: hidden; color: var(--text); font-size: 18px; font-weight: 600; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
 .global-search { position: relative; flex: 1 1 auto; max-width: 380px; min-width: 180px; margin-left: 18px; }
 .global-search-kbd { padding: 1px 5px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); font-size: 10px; line-height: 16px; }

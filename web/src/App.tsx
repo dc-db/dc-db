@@ -1095,10 +1095,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       >
         <div className="brand">
           <span className="brand-word" onClick={() => goTo('home')}><Wordmark /></span>
-          <Button
-            className="brand-collapse" type="text" icon={<MenuFoldOutlined />}
-            aria-label="收起菜单" onClick={() => setCollapsed(true)}
-          />
         </div>
         <Menu
           className="app-menu" mode="inline" selectedKeys={[page]}
@@ -1116,9 +1112,12 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       <Layout>
         <Header className="app-header">
           <div className="app-header-title">
-            {collapsed && (
-              <Button type="text" onClick={() => setCollapsed(false)} aria-label="展开菜单"><MenuUnfoldOutlined /></Button>
-            )}
+            <Button
+              className="header-sidebar-toggle" type="text"
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              aria-label={collapsed ? "展开菜单" : "收起菜单"}
+              onClick={() => setCollapsed(!collapsed)}
+            />
             <h1>{pageTitle}</h1>
             <GlobalSearch
               onAsset={id => void openAsset(id)}
