@@ -1119,6 +1119,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               onClick={() => setCollapsed(!collapsed)}
             />
             <h1>{pageTitle}</h1>
+          </div>
+          <Space size={6} className="app-header-actions">
             <GlobalSearch
               onAsset={id => void openAsset(id)}
               onRoom={id => {
@@ -1137,11 +1139,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               onTag={() => goTo('tags')}
               onSearchAll={searchAllAssets}
             />
-          </div>
-          <Space size={6}>
-            {(page === 'assets' || page === 'host' || page === 'vm' || page === 'switch') && editable && (
-              <Button type="primary" size="small" onClick={startNew}><PlusOutlined /> 新增资产</Button>
-            )}
             <ThemeToggle dark={dark} onToggleTheme={onToggleTheme} />
             <Tooltip title="刷新">
               <Button type="text" loading={busy} aria-label="刷新" onClick={() => void loadAll()}><ReloadOutlined /></Button>
@@ -1302,6 +1299,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                   </Popover>
                 </Space>
                 <Space wrap>
+                  {editable && <Button type="primary" onClick={startNew}><PlusOutlined /> 新增资产</Button>}
                   {editable && <Upload
                     accept=".csv,text/csv" showUploadList={false}
                     beforeUpload={(file: File) => { void previewCSV(file); return false }}

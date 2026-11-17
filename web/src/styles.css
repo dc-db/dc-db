@@ -188,11 +188,12 @@ html[data-theme="dark"] .app-menu button:not(.selected):hover { box-shadow: 0 0 
 .nav-tree-count { flex: 0 0 auto; min-width: 18px; height: 18px; padding: 0 5px; border: 1px solid var(--line); border-radius: 9px; background: var(--subtle); color: var(--muted); font-size: 10px; line-height: 16px; text-align: center; }
 .app-header { height: 56px; padding: 0 16px; background: var(--surface) !important; color: var(--text); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
 .app-header-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.app-header-actions { display: flex; align-items: center; min-width: 0; }
 .header-sidebar-toggle { flex: 0 0 auto; margin-left: -8px; color: var(--muted); }
 .header-sidebar-toggle:hover { color: var(--text) !important; }
 .app-header-title h1 { margin: 0; overflow: hidden; color: var(--text); font-size: 18px; font-weight: 600; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
-.global-search { position: relative; flex: 1 1 auto; max-width: 380px; min-width: 180px; margin-left: 18px; }
-.global-search-panel { position: absolute; top: calc(100% + 8px); left: 0; z-index: 1100; width: min(520px, 72vw); max-height: min(70vh, 560px); overflow: auto; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: 0 12px 32px rgba(0, 0, 0, .18); }
+.global-search { position: relative; flex: 0 1 320px; width: min(320px, 32vw); min-width: 200px; }
+.global-search-panel { position: absolute; top: calc(100% + 8px); right: 0; z-index: 1100; width: min(520px, 72vw); max-height: min(70vh, 560px); overflow: auto; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: 0 12px 32px rgba(0, 0, 0, .18); }
 .global-search-state { display: flex; align-items: center; gap: 8px; padding: 14px 12px; color: var(--muted); font-size: 12px; }
 .global-search-group + .global-search-group { margin-top: 4px; }
 .global-search-group-title { padding: 6px 9px 4px; color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
