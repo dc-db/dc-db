@@ -1,4 +1,9 @@
-# dc-db
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="web/public/brand/logo-dark.svg">
+    <img src="web/public/brand/logo-light.svg" width="312" height="80" alt="DC-DB">
+  </picture>
+</h1>
 
 [English](README.en.md)
 
@@ -7,6 +12,8 @@ dc-db 是一款简单易用的配置管理数据库，用于集中管理 IT 资�
 项目采用 Go、React 19 + TypeScript、shadcn/ui、TanStack Table、React Flow、ECharts 和 SQLite。一个 Go 二进制、一份 `web/dist` 前端产物和一个 SQLite 文件即可运行，不需要单独部署数据库服务。当前版本使用 SQLite；后续如有需要，可以再扩展 MySQL 或 PostgreSQL 后端。
 
 界面支持浅色和暗色主题：首次访问跟随系统设置，登录页和顶部栏可手动切换，选择会保存在浏览器本地。
+
+Logo 的 SVG 母版、GitHub PNG 素材和使用方式见[品牌标识](docs/brand.md)。
 
 ## 适用场景
 

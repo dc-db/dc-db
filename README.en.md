@@ -1,4 +1,9 @@
-# dc-db
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="web/public/brand/logo-dark.svg">
+    <img src="web/public/brand/logo-light.svg" width="312" height="80" alt="DC-DB">
+  </picture>
+</h1>
 
 [简体中文](README.md)
 
@@ -7,6 +12,8 @@ dc-db is a simple, easy-to-use configuration management database for IT assets, 
 dc-db uses Go, React 19 with TypeScript, shadcn/ui, TanStack Table, React Flow, ECharts, and SQLite. One Go binary, the built `web/dist` assets, and one SQLite file are all it needs; there is no separate database service to deploy. The current release uses SQLite, and a MySQL or PostgreSQL backend can be added later if needed.
 
 The interface supports light and dark themes. It follows the system preference on first visit, can be switched from the login page or header, and remembers the choice in the browser.
+
+See [Brand assets](docs/brand.md) for the SVG logo masters, GitHub PNG exports, and usage notes (in Chinese).
 
 ## Scope
 
