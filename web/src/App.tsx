@@ -1094,7 +1094,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         breakpoint="lg" trigger={null} onCollapse={setCollapsed}
       >
         <div className="brand">
-          <span className="brand-word" onClick={() => goTo('home')}><Wordmark /></span>
+          <span className="brand-word" onClick={() => goTo('home')}>DC-DB</span>
         </div>
         <Menu
           className="app-menu" mode="inline" selectedKeys={[page]}
