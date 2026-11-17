@@ -1,7 +1,7 @@
 <h1>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="web/public/brand/logo-dark.svg">
-    <img src="web/public/brand/logo-light.svg" width="312" height="80" alt="DC-DB">
+    <img src="web/public/brand/logo-light.svg" width="306" height="80" alt="DC-DB">
   </picture>
 </h1>
 
