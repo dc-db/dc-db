@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" >
+  <title>DC-DB data tower</title>
+  <desc>Straight rack fronts and curved database trays form one three-tier data tower in violet, blue, and cyan.</desc>
+  <symbol id="dc-db-symbol" viewBox="0 0 64 64"><path fill="#6366f1" fill-rule="evenodd" d="M11 5H31C45 5 57 8.6 57 13V17C57 21.4 45 25 31 25H11A5 5 0 0 1 6 20V10A5 5 0 0 1 11 5ZM15 13H25A2 2 0 0 1 25 17H15A2 2 0 0 1 15 13Z"/><path fill="#3b82f6" fill-rule="evenodd" d="M6 29H31C42 29 51 27 57 24V35C57 39.4 45 43 31 43H11A5 5 0 0 1 6 38ZM15 33H25A2 2 0 0 1 25 37H15A2 2 0 0 1 15 33Z"/><path fill="#06b6d4" fill-rule="evenodd" d="M6 47H31C42 47 51 45 57 42V51C57 55.4 45 59 31 59H11A5 5 0 0 1 6 54ZM15 50H25A2 2 0 0 1 25 54H15A2 2 0 0 1 15 50Z"/></symbol>
+  <use href="#dc-db-symbol"/>
+</svg>
