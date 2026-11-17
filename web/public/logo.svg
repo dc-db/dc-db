@@ -1,37 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="dc-db-mark">
   <title>DC-DB layered server mark</title>
-  <desc>Three server blades with cyan and coral offset layers. Black or white background follows the theme.</desc>
-  <style>.dc-db-mark{color:#0A0A0A;--brand-mark-bg:#FFFFFF;--brand-mark-front:#0A0A0A;--brand-mark-detail:#FFFFFF;--brand-mark-cyan:#22D3EE;--brand-mark-coral:#F43F5E}@media(prefers-color-scheme:dark){.dc-db-mark{color:#FAFAFA;--brand-mark-bg:#0A0A0A;--brand-mark-front:#FAFAFA;--brand-mark-detail:#0A0A0A}}</style>
+  <desc>Two thick server blades with gray offset layers. Black or white background follows the theme.</desc>
+  <style>.dc-db-mark{color:#0A0A0A;--brand-mark-bg:#FFFFFF;--brand-mark-front:#0A0A0A;--brand-mark-detail:#FFFFFF;--brand-mark-layer-soft:#D4D4D4;--brand-mark-layer-deep:#8A8A8A}@media(prefers-color-scheme:dark){.dc-db-mark{color:#FAFAFA;--brand-mark-bg:#0A0A0A;--brand-mark-front:#FAFAFA;--brand-mark-detail:#0A0A0A;--brand-mark-layer-soft:#3A3A3A;--brand-mark-layer-deep:#5A5A5A}}</style>
   <rect width="64" height="64" fill="var(--brand-mark-bg, #FFFFFF)"/>
   <g>
-    <g transform="translate(-2.6 -1.6)" fill="var(--brand-mark-cyan, #22D3EE)">
-<rect x="10" y="13" width="44" height="10" rx="3"/>
-<rect x="10" y="27" width="44" height="10" rx="3"/>
-<rect x="10" y="41" width="44" height="10" rx="3"/>
+    <g transform="translate(-3 -2)" fill="var(--brand-mark-layer-soft, #D4D4D4)">
+<rect x="10" y="13" width="44" height="14" rx="3.5"/>
+<rect x="10" y="37" width="44" height="14" rx="3.5"/>
 </g>
-    <g transform="translate(2.6 1.6)" fill="var(--brand-mark-coral, #F43F5E)">
-<rect x="10" y="13" width="44" height="10" rx="3"/>
-<rect x="10" y="27" width="44" height="10" rx="3"/>
-<rect x="10" y="41" width="44" height="10" rx="3"/>
+    <g transform="translate(3 2)" fill="var(--brand-mark-layer-deep, #8A8A8A)">
+<rect x="10" y="13" width="44" height="14" rx="3.5"/>
+<rect x="10" y="37" width="44" height="14" rx="3.5"/>
 </g>
     <g fill="var(--brand-mark-front, #0A0A0A)">
-<rect x="10" y="13" width="44" height="10" rx="3"/>
-<rect x="10" y="27" width="44" height="10" rx="3"/>
-<rect x="10" y="41" width="44" height="10" rx="3"/>
+<rect x="10" y="13" width="44" height="14" rx="3.5"/>
+<rect x="10" y="37" width="44" height="14" rx="3.5"/>
 </g>
     <g fill="var(--brand-mark-detail, #FFFFFF)">
-<circle cx="17" cy="18" r="1.6"/>
-<circle cx="17" cy="32" r="1.6"/>
-<circle cx="17" cy="46" r="1.6"/>
-<rect x="40" y="16" width="1.8" height="4" rx=".6"/>
-<rect x="44" y="16" width="1.8" height="4" rx=".6"/>
-<rect x="48" y="16" width="1.8" height="4" rx=".6"/>
-<rect x="40" y="30" width="1.8" height="4" rx=".6"/>
-<rect x="44" y="30" width="1.8" height="4" rx=".6"/>
-<rect x="48" y="30" width="1.8" height="4" rx=".6"/>
-<rect x="40" y="44" width="1.8" height="4" rx=".6"/>
-<rect x="44" y="44" width="1.8" height="4" rx=".6"/>
-<rect x="48" y="44" width="1.8" height="4" rx=".6"/>
+<circle cx="17.5" cy="20" r="2"/>
+<circle cx="17.5" cy="44" r="2"/>
+<rect x="40" y="16.5" width="2" height="5" rx=".7"/>
+<rect x="44" y="16.5" width="2" height="5" rx=".7"/>
+<rect x="48" y="16.5" width="2" height="5" rx=".7"/>
+<rect x="40" y="40.5" width="2" height="5" rx=".7"/>
+<rect x="44" y="40.5" width="2" height="5" rx=".7"/>
+<rect x="48" y="40.5" width="2" height="5" rx=".7"/>
 </g>
   </g>
 </svg>
