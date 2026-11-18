@@ -358,7 +358,7 @@ func TestUsers(t *testing.T) {
 	if err := EnsureUser(ctx, db, "", "", "admin"); err != nil {
 		t.Fatalf("ensure admin again: %v", err)
 	}
-	user, valid, err := authenticate(ctx, db, "admin", "default")
+	user, valid, err := authenticate(ctx, db, "admin", defaultAdminPassword)
 	if err != nil || !valid || user.Role != "admin" {
 		t.Fatalf("authenticate: %v, %v, %+v", err, valid, user)
 	}

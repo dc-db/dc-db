@@ -19,7 +19,7 @@ const sessionCookie = "dc-db_session"
 const sessionDuration = 12 * time.Hour
 const passwordIterations = 600000
 const defaultAdminUsername = "admin"
-const defaultAdminPassword = "default"
+const defaultAdminPassword = "admin"
 
 type User struct {
 	Username string `json:"username"`

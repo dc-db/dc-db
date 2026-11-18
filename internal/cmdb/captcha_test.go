@@ -74,7 +74,7 @@ func TestCaptchaImage(t *testing.T) {
 func TestLoginRequiresCaptcha(t *testing.T) {
 	server := &Server{captchas: newCaptchaStore(4), loginSlots: make(chan struct{}, 1)}
 	request := httptest.NewRequest(http.MethodPost, "/api/login",
-		strings.NewReader(`{"username":"admin","password":"default"}`))
+		strings.NewReader(`{"username":"admin","password":"admin"}`))
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	server.signIn(response, request)
@@ -89,7 +89,7 @@ func TestLoginRequiresCaptcha(t *testing.T) {
 func TestLoginWithCaptcha(t *testing.T) {
 	db := testDB(t)
 	ctx := context.Background()
-	if err := EnsureUser(ctx, db, "admin", "default", "admin"); err != nil {
+	if err := EnsureUser(ctx, db, "admin", defaultAdminPassword, "admin"); err != nil {
 		t.Fatalf("create admin: %v", err)
 	}
 	server := &Server{db: db, captchas: newCaptchaStore(4), loginSlots: make(chan struct{}, 1)}
@@ -98,7 +98,7 @@ func TestLoginWithCaptcha(t *testing.T) {
 		t.Fatalf("generate code: %v", err)
 	}
 	id := server.captchas.issue(code)
-	body := fmt.Sprintf(`{"username":"admin","password":"default","captchaId":%q,"captchaCode":%q}`, id, strings.ToLower(code))
+	body := fmt.Sprintf(`{"username":"admin","password":%q,"captchaId":%q,"captchaCode":%q}`, defaultAdminPassword, id, strings.ToLower(code))
 	request := httptest.NewRequest(http.MethodPost, "/api/login", strings.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()

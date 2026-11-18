@@ -92,7 +92,7 @@ viewer:
   password: ""
 ```
 
-- `admin.password` 留空时使用默认密码 `default`；对内网开放前改为至少 12 字节。
+- `admin.password` 留空时使用默认密码 `admin`；对内网开放前改为至少 12 字节。
 - `operator` / `viewer` 两项都留空表示不创建该账号。
 - 账号只在首次启动时创建，之后修改 `config.yaml` 不会改变已有账号的密码。
 

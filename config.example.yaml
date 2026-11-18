@@ -5,7 +5,7 @@ database: dc-db.db
 web_dir: web/dist
 cookie_secure: false
 
-# 初始管理员。password 留空时使用本地默认密码 "default"。
+# 初始管理员。password 留空时使用本地默认密码 "admin"。
 admin:
   username: admin
   password: ""
