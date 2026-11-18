@@ -1,23 +1,55 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512">
-  <title>DC-DB layered server avatar</title>
-  <desc>Two white thick server blades with gray offset layers on black.</desc>
-  <rect width="64" height="64" fill="#0A0A0A"/><g transform="translate(-3 -2)" fill="#3A3A3A">
-<rect x="10" y="13" width="44" height="14" rx="3.5"/>
-<rect x="10" y="37" width="44" height="14" rx="3.5"/>
-</g><g transform="translate(3 2)" fill="#5A5A5A">
-<rect x="10" y="13" width="44" height="14" rx="3.5"/>
-<rect x="10" y="37" width="44" height="14" rx="3.5"/>
-</g><g fill="#FFFFFF">
-<rect x="10" y="13" width="44" height="14" rx="3.5"/>
-<rect x="10" y="37" width="44" height="14" rx="3.5"/>
-</g><g fill="#0A0A0A">
-<circle cx="17.5" cy="20" r="2"/>
-<circle cx="17.5" cy="44" r="2"/>
-<rect x="40" y="16.5" width="2" height="5" rx=".7"/>
-<rect x="44" y="16.5" width="2" height="5" rx=".7"/>
-<rect x="48" y="16.5" width="2" height="5" rx=".7"/>
-<rect x="40" y="40.5" width="2" height="5" rx=".7"/>
-<rect x="44" y="40.5" width="2" height="5" rx=".7"/>
-<rect x="48" y="40.5" width="2" height="5" rx=".7"/>
-</g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>DC-DB logo avatar</title>
+  <desc>Blue gradient ribbon around three server layers on black.</desc>
+  <rect width="512" height="512" fill="#0A0A0A"/>
+  <svg x="48" y="48" width="416" height="416" viewBox="121 29 596 724" preserveAspectRatio="xMidYMid meet"><defs>
+    <linearGradient id="ribbon" x1="200" y1="95" x2="680" y2="525" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#26C8EB" />
+      <stop offset=".4" stop-color="#0071F1" />
+      <stop offset="1" stop-color="#0836E9" />
+    </linearGradient>
+    <linearGradient id="ribbon-side" x1="500" y1="300" x2="690" y2="550" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0924CA" />
+      <stop offset="1" stop-color="#063AEF" />
+    </linearGradient>
+    <linearGradient id="server-side" x1="141" y1="0" x2="500" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A8D8F8" />
+      <stop offset=".52" stop-color="#6395F6" />
+      <stop offset="1" stop-color="#123EF2" />
+    </linearGradient>
+    <linearGradient id="server-bottom" x1="140" y1="560" x2="697" y2="650" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A4CEF8" />
+      <stop offset=".38" stop-color="#6A98F8" />
+      <stop offset=".72" stop-color="#153DF0" stop-opacity=".8" />
+      <stop offset="1" stop-color="#153DF0" stop-opacity="0" />
+    </linearGradient>
+    <linearGradient id="server-top" x1="215" y1="230" x2="330" y2="385" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C3DCFC" />
+      <stop offset=".57" stop-color="#F7FAFF" />
+      <stop offset="1" stop-color="#E8F1FF" />
+    </linearGradient>
+    <linearGradient id="lower-top" x1="260" y1="408" x2="290" y2="503" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B8D3FC" />
+      <stop offset=".75" stop-color="#F7FAFF" />
+      <stop offset="1" stop-color="#DAEAFE" />
+    </linearGradient>
+  </defs>
+  <!-- 外围结构：独立的可编辑路径，内侧镂空为透明。 -->
+  <g id="outer-frame">
+    <path id="frame" d="M193 124 L293 65 Q319 49 347 58 L646 197 Q697 220 697 278 L697 510 Q697 563 649 587 L357 720 Q331 733 305 721 L163 653 Q141 643 141 620 L141 565 L301 625 Q327 638 352 624 L492 550 Q534 532 534 486 L534 343 Q534 303 494 283 L193 151 Q176 144 190 127 Z" fill="url(#ribbon)" />
+    <path id="frame-inner-shading" d="M494 283 C558 311 600 330 634 366 C664 398 684 433 697 468 L697 510 Q697 563 649 587 L357 720 Q331 733 305 721 L163 653 Q141 643 141 620 L141 565 L301 625 Q327 638 352 624 L492 550 Q534 532 534 486 L534 343 Q534 303 494 283 Z" fill="url(#ribbon-side)" />
+  </g>
+  <!-- 三层服务器，从下至上独立排列。 -->
+  <g id="server-bottom-layer">
+    <path id="bottom-body" d="M141 558 L299 624 Q326 637 352 624 L492 550 Q526 535 534 504 C584 480 645 462 697 455 L697 510 Q697 563 649 587 L357 720 Q331 733 305 721 L163 653 Q141 643 141 620 Z" fill="url(#server-bottom)" />
+    <path id="bottom-top" d="M142 557 Q143 547 160 538 L287 477 Q305 468 324 476 L484 536 Q491 539 495 548 L351 624 Q326 636 300 624 L153 573 Q141 568 142 557 Z" fill="url(#lower-top)" />
+  </g>
+  <g id="server-middle-layer">
+    <path id="middle-body" d="M141 434 L300 499 Q326 511 351 499 L498 432 L498 495 Q498 515 482 523 L350 586 Q326 599 300 589 L159 527 Q141 519 141 501 Z" fill="url(#server-side)" />
+    <path id="middle-top" d="M142 430 Q143 421 159 413 L286 352 Q305 343 325 352 L483 416 Q494 420 498 432 L351 499 Q326 511 300 499 L153 445 Q141 440 142 430 Z" fill="url(#lower-top)" />
+  </g>
+  <g id="server-top-layer">
+    <path id="top-body" d="M141 308 L300 382 Q326 394 351 382 L498 313 L498 373 Q498 393 482 401 L350 466 Q326 479 300 469 L159 407 Q141 399 141 381 Z" fill="url(#server-side)" />
+    <path id="top-surface" d="M142 307 Q143 298 158 291 L284 232 Q305 222 325 231 L483 302 Q494 307 498 313 L351 382 Q326 394 300 382 L153 320 Q141 315 142 307 Z" fill="url(#server-top)" />
+  </g></svg>
 </svg>
