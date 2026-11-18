@@ -112,7 +112,7 @@ Roles are:
 
 The last administrator cannot be deleted or demoted, and an administrator cannot delete or change their own role. Resetting a password invalidates that account's existing sessions.
 
-The All assets view covers physical hosts, virtual machines, and switches. Clicking a tag's asset count opens that tag's assets in the combined view.
+The Physical machines view also includes switches and other non-VM assets, distinguished by the Type column. Tag asset counts are display-only.
 
 Changing the password requires the current password and a new password of at least 12 characters. After a successful change, every session for the account is revoked and the user must sign in again.
 
@@ -179,7 +179,7 @@ Import rules:
 
 Exported CSV files use the same columns and can be used as a reference when preparing an import.
 
-Asset details are organized into overview, relationships, custom attributes, and change history tabs. The relationships tab includes a draggable, zoomable topology; selecting a node opens that asset. Custom attributes use a key-value editor with text, number, boolean, and JSON value types. Assets can carry multiple colored tags: maintain tags under `System → Tags`, then select them from the asset detail `Tags` button. Tags appear in the asset list and can be used as a filter; with multiple tags you can choose all-of or any-of matching, and saved filter presets keep both the tag array and match mode. The global search also finds tags by name or description. Select multiple assets to add, remove, or replace tags in bulk. Star assets from the list or detail view to keep them in the dashboard `My favorites` shortcut. The dashboard also charts tag usage. The asset list supports status filters, saved filter presets, configurable columns, click-to-sort headers, and 10/20/50 page sizes. Select multiple assets to bulk-edit status, platform, lifecycle, owner, and environment. The global header search covers assets, IP addresses, data centers, racks, subnets, and VLANs, shows the last six searches when empty, and can jump to `All assets` with the current keyword.
+Asset details are organized into overview, relationships, custom attributes, and change history tabs. The relationships tab includes a draggable, zoomable topology; selecting a node opens that asset. Custom attributes use a key-value editor with text, number, boolean, and JSON value types. Assets can carry multiple colored tags: maintain tags under `System → Tags`, then select them from the asset detail `Tags` button. Tags appear in the asset list and can be used as a filter; with multiple tags you can choose all-of or any-of matching, and saved filter presets keep both the tag array and match mode. The global search also finds tags by name or description. Select multiple assets to add, remove, or replace tags in bulk. Star assets from the list or detail view to keep them in the dashboard `My favorites` shortcut. The dashboard also charts tag usage. The asset list supports status filters, saved filter presets, configurable columns, click-to-sort headers, and 10/20/50 page sizes. Select multiple assets to bulk-edit status, platform, lifecycle, owner, and environment. The global header search covers assets, IP addresses, data centers, racks, subnets, and VLANs, shows the last six searches when empty, and opens the selected asset, rack, subnet, or VLAN directly.
 
 ## IP address management
 
