@@ -1120,9 +1120,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               onTag={() => goTo('tags')}
             />
             <ThemeToggle dark={dark} onToggleTheme={onToggleTheme} />
-            <Tooltip title="刷新">
-              <Button type="text" loading={busy} aria-label="刷新" onClick={() => void loadAll()}><ReloadOutlined /></Button>
-            </Tooltip>
             <Dropdown
               menu={{
                 items: [{ key: 'logout', icon: <LogoutOutlined />, label: '退出登录' }],
