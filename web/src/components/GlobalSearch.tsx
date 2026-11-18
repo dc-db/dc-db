@@ -13,7 +13,6 @@ interface Props {
   onIPAddress: () => void
   onVLAN: () => void
   onTag: () => void
-  onSearchAll: (query: string) => void
 }
 
 const typeMeta: Record<SearchResultType, { label: string; icon: ReactNode }> = {
@@ -33,7 +32,7 @@ const statusLabels: Record<string, string> = {
 
 const typeOrder: SearchResultType[] = ['asset', 'tag', 'ip', 'room', 'rack', 'subnet', 'vlan']
 
-export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onVLAN, onTag, onSearchAll }: Props) {
+export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onVLAN, onTag }: Props) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -119,16 +118,6 @@ export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onV
     } catch {
       // Ignore unavailable storage.
     }
-  }
-
-  function searchAll() {
-    const term = query.trim()
-    if (!term) return
-    rememberSearch(term)
-    setOpen(false)
-    setQuery('')
-    setResults([])
-    onSearchAll(term)
   }
 
   function choose(result: SearchResult) {
@@ -245,9 +234,6 @@ export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onV
                   })}
                 </div>
               ))}
-              <div className="global-search-footer">
-                <button type="button" onClick={searchAll}>在全部资产中搜索「{query.trim()}」</button>
-              </div>
             </>
           )}
         </div>

@@ -10,7 +10,7 @@ const zhCN = {}
 import {
   Network as ApartmentOutlined, Cable as ApiOutlined, Server as CloudServerOutlined,
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Filter as FilterOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
-  HardDrive as HddOutlined, House as HomeOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, PanelLeft as PanelLeftIcon, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
+  House as HomeOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, PanelLeft as PanelLeftIcon, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
@@ -245,11 +245,9 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   }
   const navigation: (NavLeaf | NavGroup)[] = [
     { key: 'home', label: '首页', icon: <HomeOutlined /> },
-    { key: 'assets', label: '全部资产', icon: <HddOutlined /> },
+    { key: 'facilities', label: '数据中心', icon: <ApartmentOutlined /> },
     { key: 'host', label: '物理机', icon: <CloudServerOutlined /> },
     { key: 'vm', label: '虚拟机', icon: <DesktopOutlined /> },
-    { key: 'switch', label: '交换机', icon: <ApiOutlined /> },
-    { key: 'facilities', label: '数据中心', icon: <ApartmentOutlined /> },
     { key: 'ipam', label: 'IPAM', icon: <GlobalOutlined /> },
     {
       key: 'system', label: '系统管理', icon: <SettingOutlined />,
@@ -261,7 +259,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const selectedRoom = facilities.rooms.find(room => room.id === facilityRoomId)
   const pageTitle = page === 'facilities' ? (selectedRoom?.name ?? '数据中心') : activePage.label
   const editable = user?.role !== 'viewer'
-  const assetPage = page === 'assets' || page === 'host' || page === 'vm' || page === 'switch'
+  const assetPage = page === 'host' || page === 'vm'
 
   const byId = useMemo(() => new Map(assets.map(asset => [asset.id, asset])), [assets])
   const locations = useMemo(() => assetLocations(facilities, links), [facilities, links])
@@ -280,10 +278,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   }, [links])
 
   const scoped = useMemo(() => {
-    if (page === 'assets') return assets
     if (page === 'home' || page === 'changes' || page === 'password' || page === 'facilities' ||
       page === 'ipam' || page === 'users') return []
-    return assets.filter(asset => asset.kind === page)
+    if (page === 'vm') return assets.filter(asset => asset.kind === 'vm')
+    return assets.filter(asset => asset.kind !== 'vm')
   }, [assets, page])
   const filtered = useMemo(() => {
 
@@ -558,7 +556,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   function startNew() {
     setSelectedId(null)
     setAssetTags([])
-    setNewKind(page === 'vm' ? 'vm' : page === 'switch' ? 'switch' : 'host')
+    setNewKind(page === 'vm' ? 'vm' : 'host')
     setEditor(true)
     setDrawerError('')
     setDrawerOpen(true)
@@ -614,17 +612,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setIpamSubnetId(id)
     setIpamTab('subnets')
     goTo('ipam')
-  }
-
-  function showTagAssets(tagId: number) {
-    goTo('assets')
-    setTagFilter([tagId])
-    setTagFilterMode('all')
-  }
-
-  function searchAllAssets(term: string) {
-    goTo('assets')
-    setKeyword(term)
   }
 
   function openBulkTags() {
@@ -899,9 +886,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     return link.fromId === selectedId ? link.toId : link.fromId
   }
 
-  const metaTitle = page === 'vm' ? '宿主机' : page === 'assets' ? '宿主机 / 平台' : '平台'
-  const metaValue = (asset: Asset) => page === 'vm' || (page === 'assets' && asset.kind === 'vm')
-    ? hostName(asset) : platformLabel(asset)
+  const metaTitle = page === 'vm' ? '宿主机' : '平台'
+  const metaValue = (asset: Asset) => page === 'vm' ? hostName(asset) : platformLabel(asset)
   const assetColumns: { key: string; label: string; column: TableColumnsType<Asset>[number] }[] = [
     {
       key: 'name', label: '资源名称',
@@ -1132,7 +1118,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               onIPAddress={() => { setIpamTab('addresses'); goTo('ipam') }}
               onVLAN={() => { setIpamTab('vlans'); goTo('ipam') }}
               onTag={() => goTo('tags')}
-              onSearchAll={searchAllAssets}
             />
             <ThemeToggle dark={dark} onToggleTheme={onToggleTheme} />
             <Tooltip title="刷新">
@@ -1165,7 +1150,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             <Card variant="borderless" title="变更记录"><ChangeList changes={changes} filterable onOpen={id => void openAsset(id)} /></Card>
           )}
 
-          {page === 'tags' && <TagManager editable={editable} onSessionError={e => handleError(e)} onChanged={setAllTags} onShowAssets={showTagAssets} />}
+          {page === 'tags' && <TagManager editable={editable} onSessionError={e => handleError(e)} onChanged={setAllTags} />}
 
           {page === 'users' && user?.role === 'admin' && (
             <UserManager currentUsername={user.username} onSessionError={e => handleError(e)} />
@@ -1226,7 +1211,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             />
           )}
 
-          {(page === 'assets' || page === 'host' || page === 'vm' || page === 'switch') && (
+          {(page === 'host' || page === 'vm') && (
             <Card variant="borderless">
               <div className="table-toolbar">
                 <Space wrap>

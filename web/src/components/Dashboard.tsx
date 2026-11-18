@@ -223,24 +223,29 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
     <div>
       <div className="metric-row grid grid-cols-3 gap-4 xl:grid-cols-6">
         {[
-          { label: '资产总数', value: stats.active.length, icon: <HardDrive size="1em" aria-hidden="true" />, hint: '在册资产', target: 'assets' as Page, tone: 'neutral' },
+          { label: '资产总数', value: stats.active.length, icon: <HardDrive size="1em" aria-hidden="true" />, hint: '在册资产', target: undefined, tone: 'neutral' },
           { label: '物理机', value: stats.hosts.length, icon: <Server size="1em" aria-hidden="true" />, hint: '独立主机与虚拟化节点', target: 'host' as Page, tone: 'blue' },
           { label: '虚拟机', value: stats.vms.length, icon: <Monitor size="1em" aria-hidden="true" />, hint: `${stats.running} 台运行中`, target: 'vm' as Page, tone: 'teal' },
-          { label: '交换机', value: stats.switches.length, icon: <ArrowLeftRight size="1em" aria-hidden="true" />, hint: '网络设备', target: 'switch' as Page, tone: 'amber' },
+          { label: '交换机', value: stats.switches.length, icon: <ArrowLeftRight size="1em" aria-hidden="true" />, hint: '网络设备', target: 'host' as Page, tone: 'amber' },
           { label: '数据中心', value: facilities.rooms.length, icon: <Building2 size="1em" aria-hidden="true" />, hint: `${facilities.racks.length} 台机柜`, target: 'facilities' as Page, tone: 'violet' },
           { label: 'IP 空闲', value: stats.free, icon: <Globe size="1em" aria-hidden="true" />, hint: `${subnets.length} 个网段 · 使用率 ${ipPercent}%`, target: 'ipam' as Page, tone: 'green' },
-        ].map(item => (
-          <div key={item.label} className="min-w-0">
-            <button type="button" className="metric-card w-full cursor-pointer border-0 bg-transparent p-0 text-left" onClick={() => onGo(item.target)}>
-              <Card className="h-full"><CardContent>
-                <span className={`metric-icon tone-${item.tone}`}>{item.icon}</span>
-                <div className="mb-1 text-muted-foreground">{item.label}</div>
-                <div className="text-2xl font-semibold">{item.value.toLocaleString()}</div>
-                <div className="metric-hint">{item.hint}</div>
-              </CardContent></Card>
-            </button>
-          </div>
-        ))}
+        ].map(item => {
+          const card = (
+            <Card className="h-full"><CardContent>
+              <span className={`metric-icon tone-${item.tone}`}>{item.icon}</span>
+              <div className="mb-1 text-muted-foreground">{item.label}</div>
+              <div className="text-2xl font-semibold">{item.value.toLocaleString()}</div>
+              <div className="metric-hint">{item.hint}</div>
+            </CardContent></Card>
+          )
+          return (
+            <div key={item.label} className="min-w-0">
+              {item.target
+                ? <button type="button" className="metric-card w-full cursor-pointer border-0 bg-transparent p-0 text-left" onClick={() => onGo(item.target!)}>{card}</button>
+                : card}
+            </div>
+          )
+        })}
       </div>
 
       <div className="dashboard-section grid grid-cols-12 gap-4">
