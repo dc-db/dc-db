@@ -10,7 +10,7 @@ const zhCN = {}
 import {
   Crosshair as AimOutlined, Network as ApartmentOutlined, Cable as ApiOutlined, Server as CloudServerOutlined,
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Filter as FilterOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
-  HardDrive as HddOutlined, House as HomeOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, PanelLeftClose as MenuFoldOutlined, PanelLeftOpen as MenuUnfoldOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
+  HardDrive as HddOutlined, House as HomeOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, PanelLeft as PanelLeftIcon, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
@@ -1114,7 +1114,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           <div className="app-header-title">
             <Button
               className="header-sidebar-toggle" type="text"
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              icon={<PanelLeftIcon />}
               aria-label={collapsed ? "展开菜单" : "收起菜单"}
               onClick={() => setCollapsed(!collapsed)}
             />
