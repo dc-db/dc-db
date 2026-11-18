@@ -165,8 +165,11 @@ a { color: var(--info); }
 .app-layout { min-height: 100vh; }
 .app-sider { background: var(--surface) !important; border-right: 1px solid var(--line); min-height: 100vh; }
 .brand { display: flex; align-items: center; height: 60px; padding: 0 var(--app-nav-inline-padding) 0 var(--app-nav-icon-inset); font-size: 20px; font-weight: 650; color: var(--text); white-space: nowrap; overflow: hidden; }
+.brand .wordmark { gap: .3em; }
+.brand .wordmark-symbol { width: 30px; height: 36px; }
 .brand-word { display: flex; align-items: center; min-width: 0; overflow: hidden; cursor: pointer; letter-spacing: -.02em; }
 .app-menu { flex: 1; padding: var(--app-nav-gutter); border-inline-end: 0 !important; }
+.ipam-tabs [data-slot="tabs-list"] { margin-bottom: 8px; }
 .app-menu.control-nav button, .app-menu.control-nav summary { padding: var(--app-nav-block-padding) var(--app-nav-inline-padding); line-height: 20px; }
 .app-menu.control-nav details button { padding-left: 26px; }
 .app-menu.control-nav button.selected { background: var(--app-nav-hover); }
