@@ -44,11 +44,74 @@ function FormItem({ children, label, name, required, rules, extra }: Common) { c
 export const Form = Object.assign(FormBase, { Item: FormItem, useForm })
 
 type Option = { value: any; label: ReactNode; title?: string; optionRender?: () => ReactNode }
-type SelectProps = Common & { value?: any; onChange?: (value: any) => void; options?: Option[]; mode?: string; placeholder?: string; allowClear?: boolean }
-export function Select({ value, onChange, options = [], mode, placeholder, allowClear, style, disabled, id }: SelectProps) {
-  const [open, setOpen] = useState(false); const [query, setQuery] = useState(''); const multi = mode === 'multiple'; const selected: any[] = multi ? value ?? [] : value === undefined || value === null ? [] : [value];
-  const shown = options.filter(o => String(o.label).toLowerCase().includes(query.toLowerCase()));
-  return <UiPopover open={open} onOpenChange={v => { setOpen(v); if (!v) setQuery('') }}><PopoverTrigger asChild><button id={id} type="button" disabled={disabled} className="control-select" style={style} aria-haspopup="listbox" aria-expanded={open} aria-labelledby={id ? `${id}-label ${id}-value` : undefined}><span id={id ? `${id}-value` : undefined}>{selected.length ? selected.map(v => options.find(o => o.value === v)?.label ?? v).join('、') : placeholder || '请选择'}</span><span aria-hidden>⌄</span></button></PopoverTrigger><PopoverContent className="control-select-menu" align="start"><UiInput aria-label="搜索选项" placeholder="搜索…" value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'ArrowDown') { e.preventDefault(); e.currentTarget.parentElement?.querySelector<HTMLButtonElement>('[role="option"]')?.focus() } }} />{allowClear && selected.length > 0 && <button type="button" className="control-option" onClick={() => { onChange?.(multi ? [] : undefined); if (!multi) { setOpen(false); setQuery('') } }}>清除选择</button>}<div className="control-options" role="listbox" aria-multiselectable={multi} onKeyDown={e => { if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return; e.preventDefault(); const choices = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="option"]')); const current = choices.indexOf(document.activeElement as HTMLButtonElement); choices[(current + (e.key === 'ArrowDown' ? 1 : -1) + choices.length) % choices.length]?.focus() }}>{shown.length ? shown.map(o => <button type="button" role="option" aria-selected={selected.includes(o.value)} key={String(o.value)} className="control-option" title={o.title} onClick={() => { onChange?.(multi ? selected.includes(o.value) ? selected.filter(v => v !== o.value) : [...selected, o.value] : o.value); if (!multi) { setOpen(false); setQuery('') } }}>{multi && <span aria-hidden>{selected.includes(o.value) ? '☑' : '☐'}</span>}{o.optionRender ? o.optionRender() : o.label}</button>) : <div className="control-empty">无匹配选项</div>}</div></PopoverContent></UiPopover>
+type SelectProps = Common & { value?: any; onChange?: (value: any) => void; options?: Option[]; mode?: string; placeholder?: string; allowClear?: boolean; searchable?: boolean }
+export function Select({ value, onChange, options = [], mode, placeholder, allowClear, searchable = true, style, disabled, id }: SelectProps) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const multi = mode === 'multiple'
+  const selected: any[] = multi ? value ?? [] : value === undefined || value === null ? [] : [value]
+  const needle = query.trim().toLowerCase()
+  const shown = searchable && needle
+    ? options.filter(o => String(o.label).toLowerCase().includes(needle))
+    : options
+  const choose = (next: any) => {
+    onChange?.(next)
+    if (!multi) { setOpen(false); setQuery('') }
+  }
+  const label = selected.length ? selected.map(v => options.find(o => o.value === v)?.label ?? v).join('、') : placeholder || '请选择'
+  return (
+    <UiPopover open={open} onOpenChange={v => { setOpen(v); if (!v) setQuery('') }}>
+      <PopoverTrigger asChild>
+        <button
+          id={id} type="button" disabled={disabled} className="control-select" style={style}
+          aria-haspopup="listbox" aria-expanded={open} aria-labelledby={id ? `${id}-label ${id}-value` : undefined}
+        >
+          <span id={id ? `${id}-value` : undefined}>{label}</span>
+          <ChevronDown className={`control-select-caret${open ? ' is-open' : ''}`} aria-hidden />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="control-select-menu" align="start">
+        {searchable && (
+          <UiInput
+            aria-label="搜索选项" placeholder="搜索…" value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                e.currentTarget.parentElement?.querySelector<HTMLButtonElement>('[role="option"]')?.focus()
+              }
+            }}
+          />
+        )}
+        {allowClear && selected.length > 0 && (
+          <button type="button" className="control-option" onClick={() => choose(multi ? [] : undefined)}>清除选择</button>
+        )}
+        <div
+          className="control-options" role="listbox" aria-multiselectable={multi}
+          onKeyDown={e => {
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+            e.preventDefault()
+            const choices = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="option"]'))
+            const current = choices.indexOf(document.activeElement as HTMLButtonElement)
+            choices[(current + (e.key === 'ArrowDown' ? 1 : -1) + choices.length) % choices.length]?.focus()
+          }}
+        >
+          {shown.length ? shown.map(o => (
+            <button
+              type="button" role="option" aria-selected={selected.includes(o.value)} key={String(o.value)}
+              className="control-option" title={o.title}
+              onClick={() => choose(multi
+                ? selected.includes(o.value) ? selected.filter(v => v !== o.value) : [...selected, o.value]
+                : o.value)}
+            >
+              {multi && <span aria-hidden>{selected.includes(o.value) ? '☑' : '☐'}</span>}
+              {o.optionRender ? o.optionRender() : o.label}
+            </button>
+          )) : <div className="control-empty">无匹配选项</div>}
+        </div>
+      </PopoverContent>
+    </UiPopover>
+  )
 }
 
 export function Modal({ children, open, title, onCancel, footer, width }: Common) { return <Dialog open={open} onOpenChange={v => { if (!v) onCancel?.() }}><DialogContent style={{ maxWidth: width }} aria-describedby={undefined}><DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader><div className="control-dialog-body">{children}</div>{footer}</DialogContent></Dialog> }

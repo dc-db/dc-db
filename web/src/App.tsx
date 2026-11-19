@@ -1264,19 +1264,19 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               <div className="table-toolbar">
                 <Space wrap>
                   <Select
-                    style={{ width: 145 }} allowClear placeholder="全部平台" value={platformFilter}
+                    style={{ width: 145 }} allowClear searchable={false} placeholder="全部平台" value={platformFilter}
                     onChange={setPlatformFilter}
                     options={[{ value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM' }]}
                   />
                   <Select
-                    style={{ width: 120 }} allowClear placeholder="全部状态" value={statusFilter}
+                    style={{ width: 120 }} allowClear searchable={false} placeholder="全部状态" value={statusFilter}
                     onChange={setStatusFilter}
                     options={Object.entries(statuses).map(([value, item]) => ({ value, label: item.label }))}
                   />
                   <Select
                     mode="multiple" maxTagCount="responsive"
-                    style={{ width: 200 }} allowClear
-                    placeholder={tagFilterMode === 'any' ? '匹配任一标签' : '同时包含标签'} value={tagFilter}
+                    style={{ width: 200 }} allowClear searchable={false}
+                    placeholder={tagFilterMode === 'any' ? '匹配任一标签' : '全部标签'} value={tagFilter}
                     onChange={setTagFilter}
                     options={allTags.map(tag => ({
                       value: tag.id,
@@ -1286,7 +1286,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                   />
                   {tagFilter.length > 1 && (
                     <Select
-                      style={{ width: 100 }} value={tagFilterMode}
+                      style={{ width: 100 }} searchable={false} value={tagFilterMode}
                       onChange={setTagFilterMode}
                       options={[{ value: 'all', label: '同时满足' }, { value: 'any', label: '任一匹配' }]}
                     />
