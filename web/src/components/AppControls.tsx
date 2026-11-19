@@ -169,7 +169,7 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, p
     <div className="control-table-wrap" inert={loading || undefined}>
       <table className="control-table"><thead>{table.getHeaderGroups().map(group => <tr key={group.id}>
         {rowSelection ? (<>
-          <th colSpan={2} className="control-th-select">
+          <th className="control-th-select">
             <span className="control-th-select-inner">
               <UiCheckbox aria-label="选择本页全部" checked={all ? true : keys.some(k => selected.includes(k)) ? 'indeterminate' : false} onCheckedChange={v => rowSelection.onChange(v ? Array.from(new Set([...selected, ...keys])) : selected.filter(k => !keys.includes(k)))} />
               {headContent(group.headers[0])}
@@ -177,7 +177,9 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, p
           </th>
           {group.headers.slice(1).map(headCell)}
         </>) : group.headers.map(headCell)}
-      </tr>)}</thead><tbody>{rows.map(row => <tr key={String(row.original[rowKey])} className={rowClassName?.(row.original) || undefined} onClick={onRowClick ? event => onRowClick(row.original, event) : undefined} style={onRowClick ? { cursor: 'pointer' } : undefined}>{rowSelection && <td><UiCheckbox aria-label="选择该行" checked={selected.includes(row.original[rowKey] as string | number)} onCheckedChange={v => rowSelection.onChange(v ? [...selected, row.original[rowKey] as string | number] : selected.filter(k => k !== row.original[rowKey]))} /></td>}{row.getVisibleCells().map(cell => <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}</tr>)}{!rows.length && <tr><td colSpan={columns.length + (rowSelection ? 1 : 0)}>{locale?.emptyText ?? <Empty />}</td></tr>}</tbody></table>
+      </tr>)}</thead><tbody>{rows.map(row => <tr key={String(row.original[rowKey])} className={rowClassName?.(row.original) || undefined} onClick={onRowClick ? event => onRowClick(row.original, event) : undefined} style={onRowClick ? { cursor: 'pointer' } : undefined}>{row.getVisibleCells().map((cell, cellIndex) => <td key={cell.id}>{rowSelection && cellIndex === 0
+          ? <span className="control-cell-select"><UiCheckbox aria-label="选择该行" checked={selected.includes(row.original[rowKey] as string | number)} onCheckedChange={v => rowSelection.onChange(v ? [...selected, row.original[rowKey] as string | number] : selected.filter(k => k !== row.original[rowKey]))} />{flexRender(cell.column.columnDef.cell, cell.getContext())}</span>
+          : flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}</tr>)}{!rows.length && <tr><td colSpan={columns.length}>{locale?.emptyText ?? <Empty />}</td></tr>}</tbody></table>
       {pagination && (
         <div className="control-pagination">
           <span className="control-pagination-selected">

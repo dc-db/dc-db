@@ -36,4 +36,4 @@ html[data-theme="dark"] .control-alert.error { color:#ffb4a8; border-color:#7931
 .control-select-caret { width: 14px; height: 14px; flex: 0 0 auto; opacity: .65; transition: transform .16s ease; }
 .control-select-caret.is-open { transform: rotate(180deg); opacity: 1; }
 
-.control-th-select-inner { display: inline-flex; align-items: center; gap: 10px; }
+.control-th-select-inner, .control-cell-select { display: inline-flex; align-items: center; gap: 10px; }
