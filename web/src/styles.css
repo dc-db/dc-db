@@ -270,8 +270,9 @@ html[data-theme="dark"] .app-menu button:not(.selected):hover { box-shadow: 0 0 
 .nav-tree-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .nav-tree-label > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-tree-count { flex: 0 0 auto; min-width: 18px; height: 18px; padding: 0 5px; border: 1px solid var(--line); border-radius: 9px; background: var(--subtle); color: var(--muted); font-size: 10px; line-height: 16px; text-align: center; }
-.app-header { height: 56px; padding: 0 16px; background: var(--surface) !important; color: var(--text); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: flex-end; }
-.app-header-actions { display: flex; align-items: center; min-width: 0; }
+.app-header { height: 56px; padding: 0 16px 0 24px; background: var(--surface) !important; color: var(--text); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.app-header-search { display: flex; align-items: center; flex: 1 1 auto; min-width: 0; }
+.app-header-actions { display: flex; align-items: center; flex: 0 0 auto; min-width: 0; }
 .sider-handle {
   position: fixed;
   top: 50%;
@@ -297,7 +298,7 @@ html[data-theme="dark"] .app-menu button:not(.selected):hover { box-shadow: 0 0 
 .sider-handle svg { display: block; width: 10px; height: 16px; }
 .sider-handle.is-collapsed { left: 0; }
 .global-search { position: relative; flex: 0 1 320px; width: min(320px, 32vw); min-width: 200px; }
-.global-search-panel { position: absolute; top: calc(100% + 8px); right: 0; z-index: 1100; width: min(520px, 72vw); max-height: min(70vh, 560px); overflow: auto; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: 0 12px 32px rgba(0, 0, 0, .18); }
+.global-search-panel { position: absolute; top: calc(100% + 8px); left: 0; z-index: 1100; width: min(520px, 72vw); max-height: min(70vh, 560px); overflow: auto; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: 0 12px 32px rgba(0, 0, 0, .18); }
 .global-search-state { display: flex; align-items: center; gap: 8px; padding: 14px 12px; color: var(--muted); font-size: 12px; }
 .global-search-group + .global-search-group { margin-top: 4px; }
 .global-search-group-title { padding: 6px 9px 4px; color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }

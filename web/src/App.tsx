@@ -1173,7 +1173,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
       <Layout>
         <Header className="app-header">
-          <Space size={6} className="app-header-actions">
+          <div className="app-header-search">
             <GlobalSearch
               onAsset={id => void openAsset(id)}
               onRoom={id => {
@@ -1191,6 +1191,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               onVLAN={() => { setIpamTab('vlans'); goTo('ipam') }}
               onTag={() => goTo('tags')}
             />
+          </div>
+          <Space size={6} className="app-header-actions">
             <ThemeToggle dark={dark} onToggleTheme={onToggleTheme} />
             <Dropdown
               menu={{
