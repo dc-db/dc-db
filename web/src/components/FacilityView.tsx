@@ -606,12 +606,12 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
       <Dialog open={!!rackDraft} onOpenChange={open => { if (!open) setRackDraft(null) }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{rackDraft?.id ? '编辑机柜' : '新增机柜'}</DialogTitle>
-            <DialogDescription>机柜默认 42U，位置自动排到机房网格的空位；编号会在立面和列表里显示。</DialogDescription>
+            <DialogTitle className="text-center">{rackDraft?.id ? '编辑机柜' : '新增机柜'}</DialogTitle>
           </DialogHeader>
           {rackDraft && (
             <form className="space-y-4" onSubmit={event => { event.preventDefault(); saveRack() }}>
               <Field label="机柜编号"><Input required value={rackDraft.name} placeholder="例如：A-01" maxLength={80} onChange={event => setRackDraft({ ...rackDraft, name: event.target.value })} /></Field>
+              <Field label="高度（U）"><Input type="number" className="w-28" min={1} max={60} value={rackDraft.heightU} onChange={event => setRackDraft({ ...rackDraft, heightU: Number(event.target.value) || 1 })} /></Field>
               <Field label="区域 / 排"><Input value={rackDraft.zone} placeholder="例如：A 区" maxLength={40} onChange={event => setRackDraft({ ...rackDraft, zone: event.target.value })} /></Field>
               <div className="room-modal-actions flex flex-wrap gap-2">
                 <Button type="submit" disabled={busy}>{rackDraft.id ? '保存机柜' : '新增机柜'}</Button>
