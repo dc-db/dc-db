@@ -1061,7 +1061,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         <section className="login-panel" aria-label="登录">
           <Card className="login-card" variant="borderless">
             <div className="login-brand"><Wordmark /></div>
-            <p className="login-tagline">登录以管理资产、网络与配置</p>
+            <p className="login-edition">CMDB</p>
             {error && <Alert type="error" showIcon message={error} className="login-alert" />}
             <Form layout="vertical" onFinish={login}>
               <Form.Item label="账号" name="username" rules={[{ required: true, message: '请输入账号' }]}>
