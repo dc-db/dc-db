@@ -885,7 +885,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         sorter: (left, right) => left.name.localeCompare(right.name, 'zh-CN'),
         render: (_, asset) => (
           <Button type="link" className="asset-link" onClick={() => void openAsset(asset.id)}>
-            {kinds[asset.kind].icon}
             <span>{asset.name}</span>
             {asset.environment && <span className="asset-sub">{asset.environment}</span>}
           </Button>
