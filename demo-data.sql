@@ -13,6 +13,7 @@ INSERT INTO demo_empty_guard (ok)
 SELECT CASE WHEN
     EXISTS (SELECT 1 FROM assets) OR EXISTS (SELECT 1 FROM asset_links) OR
     EXISTS (SELECT 1 FROM tags) OR EXISTS (SELECT 1 FROM asset_tags) OR
+    EXISTS (SELECT 1 FROM regions) OR
     EXISTS (SELECT 1 FROM rooms) OR EXISTS (SELECT 1 FROM racks) OR
     EXISTS (SELECT 1 FROM rack_placements) OR EXISTS (SELECT 1 FROM vlans) OR
     EXISTS (SELECT 1 FROM subnets) OR EXISTS (SELECT 1 FROM ip_allocations) OR
@@ -52,8 +53,18 @@ SELECT v.* FROM (
     UNION ALL SELECT 7, 3 UNION ALL SELECT 8, 3
 ) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
-INSERT INTO rooms (id, name, grid_columns, grid_rows)
-SELECT 1, '示例数据中心', 6, 4 WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+INSERT INTO regions (id, name)
+SELECT v.* FROM (
+    SELECT 1::bigint, '华北'::text
+    UNION ALL SELECT 2, '华东'
+) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+
+INSERT INTO rooms (id, name, region_id, grid_columns, grid_rows)
+SELECT v.* FROM (
+    SELECT 1::bigint, '北京亦庄数据中心'::text, 1::bigint, 6::int, 4::int
+    UNION ALL SELECT 2, '上海数据中心', 2, 6, 4
+    UNION ALL SELECT 3, '测试机房', NULL, 4, 3
+) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 INSERT INTO racks (id, room_id, name, zone, height_u, grid_col, grid_row, rotation)
 SELECT v.* FROM (
     SELECT 1::bigint, 1::bigint, 'DEMO-A01'::text, 'A 区'::text, 42::int, 1::int, 1::int, 0::int
@@ -119,6 +130,7 @@ WHERE a.asset_id = 7 AND a.name = 'Gi0/1' AND b.asset_id = 2 AND b.name = 'eth0'
 
 -- 显式写入主键后推进序列，避免后续新增记录主键冲突。
 SELECT setval(pg_get_serial_sequence('assets', 'id'), (SELECT max(id) FROM assets));
+SELECT setval(pg_get_serial_sequence('regions', 'id'), (SELECT max(id) FROM regions));
 SELECT setval(pg_get_serial_sequence('tags', 'id'), (SELECT max(id) FROM tags));
 SELECT setval(pg_get_serial_sequence('rooms', 'id'), (SELECT max(id) FROM rooms));
 SELECT setval(pg_get_serial_sequence('racks', 'id'), (SELECT max(id) FROM racks));
