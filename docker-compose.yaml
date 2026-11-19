@@ -3,6 +3,8 @@
 #   docker compose up -d
 #   open http://<host>:8080
 #
+# The app image bundles the Go binary and the built frontend ("dc-db:dev" by
+# default); override DC_DB_IMAGE to publish a release tag.
 # The database password defaults to dc_db for local use only; set
 # POSTGRES_PASSWORD (and optionally DC_DB_DSN) in a .env file to change it.
 # Mirrors can be selected with GOPROXY / NPM_REGISTRY / POSTGRES_VERSION.
@@ -25,6 +27,7 @@ services:
       retries: 20
 
   app:
+    image: ${DC_DB_IMAGE:-dc-db:dev}
     build:
       context: .
       args:

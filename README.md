@@ -155,6 +155,13 @@ viewer:
 
 推荐用仓库自带的 `docker-compose.yaml`：把代码拉到服务器后执行 `docker compose up -d`，应用与 PostgreSQL 一起起来，数据保存在 `pgdata` 卷中。`config.docker.yaml` 提供容器内使用的监听地址和数据库主机名，不需要手工创建配置。
 
+应用镜像把 Go 二进制和构建好的前端打进同一个镜像，开发环境默认标签是 `dc-db:dev`；发布时可以指定自己的标签：
+
+```bash
+DC_DB_IMAGE=dc-db:v1.0.0 docker compose build
+DC_DB_IMAGE=dc-db:v1.0.0 docker compose up -d
+```
+
 需要换端口或口令时：
 
 ```bash

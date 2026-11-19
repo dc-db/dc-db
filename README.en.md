@@ -155,6 +155,13 @@ Changing the password requires the current password and a new password of at lea
 
 The recommended path is the bundled `docker-compose.yaml`: clone the repository on the server and run `docker compose up -d`. The application and PostgreSQL start together and data lives in the `pgdata` volume. `config.docker.yaml` provides the container listener and database host, so no manual configuration file is required.
 
+The application image bundles the Go binary and the built frontend. The development tag is `dc-db:dev`; pick your own tag for a release:
+
+```bash
+DC_DB_IMAGE=dc-db:v1.0.0 docker compose build
+DC_DB_IMAGE=dc-db:v1.0.0 docker compose up -d
+```
+
 To change the port or password:
 
 ```bash
