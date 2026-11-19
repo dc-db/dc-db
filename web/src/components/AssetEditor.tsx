@@ -109,9 +109,17 @@ export function AssetEditor({ asset, defaultKind, busy, error, onSave, onCancel 
   const [attributeRows, setAttributeRows] = useState<AttributeRow[]>(() => attributesToRows(asset?.attributes ?? {}))
   const [nextAttributeId, setNextAttributeId] = useState(() => Object.keys(asset?.attributes ?? {}).length + 1)
   const [validation, setValidation] = useState('')
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   function update<K extends keyof AssetFields>(key: K, value: AssetFields[K]) {
     setFields(current => ({ ...current, [key]: value }))
+    setErrors(current => {
+      const field = String(key)
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
   }
 
   function updateAttribute(id: number, patch: Partial<AttributeRow>) {
@@ -128,32 +136,46 @@ export function AssetEditor({ asset, defaultKind, busy, error, onSave, onCancel 
   }
 
   function save() {
-    setValidation('')
+    const next: Record<string, string> = {}
+    const name = fields.name.trim()
+    if (!name) next.name = '请填写资源名称'
+    else if (name.length > 160) next.name = '资源名称不能超过 160 个字符'
+    if (!Number.isFinite(fields.cpu) || fields.cpu < 0) next.cpu = 'CPU 核数须为 0 或正整数'
+    if (!Number.isFinite(fields.memoryMiB) || fields.memoryMiB < 0) next.memoryMiB = '内存须为 0 或正整数'
+    let attributes: Record<string, unknown> = {}
     try {
-      onSave({
-        ...fields,
-        attributes: parseAttributeRows(attributeRows),
-        cpu: Number(fields.cpu || 0),
-        memoryMiB: Number(fields.memoryMiB || 0),
-        version: asset?.version ?? 0,
-      })
+      attributes = parseAttributeRows(attributeRows)
     } catch (e) {
-      setValidation(e instanceof Error ? e.message : '扩展属性格式不正确')
+      next.attributes = e instanceof Error ? e.message : '扩展属性格式不正确'
     }
+    setErrors(next)
+    if (Object.keys(next).length > 0) {
+      setValidation('请修正表单中标红的字段')
+      return
+    }
+    setValidation('')
+    onSave({
+      ...fields,
+      name,
+      attributes,
+      cpu: Number(fields.cpu || 0),
+      memoryMiB: Number(fields.memoryMiB || 0),
+      version: asset?.version ?? 0,
+    })
   }
 
   return (
     <form onSubmit={event => { event.preventDefault(); save() }} className="grid grid-cols-2 gap-4">
       {(validation || error) && <p role="alert" className="col-span-2 text-destructive">{validation || error}</p>}
       <label className="grid gap-2">资源类型 *<Choice value={fields.kind} disabled={!!asset} onChange={value => update('kind', value as Kind)} options={[{ value: 'host', label: '物理机' }, { value: 'switch', label: '交换机' }, { value: 'vm', label: '虚拟机' }]} /></label>
-      <label className="grid gap-2">资源名称 *<Input required value={fields.name} maxLength={160} onChange={event => update('name', event.target.value)} /></label>
+      <label className={errors.name ? 'grid gap-2 field-invalid' : 'grid gap-2'}>资源名称 *<Input required value={fields.name} maxLength={160} aria-invalid={!!errors.name} onChange={event => update('name', event.target.value)} />{errors.name && <span className="field-error" role="alert">{errors.name}</span>}</label>
       <label className="grid gap-2">平台<Choice value={fields.platform} onChange={value => update('platform', value as AssetFields['platform'])} options={[{ value: '', label: '未指定' }, { value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM / libvirt' }]} /></label>
       <label className="grid gap-2">状态<Choice value={fields.status} onChange={value => update('status', value as AssetFields['status'])} options={[{ value: 'unknown', label: '未知' }, { value: 'online', label: '在线' }, { value: 'offline', label: '离线' }, { value: 'running', label: '运行中' }, { value: 'stopped', label: '已停止' }, { value: 'paused', label: '已暂停' }]} /></label>
       <label className="grid gap-2">负责人<Input value={fields.owner} maxLength={160} placeholder="姓名或团队" onChange={event => update('owner', event.target.value)} /></label>
       <label className="grid gap-2">环境<Input value={fields.environment} maxLength={40} placeholder="例如：生产" onChange={event => update('environment', event.target.value)} /></label>
       <label className="col-span-2 grid gap-2">管理地址 / IP<Input value={fields.address} maxLength={160} placeholder="例如：192.0.2.11" onChange={event => update('address', event.target.value)} /></label>
-      <label className="grid gap-2">CPU 核数 / vCPU<Input type="number" min={0} max={65536} value={fields.cpu} onChange={event => update('cpu', Number(event.target.value))} /></label>
-      <label className="grid gap-2">内存（MiB）<Input type="number" min={0} max={1073741824} value={fields.memoryMiB} onChange={event => update('memoryMiB', Number(event.target.value))} /></label>
+      <label className={errors.cpu ? 'grid gap-2 field-invalid' : 'grid gap-2'}>CPU 核数 / vCPU<Input type="number" min={0} max={65536} value={fields.cpu} aria-invalid={!!errors.cpu} onChange={event => update('cpu', Number(event.target.value))} />{errors.cpu && <span className="field-error" role="alert">{errors.cpu}</span>}</label>
+      <label className={errors.memoryMiB ? 'grid gap-2 field-invalid' : 'grid gap-2'}>内存（MiB）<Input type="number" min={0} max={1073741824} value={fields.memoryMiB} aria-invalid={!!errors.memoryMiB} onChange={event => update('memoryMiB', Number(event.target.value))} />{errors.memoryMiB && <span className="field-error" role="alert">{errors.memoryMiB}</span>}</label>
       {asset && <label className="col-span-2 grid gap-2">生命周期<Choice value={fields.lifecycle} onChange={value => update('lifecycle', value as AssetFields['lifecycle'])} options={[{ value: 'active', label: '在册' }, { value: 'retired', label: '已退役' }]} /></label>}
       <label className="col-span-2 grid gap-2">备注<Textarea value={fields.notes} rows={3} maxLength={2500} onChange={event => update('notes', event.target.value)} /></label>
       <div className="col-span-2 grid gap-2">
@@ -167,6 +189,7 @@ export function AssetEditor({ asset, defaultKind, busy, error, onSave, onCancel 
           </div>)}
           <Button type="button" variant="outline" onClick={addAttribute}><Plus />添加属性</Button>
         </div>
+        {errors.attributes && <span className="field-error" role="alert">{errors.attributes}</span>}
       </div>
       <div className="col-span-2 flex justify-end gap-2"><Button type="button" variant="outline" onClick={onCancel}>取消</Button><Button type="submit" disabled={busy}>{busy ? '正在保存…' : '保存资产'}</Button></div>
     </form>
