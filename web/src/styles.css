@@ -162,7 +162,7 @@ a { color: var(--info); }
 .captcha-image-button:disabled { cursor: default; opacity: .7; }
 .captcha-image-button img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .captcha-placeholder { color: var(--muted); font-size: 12px; }
-.app-layout { min-height: 100vh; }
+.app-layout { min-height: 100vh; --sider-width: 200px; }
 .app-sider { background: var(--surface) !important; border-right: 1px solid var(--line); min-height: 100vh; }
 .brand { display: flex; align-items: center; justify-content: center; height: 60px; padding: 0 var(--app-nav-inline-padding); font-size: 20px; font-weight: 650; color: var(--text); white-space: nowrap; overflow: hidden; }
 .brand .wordmark { gap: .3em; }
@@ -184,8 +184,30 @@ html[data-theme="dark"] .app-menu button:not(.selected):hover { box-shadow: 0 0 
 .app-header { height: 56px; padding: 0 16px; background: var(--surface) !important; color: var(--text); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
 .app-header-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .app-header-actions { display: flex; align-items: center; min-width: 0; }
-.header-sidebar-toggle { flex: 0 0 auto; margin-left: -8px; color: var(--muted); }
-.header-sidebar-toggle:hover { color: var(--text) !important; }
+.sider-handle {
+  position: fixed;
+  top: 50%;
+  left: var(--sider-width);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 52px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: left .2s ease, color .15s ease, background-color .15s ease;
+}
+.sider-handle:hover { color: var(--text); background: var(--subtle); }
+.sider-handle:focus-visible { outline: 2px solid var(--info); outline-offset: 1px; }
+.sider-handle svg { display: block; width: 10px; height: 16px; }
+.sider-handle.is-collapsed { left: 0; }
 .app-header-title h1 { margin: 0; overflow: hidden; color: var(--text); font-size: 18px; font-weight: 600; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
 .global-search { position: relative; flex: 0 1 320px; width: min(320px, 32vw); min-width: 200px; }
 .global-search-panel { position: absolute; top: calc(100% + 8px); right: 0; z-index: 1100; width: min(520px, 72vw); max-height: min(70vh, 560px); overflow: auto; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: 0 12px 32px rgba(0, 0, 0, .18); }

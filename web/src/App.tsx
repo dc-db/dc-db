@@ -10,7 +10,7 @@ const zhCN = {}
 import {
   Network as ApartmentOutlined, Cable as ApiOutlined, Server as CloudServerOutlined,
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Filter as FilterOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
-  House as HomeOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, PanelLeft as PanelLeftIcon, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
+  House as HomeOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
@@ -1090,15 +1090,25 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         />
       </Sider>
 
+      <button
+        type="button"
+        className={collapsed ? 'sider-handle is-collapsed' : 'sider-handle'}
+        aria-label={collapsed ? "展开菜单" : "收起菜单"}
+        title={collapsed ? "展开菜单" : "收起菜单"}
+        onClick={() => setCollapsed(!collapsed)}
+      >
+        <svg viewBox="0 0 10 16" aria-hidden="true" focusable="false">
+          <path
+            d={collapsed ? 'M2.5 2.5 L7.5 8 L2.5 13.5' : 'M7.5 2.5 L2.5 8 L7.5 13.5'}
+            fill="none" stroke="currentColor" strokeWidth="1.6"
+            strokeLinecap="round" strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
       <Layout>
         <Header className="app-header">
           <div className="app-header-title">
-            <Button
-              className="header-sidebar-toggle" type="text"
-              icon={<PanelLeftIcon />}
-              aria-label={collapsed ? "展开菜单" : "收起菜单"}
-              onClick={() => setCollapsed(!collapsed)}
-            />
             <h1>{pageTitle}</h1>
           </div>
           <Space size={6} className="app-header-actions">
