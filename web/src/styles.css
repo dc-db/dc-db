@@ -283,6 +283,18 @@ html[data-theme="dark"] .rack-board-figure svg .slot-add { fill: #adb5bd; }
 .brand .wordmark-symbol { width: 40px; height: 48px; }
 .brand-word { display: flex; align-items: center; min-width: 0; overflow: hidden; cursor: pointer; letter-spacing: -.02em; }
 .app-menu { flex: 1; padding: var(--app-nav-gutter); border-inline-end: 0 !important; }
+.ipam-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.ipam-summary-card { padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.ipam-summary-card span { color: var(--muted); font-size: 12px; }
+.ipam-summary-card strong { display: block; margin-top: 6px; color: var(--text); font-size: 24px; font-weight: 600; line-height: 1.1; }
+.ipam-subnet-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.ipam-subnet-table tbody tr { cursor: pointer; }
+.ipam-subnet-table tbody tr:hover { background: var(--hover); }
+.ipam-subnet-table tbody tr.is-selected { background: var(--selected); }
+.ipam-subnet-name { display: inline-flex; align-items: center; gap: 8px; }
+.ipam-util { display: inline-flex; align-items: center; gap: 8px; min-width: 130px; }
+.ipam-util [data-slot="progress"] { width: 84px; }
+.ipam-util span { color: var(--muted); font-size: 12px; }
 .ipam-actions { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 16px; }
 .ipam-tabs [data-slot="tabs-list"] {
   width: 100%; height: auto; justify-content: flex-start; gap: 30px; padding: 0;
