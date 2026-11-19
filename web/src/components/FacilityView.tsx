@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Boxes, Columns3, LayoutGrid, List, MoreHorizontal, Pencil, Plus } from 'lucide-react'
+import { Boxes, Columns3, List, MoreHorizontal, Pencil, Plus } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
@@ -13,7 +13,6 @@ import { api, APIError } from '../api'
 import type { Asset, Link } from '../api'
 import { assetLocations, isMountKind, locationLabel, mountKinds, occupiedUnits, placementsConflict } from '../facilities'
 import type { AssetLocation, Facilities, MountKind, Placement, PlacementDepth, Rack, RackFace, RackFields, Region, Room, RoomFields } from '../facilities'
-import { RackCardGrid } from './RackCardGrid'
 import { downloadRackSvg, rackElevationSvg } from '../rackExport'
 import { RackDetailDrawer } from './RackDetailDrawer'
 import { RoomScene } from './RoomScene'
@@ -66,7 +65,7 @@ function ConfirmDelete({ title, disabled, onConfirm, children }: { title: string
 export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, layout, assets, links, editable, dark, focus, reload, onOpenAsset, bookmarkedRacks, onToggleRackBookmark, onSessionError }: Props) {
   const [rackId, setRackId] = useState<number | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
-  const [view, setView] = useState<'cards' | 'table' | 'elevations' | '3d'>('cards')
+  const [view, setView] = useState<'table' | 'elevations' | '3d'>('elevations')
   const [roomDraft, setRoomDraft] = useState<RoomDraft | null>(null)
   const [regionDraft, setRegionDraft] = useState<{ id?: number; version: number; name: string } | null>(null)
   const [rackDraft, setRackDraft] = useState<RackDraft | null>(null)
@@ -502,7 +501,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                     </div>
                     <div className="floor-toolbar-actions">
                       <div className="view-toggle">
-                        <Button variant={view === 'cards' ? 'default' : 'outline'} size="icon-sm" aria-label="机柜视图" title="机柜视图" onClick={() => setView('cards')}><LayoutGrid /></Button>
                         <Button variant={view === 'table' ? 'default' : 'outline'} size="icon-sm" aria-label="表格" title="表格" onClick={() => setView('table')}><List /></Button>
                         <Button variant={view === 'elevations' ? 'default' : 'outline'} size="icon-sm" aria-label="立面图" title="立面图" onClick={() => setView('elevations')}><Columns3 /></Button>
                         <Button variant={view === '3d' ? 'default' : 'outline'} size="icon-sm" aria-label="3D 总览" title="3D 总览" onClick={() => setView('3d')}><Boxes /></Button>
@@ -511,7 +509,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                     </div>
                   </div>
                   {view === '3d' && search.trim() && <div className="location-results">{searchResults.length ? searchResults.map(({ asset, location }) => <div key={asset.id} className="border-b py-1"><Button variant="link" className="location-result" onClick={() => showLocation(location)}><strong>{asset.name}</strong><span className="muted">{locationLabel(location)}</span></Button></div>) : <div className="p-3 text-sm text-muted-foreground">暂无匹配的上架位置</div>}</div>}
-                  {view === 'cards' ? <RackCardGrid racks={racks} placements={roomPlacements} assets={byId} keyword={rackKeyword} onOpen={openRack} /> : view === 'table' ? (
+                  {view === 'table' ? (
                     <div className="facility-table-wrap">
                       <table className="facility-table">
                         <thead><tr><th>机柜</th><th>区域 / 排</th><th>U 位总数</th><th>已用</th><th>空闲</th><th>占用率</th><th>设备数</th><th aria-label="操作" /></tr></thead>
