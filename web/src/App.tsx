@@ -1152,7 +1152,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         </svg>
       </button>
 
-      <Layout>
+      <Layout className="app-main">
         <Header className="app-header">
           <div className="app-header-search">
             <GlobalSearch

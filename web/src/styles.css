@@ -184,7 +184,7 @@ a { color: var(--info); }
 .captcha-image-button:disabled { cursor: default; opacity: .7; }
 .captcha-image-button img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .captcha-placeholder { color: var(--muted); font-size: 12px; }
-.app-layout { min-height: 100vh; --sider-width: 200px; }
+.app-layout { height: 100vh; overflow: hidden; --sider-width: 200px; }
 
 .facility-tree-group { display: flex; flex-direction: column; gap: 2px; }
 .facility-tree-region { display: flex; align-items: center; gap: 6px; padding: 10px 6px 5px; color: var(--muted); font-size: 13px; font-weight: 600; }
@@ -275,7 +275,7 @@ html[data-theme="dark"] .rack-board-figure svg .slot-add { fill: #adb5bd; }
 .field-invalid input, .field-invalid textarea { border-color: var(--destructive) !important; }
 .field-invalid > span:first-child { color: var(--destructive); }
 .field-error { color: var(--destructive); font-size: 12px; line-height: 1.4; }
-.app-sider { background: var(--surface) !important; border-right: 1px solid var(--line); min-height: 100vh; }
+.app-sider { height: 100vh; overflow-y: auto; background: var(--surface) !important; border-right: 1px solid var(--line); }
 .brand { display: flex; align-items: center; justify-content: center; height: 60px; padding: 0 var(--app-nav-inline-padding); font-size: 20px; font-weight: 650; color: var(--text); white-space: nowrap; overflow: hidden; }
 .brand .wordmark { gap: .3em; }
 .brand .wordmark-text,
@@ -364,7 +364,8 @@ html[data-theme="dark"] .app-menu button:not(.selected):hover { box-shadow: 0 0 
 .global-search-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 500; }
 .global-search-copy span { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .global-search-type { margin-left: auto; flex: 0 0 auto; color: var(--muted); font-size: 10px; }
-.app-content { padding: 14px 24px 24px; min-height: calc(100vh - 56px); }
+.app-main { display: flex; flex-direction: column; height: 100vh; min-width: 0; }
+.app-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 24px 24px; }
 .page-alert { margin-bottom: 16px; }
 .metric-row { margin-bottom: 16px; }
 .metric-card { cursor: pointer; height: 100%; }
