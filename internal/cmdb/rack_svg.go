@@ -25,9 +25,9 @@ type rackPalette struct {
 
 var rackPalettes = map[bool]rackPalette{
 	false: {bg: "#f6f8fb", slot: "#e9ecef", slotBorder: "#adb5bd", frame: "#000000", unit: "#6c757d",
-		hatchBg: "#f7f7f7", hatchLine: "#e9b3b3", hatchText: "#5c1a1a"},
+		hatchBg: "#f7f7f7", hatchLine: "#ffc0c0", hatchText: "#1a1a1a"},
 	true: {bg: "#141414", slot: "#232323", slotBorder: "#303030", frame: "#6e6e6e", unit: "#adb5bd",
-		hatchBg: "#1c1c1c", hatchLine: "#4a2a2a", hatchText: "#f0c9c9"},
+		hatchBg: "#f7f7f7", hatchLine: "#ffc0c0", hatchText: "#1a1a1a"},
 }
 
 var rackStatusColors = map[string]string{

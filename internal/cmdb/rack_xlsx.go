@@ -241,7 +241,7 @@ const rackStylesXML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <fill><patternFill patternType="solid"><fgColor rgb="FFCF222E"/><bgColor indexed="64"/></patternFill></fill>
 <fill><patternFill patternType="solid"><fgColor rgb="FFBF8700"/><bgColor indexed="64"/></patternFill></fill>
 <fill><patternFill patternType="solid"><fgColor rgb="FF6E7781"/><bgColor indexed="64"/></patternFill></fill>
-<fill><patternFill patternType="lightUp"><fgColor rgb="FFE9B3B3"/><bgColor rgb="FFF7F7F7"/></patternFill></fill>
+<fill><patternFill patternType="lightUp"><fgColor rgb="FFFFC0C0"/><bgColor rgb="FFF7F7F7"/></patternFill></fill>
 </fills>
 <borders count="2">
 <border><left/><right/><top/><bottom/><diagonal/></border>
