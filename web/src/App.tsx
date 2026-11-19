@@ -8,7 +8,7 @@ import {
 import type { TableColumnsType } from './components/AppControls'
 const zhCN = {}
 import {
-  Network as ApartmentOutlined, BookOpen as BookOpenOutlined, Cable as ApiOutlined, Server as CloudServerOutlined,
+  Building2 as BuildingOutlined, BookOpen as BookOpenOutlined, Cable as ApiOutlined, Server as CloudServerOutlined,
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Filter as FilterOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
   House as HomeOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
@@ -252,7 +252,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   }
   const navigation: (NavLeaf | NavGroup)[] = [
     { key: 'home', label: '首页', icon: <HomeOutlined /> },
-    { key: 'facilities', label: '数据中心', icon: <ApartmentOutlined /> },
+    { key: 'facilities', label: '数据中心', icon: <BuildingOutlined /> },
     { key: 'host', label: '物理机', icon: <CloudServerOutlined /> },
     { key: 'vm', label: '虚拟机', icon: <DesktopOutlined /> },
     { key: 'ipam', label: 'IPAM', icon: <GlobalOutlined /> },
@@ -1223,7 +1223,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                 <div className="first-run-actions">
                   <Button type="primary" size="large" icon={<BookOpenOutlined />} onClick={() => goTo('guide')}>查看使用指南</Button>
                   <Button size="large" icon={<PlusOutlined />} onClick={() => { setPage('host'); startNew('host') }}>先录资产</Button>
-                  <Button size="large" icon={<ApartmentOutlined />} onClick={() => goTo('facilities')}>先建机房</Button>
+                  <Button size="large" icon={<BuildingOutlined />} onClick={() => goTo('facilities')}>先建机房</Button>
                   <Button size="large" icon={<GlobalOutlined />} onClick={() => goTo('ipam')}>先管网络</Button>
                 </div>
                 <p className="first-run-hint">「使用指南」里有截图级的操作顺序和常见问题。</p>
