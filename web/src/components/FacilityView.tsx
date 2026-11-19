@@ -63,7 +63,7 @@ function ConfirmDelete({ title, disabled, onConfirm, children }: { title: string
 export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, layout, assets, links, editable, focus, reload, onOpenAsset, bookmarkedRacks, onToggleRackBookmark, onSessionError }: Props) {
   const [rackId, setRackId] = useState<number | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
-  const [view, setView] = useState<'table' | 'elevations'>('elevations')
+  const [view, setView] = useState<'table' | 'elevations'>('table')
   const [roomDraft, setRoomDraft] = useState<RoomDraft | null>(null)
   const [regionDraft, setRegionDraft] = useState<{ id?: number; version: number; name: string } | null>(null)
   const [rackDraft, setRackDraft] = useState<RackDraft | null>(null)
