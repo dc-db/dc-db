@@ -261,10 +261,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       children: systemChildren,
     },
   ]
-  const navLeaves = navigation.flatMap(item => 'children' in item ? item.children : [item])
-  const activePage = navLeaves.find(item => item.key === page) ?? { key: 'home', label: '首页', icon: <HomeOutlined /> }
-  const selectedRoom = facilities.rooms.find(room => room.id === facilityRoomId)
-  const pageTitle = page === 'facilities' ? (selectedRoom?.name ?? '数据中心') : activePage.label
   const editable = user?.role !== 'viewer'
   const assetPage = page === 'host' || page === 'vm'
 
@@ -1177,9 +1173,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
       <Layout>
         <Header className="app-header">
-          <div className="app-header-title">
-            <h1>{pageTitle}</h1>
-          </div>
           <Space size={6} className="app-header-actions">
             <GlobalSearch
               onAsset={id => void openAsset(id)}

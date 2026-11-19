@@ -175,8 +175,8 @@ export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onV
       <Input
         ref={inputRef}
         className="pl-9 pr-9"
-        aria-label="搜索"
-        placeholder="搜索"
+        aria-label="全局搜索"
+        placeholder="全局搜索"
         value={query}
         autoComplete="off"
         onChange={event => {
