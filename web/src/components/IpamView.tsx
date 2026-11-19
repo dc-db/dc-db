@@ -272,7 +272,7 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
     ])
   }
 
-  return <Card className="border-0 bg-transparent shadow-none"><div className="ipam-actions"><div className="flex gap-2"><Button variant="outline" disabled={!subnetRows.length} onClick={exportSubnets}><Download />导出 CSV</Button><Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>{editable && <Button onClick={addSubnet}><Plus />新增网段</Button>}</div></div><CardContent>
+  return <Card className="border-0 bg-transparent shadow-none"><CardContent>
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
     {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
     {draft && <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{draft.id ? '编辑网段' : '新增网段'}</CardTitle><Button variant="ghost" size="icon" aria-label="关闭" onClick={() => setDraft(null)}><X /></Button></CardHeader><CardContent><form onSubmit={event => { event.preventDefault(); void saveSubnet() }}><div className="grid grid-cols-2 gap-3">
@@ -285,12 +285,6 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
       <label className={`${labelClass} col-span-2`}>备注<Textarea rows={2} maxLength={2000} value={draft.notes} onChange={event => setDraft({ ...draft, notes: event.target.value })} /></label>
     </div><div className="mt-4 flex gap-2"><Button type="submit" disabled={busy}>保存网段</Button><Button type="button" variant="outline" onClick={() => setDraft(null)}>取消</Button></div></form></CardContent></Card>}
     {!subnets.length ? <div className="py-12 text-center text-muted-foreground">{loading ? '正在加载 IPAM 数据…' : '暂无网段，新增一个网段开始管理 IP 地址'}</div> : <>
-      <div className="ipam-summary">
-        <div className="ipam-summary-card"><span>网段数</span><strong>{subnets.length}</strong></div>
-        <div className="ipam-summary-card"><span>地址总数</span><strong>{count(subnets.reduce((sum, item) => sum + item.usable, 0))}</strong></div>
-        <div className="ipam-summary-card"><span>已分配</span><strong>{count(subnets.reduce((sum, item) => sum + item.used, 0))}</strong></div>
-        <div className="ipam-summary-card"><span>空闲</span><strong>{count(subnets.reduce((sum, item) => sum + item.free, 0))}</strong></div>
-      </div>
       <div className="ipam-subnet-toolbar">
         <Input className="max-w-sm" placeholder="搜索名称、CIDR、VLAN、用途" value={subnetSearch} onChange={event => setSubnetSearch(event.target.value)} />
         <Select
@@ -298,6 +292,11 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
           onChange={(value: string | undefined) => setSubnetStatus(value ?? undefined)}
           options={Object.entries(subnetStatusMeta).map(([value, meta]) => ({ value, label: meta.label }))}
         />
+        <div className="ipam-toolbar-actions">
+          <Button variant="outline" disabled={!subnetRows.length} onClick={exportSubnets}><Download />导出</Button>
+          <Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
+          {editable && <Button onClick={addSubnet}><Plus />新增网段</Button>}
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="facility-table ipam-subnet-table">
