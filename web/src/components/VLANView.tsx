@@ -98,8 +98,8 @@ export function VLANView({ editable, rooms, onSessionError, onChanged }: Props) 
     ])
   }
 
-  return <Card>
-    <CardHeader className="flex flex-row items-center justify-between gap-4"><CardTitle className="flex items-center gap-2">VLAN 管理 <Badge variant="secondary">{vlans.length} 个 VLAN</Badge></CardTitle><div className="flex gap-2"><Button variant="outline" disabled={!visible.length} onClick={exportCSV}><Download />导出 CSV</Button><Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>{editable && <Button onClick={() => showForm(null)}><Plus />新增 VLAN</Button>}</div></CardHeader>
+  return <Card className="border-0 bg-transparent shadow-none">
+    <div className="ipam-actions"><div className="flex gap-2"><Button variant="outline" disabled={!visible.length} onClick={exportCSV}><Download />导出 CSV</Button><Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>{editable && <Button onClick={() => showForm(null)}><Plus />新增 VLAN</Button>}</div></div>
     <CardContent>
       {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
       {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
