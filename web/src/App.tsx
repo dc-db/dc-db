@@ -84,6 +84,18 @@ function messageText(error: unknown) {
   return error instanceof Error ? error.message : '操作失败'
 }
 
+const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'facilities', 'ipam', 'changes', 'password', 'tags', 'users', 'guide']
+
+function readPageParam(): Page {
+  const value = new URLSearchParams(window.location.search).get('page')
+  return PAGE_KEYS.includes(value as Page) ? (value as Page) : 'home'
+}
+
+function readRoomParam(): number | null {
+  const value = Number(new URLSearchParams(window.location.search).get('room'))
+  return Number.isFinite(value) && value > 0 ? value : null
+}
+
 function initialDark() {
   try {
     const saved = localStorage.getItem('dc-db-theme')
@@ -153,8 +165,24 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [captchaCode, setCaptchaCode] = useState('')
   const [captchaLoading, setCaptchaLoading] = useState(false)
   const [error, setError] = useState('')
-  const [page, setPage] = useState<Page>('home')
-  const [facilityRoomId, setFacilityRoomId] = useState<number | null>(null)
+  const [page, setPage] = useState<Page>(readPageParam)
+  const [facilityRoomId, setFacilityRoomId] = useState<number | null>(readRoomParam)
+
+  // Keep the current page and room in the URL so a refresh (or a shared link)
+  // lands on the same screen instead of the dashboard.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (page === 'home') params.delete('page')
+    else params.set('page', page)
+    if (page === 'facilities' && facilityRoomId) params.set('room', String(facilityRoomId))
+    else params.delete('room')
+    const query = params.toString()
+    const next = query ? `${window.location.pathname}?${query}` : window.location.pathname
+    if (next !== `${window.location.pathname}${window.location.search}`) {
+      window.history.replaceState(null, '', next)
+    }
+  }, [page, facilityRoomId])
+
   const [facilityRackId, setFacilityRackId] = useState<number | null>(null)
   const [ipamSubnetId, setIpamSubnetId] = useState<number | null>(null)
   const [ipamTab, setIpamTab] = useState<'subnets' | 'addresses' | 'vlans'>('subnets')
