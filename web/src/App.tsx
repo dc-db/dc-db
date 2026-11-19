@@ -211,6 +211,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   })
   const [importing, setImporting] = useState(false)
   const [previewing, setPreviewing] = useState(false)
+  const [assetImportOpen, setAssetImportOpen] = useState(false)
+  const [assetImportFile, setAssetImportFile] = useState<File | null>(null)
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null)
   const [pendingImport, setPendingImport] = useState<File | null>(null)
 
@@ -1415,15 +1417,9 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                   </Popover>
                 </Space>
                 <Space wrap>
-                  {editable && <Button type="primary" onClick={startNew}><PlusOutlined /> 新增资产</Button>}
-                  {editable && <Upload
-                    accept=".csv,text/csv" showUploadList={false}
-                    beforeUpload={(file: File) => { void previewCSV(file); return false }}
-                  >
-                    <Button loading={importing || previewing}><UploadOutlined /> 导入 CSV</Button>
-                  </Upload>}
-                  <Button onClick={downloadTemplate}><DownloadOutlined /> 下载模板</Button>
-                  <Button disabled={!filtered.length} onClick={exportCSV}><DownloadOutlined /> 导出 CSV</Button>
+                  {editable && <Button onClick={() => { setAssetImportFile(null); setAssetImportOpen(true) }}><DownloadOutlined /> 导入</Button>}
+                  <Button disabled={!filtered.length} onClick={exportCSV}><UploadOutlined /> 导出</Button>
+                  {editable && <Button type="primary" onClick={startNew}><PlusOutlined /> 新增设备</Button>}
                 </Space>
               </div>
               {editable && selectedAssetIds.length > 0 && (
@@ -1468,6 +1464,34 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           )}
         </Content>
       </Layout>
+
+      <Modal
+        open={assetImportOpen} title="导入设备" width={560}
+        onCancel={() => { if (!previewing) { setAssetImportOpen(false); setAssetImportFile(null) } }}
+        footer={(
+          <Space wrap>
+            <Button icon={<DownloadOutlined />} onClick={downloadTemplate}>下载模板</Button>
+            <Button disabled={previewing} onClick={() => { setAssetImportOpen(false); setAssetImportFile(null) }}>取消</Button>
+            <Button
+              type="primary" disabled={!assetImportFile} loading={previewing}
+              onClick={() => {
+                if (!assetImportFile) return
+                setAssetImportOpen(false)
+                void previewCSV(assetImportFile)
+              }}
+            >下一步</Button>
+          </Space>
+        )}
+      >
+        <div className="space-y-3">
+          <p className="muted">CSV 需包含「名称」列，其余字段见模板。选好文件后先预检，确认无误再写入。</p>
+          <input
+            type="file" accept=".csv,text/csv"
+            onChange={event => setAssetImportFile(event.target.files?.[0] ?? null)}
+          />
+          {assetImportFile && <p className="muted">已选择：{assetImportFile.name}</p>}
+        </div>
+      </Modal>
 
       <Modal
         open={!!importPreview} title="CSV 导入预检" width={940}
