@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Building2, Boxes, ChartPie, Grid2X2, LayoutGrid, MoreHorizontal, Pencil, Plus, Server } from 'lucide-react'
+import { Building2, Boxes, ChartPie, Download, Grid2X2, LayoutGrid, MoreHorizontal, Pencil, Plus, Server } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
@@ -10,6 +10,7 @@ import { Input } from './ui/input'
 import { Progress } from './ui/progress'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { api, APIError } from '../api'
+import { downloadCSV } from '../csv'
 import type { Asset, Link } from '../api'
 import { assetLocations, isMountKind, locationLabel, mountKinds, occupiedUnits, placementsConflict } from '../facilities'
 import type { AssetLocation, Facilities, MountKind, Placement, PlacementDepth, Rack, RackFace, RackFields, Room, RoomFields } from '../facilities'
@@ -230,6 +231,17 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
     void mutate(() => api('/rooms/' + value.id + '?version=' + value.version, 'DELETE'), resetForms, '数据中心已删除')
   }
 
+  function exportRacks() {
+    const rows: (string | number)[][] = [['机柜编号', '高度(U)', '已用(U)', '占用率', '设备数', '列', '行', '朝向']]
+    for (const rack of racks) {
+      const placements = roomPlacements.filter(item => item.rackId === rack.id)
+      const used = occupiedUnits(placements).size
+      const rate = rack.heightU > 0 ? Math.round((used / rack.heightU) * 100) : 0
+      rows.push([rack.name, rack.heightU, used, `${rate}%`, placements.length, rack.column, rack.row, `${rack.rotation}°`])
+    }
+    downloadCSV(`dc-db-racks-${room?.name ?? 'room'}.csv`, rows)
+  }
+
   function editRack(value?: Rack) {
     resetForms()
     const free = cells.find(cell => !cell.rack)
@@ -432,7 +444,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                 <div className="dc-stat dc-stat-usage"><div className="dc-stat-icon usage"><ChartPie size="1em" aria-hidden="true" /></div><div className="dc-stat-copy"><span>利用率</span><strong>{roomUtilization}%</strong><small>已用 {usedRoomU}U · 空闲 {Math.max(0, totalRoomU - usedRoomU)}U</small><Progress value={roomUtilization} aria-label="数据中心利用率" /></div></div>
               </div>
               <Card className="floor-panel">
-                <CardHeader className="flex flex-row items-center justify-between"><CardTitle>{room.name}</CardTitle>{editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}</CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between"><CardTitle>{room.name}</CardTitle><div className="flex gap-2"><Button size="sm" variant="outline" disabled={!racks.length} onClick={exportRacks}><Download />导出 CSV</Button>{editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}</div></CardHeader>
                 <CardContent>
                   {rackDraft && <form className="facility-form rack-form flex flex-wrap items-end gap-3" onSubmit={event => { event.preventDefault(); saveRack() }}>
                     <Field label="机柜编号"><Input value={rackDraft.name} placeholder="例如：A-01" maxLength={80} onChange={event => setRackDraft({ ...rackDraft, name: event.target.value })} /></Field>
