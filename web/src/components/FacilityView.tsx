@@ -488,22 +488,22 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                           onClick={() => setView('elevations')}
                         >立面图</button>
                       </div>
-                    </div>
-                    <div className="floor-toolbar-actions">
                       {view === 'elevations' && (
-                        <div className="view-toggle view-switch" role="group" aria-label="安装面">
+                        <div className="view-switch view-switch-face" role="group" aria-label="安装面">
                           <button
-                            type="button" aria-pressed={face === 'front'}
+                            type="button" aria-pressed={face === 'front'} aria-label="前视图" title="前视图"
                             className={face === 'front' ? 'is-active' : ''}
                             onClick={() => setFace('front')}
-                          >前视图</button>
+                          >前</button>
                           <button
-                            type="button" aria-pressed={face === 'rear'}
+                            type="button" aria-pressed={face === 'rear'} aria-label="后视图" title="后视图"
                             className={face === 'rear' ? 'is-active' : ''}
                             onClick={() => setFace('rear')}
-                          >后视图</button>
+                          >后</button>
                         </div>
                       )}
+                    </div>
+                    <div className="floor-toolbar-actions">
                       {editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
                     </div>
                   </div>

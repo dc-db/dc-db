@@ -544,6 +544,7 @@ html[data-theme="dark"] .import-error-row strong { color: #ff7875; }
 }
 .view-switch button:hover { color: var(--text); }
 .view-switch button.is-active { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 12%); }
+.view-switch-face button { padding: 6px 12px; }
 html[data-theme="dark"] .view-switch button.is-active { background: #2a2a2a; box-shadow: 0 1px 2px rgb(0 0 0 / 45%); }
 .view-switch button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 .floor-toolbar { display: flex; justify-content: space-between; gap: 7px; flex-wrap: wrap; align-items: center; padding: 2px 0 8px; border-bottom: 1px solid var(--line); }
