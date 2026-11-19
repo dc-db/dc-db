@@ -162,7 +162,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [assets, setAssets] = useState<Asset[]>([])
   const [links, setLinks] = useState<Link[]>([])
   const [changes, setChanges] = useState<Change[]>([])
-  const [facilities, setFacilities] = useState<Facilities>({ rooms: [], racks: [], placements: [] })
+  const [facilities, setFacilities] = useState<Facilities>({ regions: [], rooms: [], racks: [], placements: [] })
   const [subnets, setSubnets] = useState<Subnet[]>([])
 
   const [keyword, setKeyword] = useState('')
@@ -511,7 +511,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       setAssets([])
       setLinks([])
       setChanges([])
-      setFacilities({ rooms: [], racks: [], placements: [] })
+      setFacilities({ regions: [], rooms: [], racks: [], placements: [] })
       setSubnets([])
       goTo('home')
     } catch (e) {
@@ -527,7 +527,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setAssets([])
     setLinks([])
     setChanges([])
-    setFacilities({ rooms: [], racks: [], placements: [] })
+    setFacilities({ regions: [], rooms: [], racks: [], placements: [] })
     setSubnets([])
     setPage('home')
   }

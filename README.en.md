@@ -226,7 +226,7 @@ Free addresses in a subnet are shown in a paginated table with 10/20/50 rows per
 
 ## Data center layouts
 
-Open the data center view (`数据中心`), create a named data center (a default grid is used), and add racks with a label, an optional zone/row, height, grid position, and orientation. Drag racks to vacant cells in the floor plan or edit their coordinates directly. The 3D overview supports rotation, zoom, rack selection, and opening device details.
+Open the data center view (`数据中心`). You can group data centers under an optional region (city or area) first, or skip regions and create a data center directly. Then add racks with a label, an optional zone/row, height, grid position, and orientation. Drag racks to vacant cells in the floor plan or edit their coordinates directly. The 3D overview supports rotation, zoom, rack selection, and opening device details.
 
 Use the rack elevation to mount an existing asset or create and mount a physical host or switch in one step. Set the starting rack unit, height, mounting face (front/rear), and depth (full/half). dc-db validates overlaps per face and depth: a full-depth device occupies both faces, while a half-depth device occupies only its selected face. Drag a device to move it, or click an empty unit to prefill the mount position. Asset details link back to the data center and rack, and virtual machines follow their host relationship. Unmounting a device keeps its asset record.
 

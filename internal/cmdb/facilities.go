@@ -6,12 +6,24 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
+type RegionFields struct {
+	Name string `json:"name"`
+}
+
+type Region struct {
+	RegionFields
+	ID      int64 `json:"id"`
+	Version int   `json:"version"`
+}
+
 type RoomFields struct {
-	Name    string `json:"name"`
-	Columns int    `json:"columns"`
-	Rows    int    `json:"rows"`
+	Name     string `json:"name"`
+	RegionID int64  `json:"regionId"`
+	Columns  int    `json:"columns"`
+	Rows     int    `json:"rows"`
 }
 
 type Room struct {
@@ -51,18 +63,26 @@ type RackPlacement struct {
 }
 
 type Facilities struct {
+	Regions    []Region        `json:"regions"`
 	Rooms      []Room          `json:"rooms"`
 	Racks      []Rack          `json:"racks"`
 	Placements []RackPlacement `json:"placements"`
 }
 
-const roomColumns = "id,name,grid_columns,grid_rows,version"
+const regionColumns = "id,name,version"
+const roomColumns = "id,name,COALESCE(region_id,0),grid_columns,grid_rows,version"
 const rackColumns = "id,room_id,name,zone,height_u,grid_col,grid_row,rotation,version"
 const placementColumns = "asset_id,rack_id,start_u,units,face,depth,version"
 
+func readRegion(row scanner) (Region, error) {
+	var region Region
+	err := row.Scan(&region.ID, &region.Name, &region.Version)
+	return region, err
+}
+
 func readRoom(row scanner) (Room, error) {
 	var room Room
-	err := row.Scan(&room.ID, &room.Name, &room.Columns, &room.Rows, &room.Version)
+	err := row.Scan(&room.ID, &room.Name, &room.RegionID, &room.Columns, &room.Rows, &room.Version)
 	return room, err
 }
 
@@ -138,6 +158,10 @@ func ListFacilities(ctx context.Context, db *sql.DB) (Facilities, error) {
 	}
 	defer tx.Rollback()
 
+	regions, err := facilityRows(ctx, tx, "SELECT "+regionColumns+" FROM regions ORDER BY lower(name), id", readRegion)
+	if err != nil {
+		return Facilities{}, err
+	}
 	rooms, err := facilityRows(ctx, tx, "SELECT "+roomColumns+" FROM rooms ORDER BY lower(name), id", readRoom)
 	if err != nil {
 		return Facilities{}, err
@@ -150,7 +174,7 @@ func ListFacilities(ctx context.Context, db *sql.DB) (Facilities, error) {
 	if err != nil {
 		return Facilities{}, err
 	}
-	return Facilities{Rooms: rooms, Racks: racks, Placements: placements}, tx.Commit()
+	return Facilities{Regions: regions, Rooms: rooms, Racks: racks, Placements: placements}, tx.Commit()
 }
 
 func facilityTx(ctx context.Context, db *sql.DB) (*sql.Tx, error) {
@@ -171,6 +195,65 @@ func facilityUniqueError(err error, message string) error {
 	return err
 }
 
+func SaveRegion(ctx context.Context, db *sql.DB, id int64, fields RegionFields, version int, actor string) (Region, error) {
+	fields.Name = strings.TrimSpace(fields.Name)
+	if fields.Name == "" || utf8.RuneCountInString(fields.Name) > 80 {
+		return Region{}, invalidFacility("区域名称须为 1–80 个字符")
+	}
+	tx, err := facilityTx(ctx, db)
+	if err != nil {
+		return Region{}, err
+	}
+	defer tx.Rollback()
+
+	var region, before Region
+	if id == 0 {
+		region, err = readRegion(tx.QueryRowContext(ctx, `INSERT INTO regions (name) VALUES ($1) RETURNING `+regionColumns, fields.Name))
+	} else {
+		before, err = readRegion(tx.QueryRowContext(ctx, "SELECT "+regionColumns+" FROM regions WHERE id=$1", id))
+		if err != nil {
+			return Region{}, err
+		}
+		if before.Version != version {
+			return Region{}, ErrConflict
+		}
+		if before.RegionFields == fields {
+			return before, tx.Commit()
+		}
+		region, err = readRegion(tx.QueryRowContext(ctx, `UPDATE regions SET name=$2,version=version+1
+			WHERE id=$1 RETURNING `+regionColumns, id, fields.Name))
+	}
+	if err != nil {
+		return Region{}, facilityUniqueError(err, "区域名称已存在")
+	}
+	if err := writeFacilityChange(ctx, tx, region.Name, actor, "region", before.ID, before.RegionFields, region.RegionFields); err != nil {
+		return Region{}, err
+	}
+	return region, tx.Commit()
+}
+
+func DeleteRegion(ctx context.Context, db *sql.DB, id int64, version int, actor string) error {
+	tx, err := facilityTx(ctx, db)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	region, err := readRegion(tx.QueryRowContext(ctx, "SELECT "+regionColumns+" FROM regions WHERE id=$1", id))
+	if err != nil {
+		return err
+	}
+	if region.Version != version {
+		return ErrConflict
+	}
+	if _, err := tx.ExecContext(ctx, "DELETE FROM regions WHERE id=$1", id); err != nil {
+		return err
+	}
+	if err := writeNamedChange(ctx, tx, nil, region.Name, actor, "region_delete", region.RegionFields, nil); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func SaveRoom(ctx context.Context, db *sql.DB, id int64, fields RoomFields, version int, actor string) (Room, error) {
 	tx, err := facilityTx(ctx, db)
 	if err != nil {
@@ -178,10 +261,20 @@ func SaveRoom(ctx context.Context, db *sql.DB, id int64, fields RoomFields, vers
 	}
 	defer tx.Rollback()
 
+	if fields.RegionID != 0 {
+		var exists bool
+		if err := tx.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM regions WHERE id=$1)", fields.RegionID).Scan(&exists); err != nil {
+			return Room{}, err
+		}
+		if !exists {
+			return Room{}, invalidFacility("所属区域不存在")
+		}
+	}
+
 	var room, before Room
 	if id == 0 {
-		room, err = readRoom(tx.QueryRowContext(ctx, `INSERT INTO rooms (name,grid_columns,grid_rows)
-			VALUES ($1,$2,$3) RETURNING `+roomColumns, fields.Name, fields.Columns, fields.Rows))
+		room, err = readRoom(tx.QueryRowContext(ctx, `INSERT INTO rooms (name,region_id,grid_columns,grid_rows)
+			VALUES ($1,$2,$3,$4) RETURNING `+roomColumns, fields.Name, nullID(fields.RegionID), fields.Columns, fields.Rows))
 	} else {
 		before, err = readRoom(tx.QueryRowContext(ctx, "SELECT "+roomColumns+" FROM rooms WHERE id=$1", id))
 		if err != nil {
@@ -202,8 +295,8 @@ func SaveRoom(ctx context.Context, db *sql.DB, id int64, fields RoomFields, vers
 		if outside {
 			return Room{}, invalidFacility("缩小布局前，请先移走超出范围的机柜")
 		}
-		room, err = readRoom(tx.QueryRowContext(ctx, `UPDATE rooms SET name=$2,grid_columns=$3,grid_rows=$4,
-			version=version+1 WHERE id=$1 RETURNING `+roomColumns, id, fields.Name, fields.Columns, fields.Rows))
+		room, err = readRoom(tx.QueryRowContext(ctx, `UPDATE rooms SET name=$2,region_id=$3,grid_columns=$4,grid_rows=$5,
+			version=version+1 WHERE id=$1 RETURNING `+roomColumns, id, fields.Name, nullID(fields.RegionID), fields.Columns, fields.Rows))
 	}
 	if err != nil {
 		return Room{}, facilityUniqueError(err, "数据中心名称已存在")

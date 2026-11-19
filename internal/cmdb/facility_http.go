@@ -11,6 +11,9 @@ import (
 
 func (s *Server) registerFacilities(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/facilities", s.requireUser(false, s.listFacilities))
+	mux.HandleFunc("POST /api/regions", s.requireUser(true, s.saveRegion))
+	mux.HandleFunc("PUT /api/regions/{id}", s.requireUser(true, s.saveRegion))
+	mux.HandleFunc("DELETE /api/regions/{id}", s.requireUser(true, s.deleteFacility(DeleteRegion)))
 	mux.HandleFunc("POST /api/rooms", s.requireUser(true, s.saveRoom))
 	mux.HandleFunc("PUT /api/rooms/{id}", s.requireUser(true, s.saveRoom))
 	mux.HandleFunc("DELETE /api/rooms/{id}", s.requireUser(true, s.deleteFacility(DeleteRoom)))
@@ -29,6 +32,27 @@ func (s *Server) listFacilities(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respond(w, http.StatusOK, items)
+}
+
+func (s *Server) saveRegion(w http.ResponseWriter, r *http.Request) {
+	var id int64
+	if r.Method == http.MethodPut {
+		var ok bool
+		id, ok = pathID(w, r)
+		if !ok {
+			return
+		}
+	}
+	var input struct {
+		RegionFields
+		Version int `json:"version"`
+	}
+	if err := decode(w, r, &input); err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	region, err := SaveRegion(r.Context(), s.db, id, input.RegionFields, input.Version, currentUser(r).Username)
+	s.respondFacility(w, r, region, err)
 }
 
 func (s *Server) saveRoom(w http.ResponseWriter, r *http.Request) {

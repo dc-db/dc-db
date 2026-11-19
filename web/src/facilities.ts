@@ -1,7 +1,17 @@
 import type { Asset, Link } from './api'
 
+export interface RegionFields {
+  name: string
+}
+
+export interface Region extends RegionFields {
+  id: number
+  version: number
+}
+
 export interface RoomFields {
   name: string
+  regionId: number
   columns: number
   rows: number
 }
@@ -40,6 +50,7 @@ export interface Placement {
 }
 
 export interface Facilities {
+  regions: Region[]
   rooms: Room[]
   racks: Rack[]
   placements: Placement[]
