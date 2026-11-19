@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Boxes, ChartPie, LayoutGrid, List, MoreHorizontal, Pencil, Plus, Server } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
-import { Card, CardContent, CardHeader } from './ui/card'
+import { Card, CardContent } from './ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu'
 import { Input } from './ui/input'
@@ -482,7 +482,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                 <div className="dc-stat dc-stat-usage"><div className="dc-stat-icon usage"><ChartPie size="1em" aria-hidden="true" /></div><div className="dc-stat-copy"><span>利用率</span><strong>{roomUtilization}%</strong><small>已用 {usedRoomU}U · 空闲 {Math.max(0, totalRoomU - usedRoomU)}U</small><Progress value={roomUtilization} aria-label="数据中心利用率" /></div></div>
               </div>
               <Card className="floor-panel">
-                <CardHeader className="flex flex-row items-center justify-between"><div className="flex gap-2">{editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}</div></CardHeader>
                 <CardContent>
                   {rackDraft && <form className="facility-form rack-form flex flex-wrap items-end gap-3" onSubmit={event => { event.preventDefault(); saveRack() }}>
                     <Field label="机柜编号"><Input value={rackDraft.name} placeholder="例如：A-01" maxLength={80} onChange={event => setRackDraft({ ...rackDraft, name: event.target.value })} /></Field>
@@ -494,10 +493,17 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                     <div className="flex gap-2"><Button type="submit" disabled={busy}>保存机柜</Button><Button type="button" variant="outline" onClick={() => setRackDraft(null)}>取消</Button>{rackDraft.id && rack?.id === rackDraft.id && !devices.length && <ConfirmDelete title="删除该空机柜？" disabled={busy} onConfirm={() => removeRack(rack)}>删除空机柜</ConfirmDelete>}</div>
                   </form>}
                   <div className="floor-toolbar">
-                    <div className="flex gap-2"><Button variant={view === 'cards' ? 'default' : 'outline'} size="sm" onClick={() => setView('cards')}><Boxes />机柜视图</Button><Button variant={view === 'table' ? 'default' : 'outline'} size="sm" onClick={() => setView('table')}><List />表格</Button><Button variant={view === '3d' ? 'default' : 'outline'} size="sm" onClick={() => setView('3d')}><LayoutGrid />3D 总览</Button></div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {view === '3d' ? <Input type="search" className="w-[300px]" aria-label="搜索已上架资产、数据中心或机柜" placeholder="搜索已上架资产、数据中心或机柜…" value={search} onChange={event => setSearch(event.target.value)} /> : <Input type="search" className="w-[300px]" aria-label="搜索机柜名称" placeholder="搜索机柜名称…" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />}
+                    <div className="floor-toolbar-search">
+                      {view === '3d' ? <Input type="search" className="w-[320px]" aria-label="搜索已上架资产、数据中心或机柜" placeholder="搜索已上架资产、数据中心或机柜…" value={search} onChange={event => setSearch(event.target.value)} /> : <Input type="search" className="w-[320px]" aria-label="搜索机柜名称" placeholder="搜索机柜名称…" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />}
                       {view === '3d' && racks.length > 0 && <><span className="muted">机柜</span><Choice label="机柜" className="w-[140px]" value={rackId ?? undefined} disabled={busy} onChange={openRack} options={racks.map(item => ({ value: item.id, label: item.name }))} /></>}
+                    </div>
+                    <div className="floor-toolbar-actions">
+                      <div className="view-toggle">
+                        <Button variant={view === 'cards' ? 'default' : 'outline'} size="icon-sm" aria-label="机柜视图" title="机柜视图" onClick={() => setView('cards')}><LayoutGrid /></Button>
+                        <Button variant={view === 'table' ? 'default' : 'outline'} size="icon-sm" aria-label="表格" title="表格" onClick={() => setView('table')}><List /></Button>
+                        <Button variant={view === '3d' ? 'default' : 'outline'} size="icon-sm" aria-label="3D 总览" title="3D 总览" onClick={() => setView('3d')}><Boxes /></Button>
+                      </div>
+                      {editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
                     </div>
                   </div>
                   {view === '3d' && search.trim() && <div className="location-results">{searchResults.length ? searchResults.map(({ asset, location }) => <div key={asset.id} className="border-b py-1"><Button variant="link" className="location-result" onClick={() => showLocation(location)}><strong>{asset.name}</strong><span className="muted">{locationLabel(location)}</span></Button></div>) : <div className="p-3 text-sm text-muted-foreground">暂无匹配的上架位置</div>}</div>}
