@@ -10,6 +10,7 @@ import { Progress } from './ui/progress'
 import { Textarea } from './ui/textarea'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 import { SearchableSelect } from './SearchableSelect'
+import { Select } from './AppControls'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
 import type { Allocation, Asset, AvailableIPs, IPUsage, Subnet, SubnetDetail, SubnetFields, VLAN } from '../api'
@@ -507,7 +508,11 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
       </div>
       <div className="ipam-subnet-toolbar">
         <Input className="max-w-sm" placeholder="搜索名称、CIDR、VLAN、用途" value={subnetSearch} onChange={event => setSubnetSearch(event.target.value)} />
-        <select aria-label="筛选网段状态" className={selectClass} value={subnetStatus ?? ''} onChange={event => setSubnetStatus(event.target.value || undefined)}><option value="">全部状态</option>{Object.entries(subnetStatusMeta).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}</select>
+        <Select
+          style={{ width: 140 }} allowClear searchable={false} placeholder="全部状态" value={subnetStatus}
+          onChange={(value: string | undefined) => setSubnetStatus(value ?? undefined)}
+          options={Object.entries(subnetStatusMeta).map(([value, meta]) => ({ value, label: meta.label }))}
+        />
       </div>
       <div className="overflow-x-auto">
         <table className="facility-table ipam-subnet-table">

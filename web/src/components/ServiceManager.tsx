@@ -3,6 +3,7 @@ import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tan
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Service, ServiceFields } from '../api'
+import { Select } from './AppControls'
 import { Button } from './ui/button'
 import { PageHeader } from './PageHeader'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
@@ -16,7 +17,6 @@ interface Props {
 }
 
 const emptyService: ServiceFields = { name: '', category: '', defaultPort: 0, description: '' }
-const selectClass = 'h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 export function ServiceManager({ editable, onSessionError }: Props) {
   const [services, setServices] = useState<Service[]>([])
@@ -111,10 +111,12 @@ export function ServiceManager({ editable, onSessionError }: Props) {
       title="服务"
       filters={<>
         <Input className="max-w-sm" placeholder="搜索服务名称、分类或说明" value={keyword} onChange={event => setKeyword(event.target.value)} />
-        <select aria-label="筛选分类" className={selectClass} value={category} onChange={event => setCategory(event.target.value)}>
-          <option value="">全部分类</option>
-          {categories.map(item => <option key={item} value={item}>{item}</option>)}
-        </select>
+        <Select
+          style={{ width: 140 }} allowClear searchable={false} placeholder="全部分类"
+          value={category || undefined}
+          onChange={(value: string | undefined) => setCategory(value ?? '')}
+          options={categories.map(item => ({ value: item, label: item }))}
+        />
       </>}
       actions={editable && <Button onClick={() => showForm(null)}><Plus />新增服务</Button>}
     />
