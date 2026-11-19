@@ -361,6 +361,25 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
     })
   }
 
+  function mountAt(target: Rack, startU: number) {
+    resetForms()
+    selectRack(target.id)
+    setRackDrawerOpen(true)
+    const units = 2
+    setMountDraft({
+      mode: candidates.length ? 'existing' : 'new',
+      assetId: 0,
+      version: 0,
+      kind: 'host',
+      name: '',
+      address: '',
+      startU: Math.max(1, Math.min(startU, target.heightU - units + 1)),
+      units,
+      face: 'front',
+      depth: 'full',
+    })
+  }
+
   function changeDevice(next = mountDraft) {
     if (!next) return
     const previous = mounted.get(next.assetId)
@@ -540,16 +559,36 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                     <div className="rack-board">
                       {rackRows.map(item => {
                         const placements = roomPlacements.filter(entry => entry.rackId === item.id)
-                        const preview = rackElevationSvg(item, placements, byId, 'front')
+                        const preview = rackElevationSvg(item, placements, byId, 'front', { interactive: editable })
                         return (
                           <div key={item.id} className="rack-board-item">
                             <div className="rack-board-head">
                               <strong>{item.name}</strong>
                               {item.zone && <span className="rack-board-role">{item.zone}</span>}
                             </div>
-                            <button
-                              type="button" className="rack-board-figure" aria-label={`打开 ${item.name}`}
-                              onClick={() => openRack(item.id)}
+                            <div
+                              className="rack-board-figure" role="button" tabIndex={0}
+                              aria-label={`打开 ${item.name}`}
+                              onClick={event => {
+                                const target = event.target as Element
+                                const assetId = target.closest('[data-asset]')?.getAttribute('data-asset')
+                                if (assetId) {
+                                  onOpenAsset(Number(assetId))
+                                  return
+                                }
+                                const unit = target.closest('[data-unit]')?.getAttribute('data-unit')
+                                if (unit && editable) {
+                                  mountAt(item, Number(unit))
+                                  return
+                                }
+                                openRack(item.id)
+                              }}
+                              onKeyDown={event => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  event.preventDefault()
+                                  openRack(item.id)
+                                }
+                              }}
                               dangerouslySetInnerHTML={{ __html: preview.svg }}
                             />
                             <Button size="sm" variant="outline" onClick={() => downloadRackSvg(rackElevationSvg(item, placements, byId, 'front'))}><Download />下载 SVG 文件</Button>

@@ -66,8 +66,14 @@ export function rackElevationSvg(
   devices: Placement[],
   assets: Map<number, Asset>,
   face: RackFace,
+  options: { interactive?: boolean } = {},
 ): RackSvg {
+  const interactive = options.interactive === true
   const visible = devices.filter(device => device.depth === 'full' || device.face === face)
+  const taken = new Set<number>()
+  for (const device of visible) {
+    for (let offset = 0; offset < device.units; offset++) taken.add(device.startU + offset)
+  }
   const width = LEGEND_WIDTH + BORDER + UNIT_WIDTH + MARGIN_WIDTH + BORDER
   const height = UNIT_HEIGHT * rack.heightU + BORDER * 2
   const rackX = LEGEND_WIDTH + BORDER
@@ -79,10 +85,18 @@ export function rackElevationSvg(
   for (let index = 0; index < rack.heightU; index++) {
     const unit = rack.heightU - index
     const y = BORDER + index * UNIT_HEIGHT
-    body.push(
-      `<rect class="slot" x="${rackX}" y="${y}" width="${UNIT_WIDTH}" height="${UNIT_HEIGHT}" ` +
-      `fill="${LIGHT.slot}" stroke="${LIGHT.slotBorder}" stroke-width="1"/>`,
-    )
+    const slot =
+      `<rect class="slot${interactive && !taken.has(unit) ? ' free' : ''}" x="${rackX}" y="${y}" ` +
+      `width="${UNIT_WIDTH}" height="${UNIT_HEIGHT}" fill="${LIGHT.slot}" stroke="${LIGHT.slotBorder}" stroke-width="1"/>`
+    if (interactive && !taken.has(unit)) {
+      body.push(
+        `<g class="slot-row" data-unit="${unit}">${slot}` +
+        `<text class="slot-add" x="${rackX + UNIT_WIDTH / 2}" y="${y + UNIT_HEIGHT / 2}" font-size="12" ` +
+        `fill="${LIGHT.unit}" text-anchor="middle" dominant-baseline="middle">＋ 添加设备</text></g>`,
+      )
+    } else {
+      body.push(slot)
+    }
     body.push(
       `<text class="unit" x="${LEGEND_WIDTH / 2}" y="${y + UNIT_HEIGHT / 2}" font-size="14" ` +
       `fill="${LIGHT.unit}" text-anchor="middle" dominant-baseline="middle">${unit}</text>`,
@@ -97,7 +111,7 @@ export function rackElevationSvg(
     const top = BORDER + (rack.heightU - (device.startU + device.units - 1)) * UNIT_HEIGHT
     const blockHeight = device.units * UNIT_HEIGHT
     body.push(
-      `<g><title>${esc(`${label} · ${uRange(device)}`)}</title>` +
+      `<g class="device-bar"${interactive ? ` data-asset="${device.assetId}"` : ''}><title>${esc(`${label} · ${uRange(device)}`)}</title>` +
       `<rect x="${rackX}" y="${top}" width="${UNIT_WIDTH}" height="${blockHeight}" fill="${style.fill}"/>` +
       `<text class="device" x="${rackX + UNIT_WIDTH / 2}" y="${top + blockHeight / 2}" font-size="14" ` +
       `text-anchor="middle" dominant-baseline="middle" fill="#ffffff">` +

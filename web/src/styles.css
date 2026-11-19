@@ -201,6 +201,12 @@ a { color: var(--info); }
 .rack-board-role { padding: 1px 8px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); font-size: 11px; }
 .rack-board-figure { overflow: hidden; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; }
 .rack-board-figure:hover { border-color: var(--muted); }
+.rack-board-figure svg .slot.free { cursor: pointer; }
+.rack-board-figure svg .slot-row:hover .slot { fill: color-mix(in srgb, var(--primary) 22%, transparent); }
+.rack-board-figure svg .slot-add { opacity: 0; pointer-events: none; }
+.rack-board-figure svg .slot-row:hover .slot-add { opacity: 1; }
+.rack-board-figure svg .device-bar { cursor: pointer; }
+.rack-board-figure svg .device-bar:hover rect { opacity: .82; }
 .rack-board-figure svg { display: block; width: 100%; height: auto; }
 .rack-board-figure svg .rack-bg { fill: var(--surface); }
 .rack-board-figure svg .slot { fill: var(--subtle); stroke: var(--line); }
