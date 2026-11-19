@@ -468,8 +468,8 @@ html[data-theme="dark"] .import-error-row strong { color: #ff7875; }
 .facility-layout { display: grid; grid-template-columns: 260px 6px minmax(0, 1fr); gap: 0; align-items: stretch; }
 .facility-sidebar { position: sticky; top: 16px; align-self: start; display: flex; flex-direction: column; gap: 10px; padding: 4px 14px 4px 0; border: 0; border-radius: 0; background: transparent; }
 .facility-resizer { position: relative; align-self: stretch; cursor: col-resize; }
-.facility-resizer::after { content: ""; position: absolute; top: 6px; bottom: 6px; left: 2px; width: 2px; border-radius: 2px; background: transparent; transition: background .15s ease; }
-.facility-resizer:hover::after, .facility-resizer.is-active::after { background: var(--line); }
+.facility-resizer::after { content: ""; position: absolute; top: 6px; bottom: 6px; left: 2px; width: 2px; border-radius: 2px; background: var(--line); transition: background .15s ease; }
+.facility-resizer:hover::after, .facility-resizer.is-active::after { background: var(--muted); }
 .facility-sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .facility-sidebar-title { display: flex; align-items: center; gap: 7px; min-width: 0; color: var(--text); font-size: 13px; }
 .facility-sidebar-title > span { color: var(--muted); font-size: 11px; }
