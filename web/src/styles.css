@@ -164,6 +164,14 @@ a { color: var(--info); }
 .captcha-placeholder { color: var(--muted); font-size: 12px; }
 .app-layout { min-height: 100vh; --sider-width: 200px; }
 
+/* First run: pick a starting point instead of forcing a data center. */
+.first-run { display: flex; justify-content: center; padding: 64px 24px; }
+.first-run-card { width: 100%; max-width: 560px; text-align: center; }
+.first-run-card h2 { margin: 0 0 8px; color: var(--text); font-size: 20px; font-weight: 600; }
+.first-run-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.first-run-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 22px 0 14px; }
+.first-run-hint { color: var(--muted); font-size: 12px; }
+
 /* Row flash after a successful save. */
 .control-table tbody tr.row-highlight > td { background: var(--info-soft); transition: background-color .6s ease; }
 

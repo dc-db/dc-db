@@ -1112,6 +1112,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     )
   }
 
+  const firstRun = !assets.length && !facilities.rooms.length && !facilities.racks.length && !subnets.length
+
   const emptyAssets = assets.length === 0 ? (
     <div className="empty-guide">
       <div className="empty-guide-mark" aria-hidden>
@@ -1219,14 +1221,27 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         <Content className="app-content">
           {error && <Alert type="error" showIcon closable message={error} className="page-alert" onClose={() => setError('')} />}
 
-          {page === 'home' && (
+          {page === 'home' && (firstRun ? (
+            <div className="first-run">
+              <div className="first-run-card">
+                <h2>还没有任何数据</h2>
+                <p>你想先从哪里开始？三条路以后都能补，不用一次填完。</p>
+                <div className="first-run-actions">
+                  <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => { setPage('host'); startNew() }}>先录资产</Button>
+                  <Button size="large" icon={<ApartmentOutlined />} onClick={() => goTo('facilities')}>先建机房</Button>
+                  <Button size="large" icon={<GlobalOutlined />} onClick={() => goTo('ipam')}>先管网络</Button>
+                </div>
+                <p className="first-run-hint">「先录资产」可以手工加一台，也可以导入 CSV。</p>
+              </div>
+            </div>
+          ) : (
             <Dashboard
               assets={assets} subnets={subnets} facilities={facilities} changes={changes}
               bookmarks={bookmarks} rackBookmarks={rackBookmarks} subnetBookmarks={subnetBookmarks} tags={allTags}
               onGo={goTo} onOpenAsset={id => void openAsset(id)}
               onOpenRack={openRack} onOpenSubnet={openSubnet} dark={dark}
             />
-          )}
+          ))}
 
           {page === 'changes' && (
             <Card variant="borderless" title="变更记录"><ChangeList changes={changes} filterable onOpen={id => void openAsset(id)} /></Card>
