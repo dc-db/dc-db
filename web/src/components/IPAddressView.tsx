@@ -12,6 +12,7 @@ import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 import { SearchableSelect } from './SearchableSelect'
+import { PageHeader } from './PageHeader'
 import { Select } from './AppControls'
 
 interface Props { editable: boolean; assets: Asset[]; subnets: Subnet[]; onOpenAsset: (id: number) => void; onOpenSubnet: (id: number) => void; onSessionError: (error: unknown) => void; onChanged: () => void }
@@ -91,33 +92,37 @@ export function IPAddressView({ editable, assets, subnets, onOpenAsset, onOpenSu
     ])
   }
 
-  return <Card className="border-0 bg-transparent shadow-none"><CardContent>
-    {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
-    {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
-    <div className="mb-4 flex flex-wrap items-center gap-3">
-      <Input className="max-w-sm" placeholder="搜索 IP、DNS、资产、用途或网段" value={keyword} onChange={event => setKeyword(event.target.value)} />
-      <Select
-        style={{ width: 220 }} allowClear placeholder="全部网段" value={subnetId || undefined}
-        onChange={(value: string | undefined) => setSubnetId(value ?? '')}
-        options={subnets.map(subnet => ({ value: String(subnet.id), label: `${subnet.name} · ${subnet.cidr}` }))}
-      />
-      <Select
-        style={{ width: 140 }} allowClear searchable={false} placeholder="全部来源" value={source || undefined}
-        onChange={(value: string | undefined) => setSource(value ?? '')}
-        options={Object.entries(sourceMeta).map(([value, label]) => ({ value, label }))}
-      />
-      <Select
-        style={{ width: 130 }} allowClear searchable={false} placeholder="全部状态" value={state || undefined}
-        onChange={(value: string | undefined) => setState(value ?? '')}
-        options={Object.entries(stateMeta).map(([value, label]) => ({ value, label }))}
-      />
-      <span className="text-sm text-muted-foreground">共 {visible.length} 条</span>
-      <div className="ipam-toolbar-actions">
+  return <>
+    <PageHeader
+      title="IP"
+      filters={<>
+        <Input className="max-w-sm" placeholder="搜索 IP、DNS、资产、用途或网段" value={keyword} onChange={event => setKeyword(event.target.value)} />
+        <Select
+          style={{ width: 220 }} allowClear placeholder="全部网段" value={subnetId || undefined}
+          onChange={(value: string | undefined) => setSubnetId(value ?? '')}
+          options={subnets.map(subnet => ({ value: String(subnet.id), label: `${subnet.name} · ${subnet.cidr}` }))}
+        />
+        <Select
+          style={{ width: 140 }} allowClear searchable={false} placeholder="全部来源" value={source || undefined}
+          onChange={(value: string | undefined) => setSource(value ?? '')}
+          options={Object.entries(sourceMeta).map(([value, label]) => ({ value, label }))}
+        />
+        <Select
+          style={{ width: 130 }} allowClear searchable={false} placeholder="全部状态" value={state || undefined}
+          onChange={(value: string | undefined) => setState(value ?? '')}
+          options={Object.entries(stateMeta).map(([value, label]) => ({ value, label }))}
+        />
+        <span className="text-sm text-muted-foreground">共 {visible.length} 条</span>
+      </>}
+      actions={<>
         <Button variant="outline" disabled={!visible.length} onClick={exportCSV}><Download />导出</Button>
         <Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
         {editable && <Button onClick={() => showForm(null)}><Plus />分配 IP</Button>}
-      </div>
-    </div>
+      </>}
+    />
+    <Card className="border-0 bg-transparent shadow-none"><CardContent>
+    {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
+    {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
     <div className="overflow-x-auto"><Table><TableHeader>{table.getHeaderGroups().map(group => <TableRow key={group.id}>{group.headers.map(header => <TableHead key={header.id}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{loading ? <TableRow><TableCell colSpan={columns.length}>加载中...</TableCell></TableRow> : table.getRowModel().rows.length ? table.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">暂无匹配的 IP 地址</TableCell></TableRow>}</TableBody></Table></div>
     <div className="mt-4 flex flex-wrap items-center justify-end gap-2 text-sm"><span className="text-muted-foreground">共 {visible.length} 条</span><label className="flex items-center gap-2 whitespace-nowrap text-muted-foreground">每页<select aria-label="每页条数" className={`${selectClass} w-20`} value={table.getState().pagination.pageSize} onChange={event => table.setPageSize(Number(event.target.value))}>{[10, 20, 50].map(size => <option key={size} value={size}>{size}</option>)}</select>条</label><span className="whitespace-nowrap text-muted-foreground">第 {table.getState().pagination.pageIndex + 1} / {Math.max(1, table.getPageCount())} 页</span><div className="flex items-center gap-1"><Button variant="outline" size="icon-sm" aria-label="第一页" disabled={!table.getCanPreviousPage()} onClick={() => table.setPageIndex(0)}><ChevronsLeft /></Button><Button variant="outline" size="icon-sm" aria-label="上一页" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}><ChevronLeft /></Button><Button variant="outline" size="icon-sm" aria-label="下一页" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}><ChevronRight /></Button><Button variant="outline" size="icon-sm" aria-label="最后一页" disabled={!table.getCanNextPage()} onClick={() => table.setPageIndex(Math.max(0, table.getPageCount() - 1))}><ChevronsRight /></Button></div></div>
   </CardContent><Dialog open={modalOpen} onOpenChange={next => { if (!busy) { setModalOpen(next); if (!next) setEditing(null) } }}><DialogContent className="sm:max-w-[600px]"><DialogHeader><DialogTitle>{editing ? `编辑 ${editing.ip}` : '分配 IP 地址'}</DialogTitle></DialogHeader>
@@ -134,4 +139,5 @@ export function IPAddressView({ editable, assets, subnets, onOpenAsset, onOpenSu
     </div><DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={() => setModalOpen(false)}>取消</Button><Button type="submit" disabled={busy}>{busy ? '保存中...' : '保存'}</Button></DialogFooter></form></DialogContent></Dialog>
     <Dialog open={!!releasing} onOpenChange={next => { if (!next && !busy) setReleasing(null) }}><DialogContent><DialogHeader><DialogTitle>释放该 IP？</DialogTitle><DialogDescription>确认释放 {releasing?.ip}。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setReleasing(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (releasing) void release(releasing) }}>释放</Button></DialogFooter></DialogContent></Dialog>
   </Card>
+  </>
 }

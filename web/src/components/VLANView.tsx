@@ -12,6 +12,7 @@ import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 import { Select } from './AppControls'
+import { PageHeader } from './PageHeader'
 
 interface RoomOption { id: number; name: string }
 interface Props { editable: boolean; rooms: RoomOption[]; onSessionError: (error: unknown) => void; onChanged: () => void }
@@ -99,20 +100,28 @@ export function VLANView({ editable, rooms, onSessionError, onChanged }: Props) 
     ])
   }
 
-  return <Card className="border-0 bg-transparent shadow-none">
-    <div className="ipam-actions"><div className="flex gap-2"><Button variant="outline" disabled={!visible.length} onClick={exportCSV}><Download />导出 CSV</Button><Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>{editable && <Button onClick={() => showForm(null)}><Plus />新增 VLAN</Button>}</div></div>
-    <CardContent>
-      {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
-      {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+  return <>
+    <PageHeader
+      title="VLAN"
+      filters={<>
         <Input className="max-w-sm" placeholder="搜索 VLAN ID、名称、描述或数据中心" value={keyword} onChange={event => setKeyword(event.target.value)} />
         <Select
           style={{ width: 130 }} allowClear searchable={false} placeholder="全部状态" value={status || undefined}
           onChange={(value: string | undefined) => setStatus(value ?? '')}
           options={Object.entries(statusMeta).map(([value, meta]) => ({ value, label: meta.label }))}
         />
-        <span className="text-sm text-muted-foreground">共 {visible.length} 个</span>
-      </div>
+      </>}
+      actions={<>
+        <Button variant="outline" disabled={!visible.length} onClick={exportCSV}><Download />导出</Button>
+        <Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
+        {editable && <Button onClick={() => showForm(null)}><Plus />新增 VLAN</Button>}
+      </>}
+    />
+    <Card className="border-0 bg-transparent shadow-none">
+    <CardContent>
+      {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
+      {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
+
       <div className="overflow-x-auto"><Table><TableHeader>{table.getHeaderGroups().map(group => <TableRow key={group.id}>{group.headers.map(header => <TableHead key={header.id} aria-sort={header.column.getCanSort() ? (header.column.getIsSorted() === 'asc' ? 'ascending' : header.column.getIsSorted() === 'desc' ? 'descending' : 'none') : undefined}>{header.column.getCanSort() ? <button className="inline-flex items-center gap-1" onClick={header.column.getToggleSortingHandler()}>{flexRender(header.column.columnDef.header, header.getContext())}{header.column.getIsSorted() === 'asc' ? <ArrowUp className="size-3" aria-hidden="true" /> : header.column.getIsSorted() === 'desc' ? <ArrowDown className="size-3" aria-hidden="true" /> : <ArrowDownUp className="size-3" aria-hidden="true" />}</button> : flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{loading ? <TableRow><TableCell colSpan={columns.length}>加载中...</TableCell></TableRow> : table.getRowModel().rows.length ? table.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">暂无 VLAN，新增一个开始规划二层网络</TableCell></TableRow>}</TableBody></Table></div>
       <div className="mt-4 flex flex-wrap items-center justify-end gap-2 text-sm"><span className="text-muted-foreground">共 {visible.length} 个</span><label className="flex items-center gap-2 whitespace-nowrap text-muted-foreground">每页<select aria-label="每页条数" className={`${selectClass} w-20`} value={table.getState().pagination.pageSize} onChange={event => table.setPageSize(Number(event.target.value))}>{[10, 20, 50].map(size => <option key={size} value={size}>{size}</option>)}</select>条</label><span className="whitespace-nowrap text-muted-foreground">第 {table.getState().pagination.pageIndex + 1} / {Math.max(1, table.getPageCount())} 页</span><div className="flex items-center gap-1"><Button variant="outline" size="icon-sm" aria-label="第一页" disabled={!table.getCanPreviousPage()} onClick={() => table.setPageIndex(0)}><ChevronsLeft /></Button><Button variant="outline" size="icon-sm" aria-label="上一页" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}><ChevronLeft /></Button><Button variant="outline" size="icon-sm" aria-label="下一页" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}><ChevronRight /></Button><Button variant="outline" size="icon-sm" aria-label="最后一页" disabled={!table.getCanNextPage()} onClick={() => table.setPageIndex(Math.max(0, table.getPageCount() - 1))}><ChevronsRight /></Button></div></div>
     </CardContent>
@@ -128,4 +137,5 @@ export function VLANView({ editable, rooms, onSessionError, onChanged }: Props) 
     </DialogContent></Dialog>
     <Dialog open={!!deleting} onOpenChange={next => { if (!next && !busy) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>删除该 VLAN？</DialogTitle><DialogDescription>仍有网段使用时不能删除。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (deleting) void remove(deleting) }}>删除</Button></DialogFooter></DialogContent></Dialog>
   </Card>
+  </>
 }

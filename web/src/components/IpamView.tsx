@@ -5,6 +5,7 @@ import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
+import { PageHeader } from './PageHeader'
 import { Input } from './ui/input'
 import { Progress } from './ui/progress'
 import { Textarea } from './ui/textarea'
@@ -303,7 +304,24 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
     ])
   }
 
-  return <Card className="border-0 bg-transparent shadow-none"><CardContent>
+  return <>
+    <PageHeader
+      title="网段"
+      filters={<>
+        <Input className="max-w-sm" placeholder="搜索名称、CIDR、VLAN、用途" value={subnetSearch} onChange={event => setSubnetSearch(event.target.value)} />
+        <Select
+          style={{ width: 140 }} allowClear searchable={false} placeholder="全部状态" value={subnetStatus}
+          onChange={(value: string | undefined) => setSubnetStatus(value ?? undefined)}
+          options={Object.entries(subnetStatusMeta).map(([value, meta]) => ({ value, label: meta.label }))}
+        />
+      </>}
+      actions={<>
+        <Button variant="outline" disabled={!subnetRows.length} onClick={exportSubnets}><Download />导出</Button>
+        {editable && <Button variant="outline" onClick={() => { setImportFile(null); setImportError(''); setImportOpen(true) }}><Upload />导入</Button>}
+        {editable && <Button onClick={addSubnet}><Plus />新增网段</Button>}
+      </>}
+    />
+    <Card className="border-0 bg-transparent shadow-none"><CardContent>
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
     {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
     {draft && <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{draft.id ? '编辑网段' : '新增网段'}</CardTitle><Button variant="ghost" size="icon" aria-label="关闭" onClick={() => setDraft(null)}><X /></Button></CardHeader><CardContent><form onSubmit={event => { event.preventDefault(); void saveSubnet() }}><div className="grid grid-cols-2 gap-3">
@@ -316,19 +334,7 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
       <label className={`${labelClass} col-span-2`}>备注<Textarea rows={2} maxLength={2000} value={draft.notes} onChange={event => setDraft({ ...draft, notes: event.target.value })} /></label>
     </div><div className="mt-4 flex gap-2"><Button type="submit" disabled={busy}>保存网段</Button><Button type="button" variant="outline" onClick={() => setDraft(null)}>取消</Button></div></form></CardContent></Card>}
     {!subnets.length ? <div className="py-12 text-center text-muted-foreground">{loading ? '正在加载 IPAM 数据…' : '暂无网段，新增一个网段开始管理 IP 地址'}</div> : <>
-      <div className="ipam-subnet-toolbar">
-        <Input className="max-w-sm" placeholder="搜索名称、CIDR、VLAN、用途" value={subnetSearch} onChange={event => setSubnetSearch(event.target.value)} />
-        <Select
-          style={{ width: 140 }} allowClear searchable={false} placeholder="全部状态" value={subnetStatus}
-          onChange={(value: string | undefined) => setSubnetStatus(value ?? undefined)}
-          options={Object.entries(subnetStatusMeta).map(([value, meta]) => ({ value, label: meta.label }))}
-        />
-        <div className="ipam-toolbar-actions">
-          <Button variant="outline" disabled={!subnetRows.length} onClick={exportSubnets}><Download />导出</Button>
-          {editable && <Button variant="outline" onClick={() => { setImportFile(null); setImportError(''); setImportOpen(true) }}><Upload />导入</Button>}
-          {editable && <Button onClick={addSubnet}><Plus />新增网段</Button>}
-        </div>
-      </div>
+
       <div className="overflow-x-auto">
         <table className="facility-table ipam-subnet-table">
           <thead><tr><th>网段名称</th><th>CIDR</th><th>VLAN</th><th>网关</th><th>地址数</th><th>已用</th><th>空闲</th><th>利用率</th><th className="text-right">操作</th></tr></thead>
@@ -366,7 +372,8 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
         </table>
       </div>
     </>}
-  </CardContent><Dialog open={importOpen} onOpenChange={next => { if (!importBusy) setImportOpen(next) }}><DialogContent>
+  </CardContent>
+  <Dialog open={importOpen} onOpenChange={next => { if (!importBusy) setImportOpen(next) }}><DialogContent>
       <DialogHeader><DialogTitle>导入网段</DialogTitle><DialogDescription>CSV 表头：网段名称、CIDR、网关、VLAN、状态、用途、备注。</DialogDescription></DialogHeader>
       {importError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{importError}</div>}
       <div className="space-y-3">
@@ -385,4 +392,5 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
     </DialogContent></Dialog>
     <Dialog open={!!deleting} onOpenChange={next => { if (!busy) setDeleting(next ? deleting : null) }}><DialogContent><DialogHeader><DialogTitle>确定删除该网段？</DialogTitle><DialogDescription>确认删除 {deleting?.name}。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (deleting) void deleteSubnet(deleting) }}>删除</Button></DialogFooter></DialogContent></Dialog>
   </Card>
+  </>
 }

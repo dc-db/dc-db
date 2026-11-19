@@ -297,20 +297,6 @@ html[data-theme="dark"] .rack-board-figure svg .slot-add { fill: #adb5bd; }
 .ipam-util { display: inline-flex; align-items: center; gap: 8px; min-width: 130px; }
 .ipam-util [data-slot="progress"] { width: 84px; }
 .ipam-util span { color: var(--muted); font-size: 12px; }
-.ipam-actions { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 16px; }
-.ipam-tabs [data-slot="tabs-list"] {
-  width: 100%; height: auto; justify-content: flex-start; gap: 30px; padding: 0;
-  border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent;
-  margin-bottom: 16px;
-}
-.ipam-tabs [data-slot="tabs-trigger"] {
-  flex: 0 0 auto; height: auto; padding: 2px 0 11px; border: 0; border-radius: 0;
-  background: transparent; box-shadow: none; color: var(--muted);
-  font-size: 18px; font-weight: 600; line-height: 1.3;
-}
-.ipam-tabs [data-slot="tabs-trigger"]:hover { color: var(--text); background: transparent; }
-.ipam-tabs [data-slot="tabs-trigger"][data-state="active"] { color: var(--text); background: transparent; }
-.ipam-tabs [data-slot="tabs-trigger"]::after { bottom: -1px; height: 2px; background: var(--text); border-radius: 2px; }
 .app-menu.control-nav button, .app-menu.control-nav summary { padding: var(--app-nav-block-padding) var(--app-nav-inline-padding); line-height: 20px; }
 .app-menu.control-nav details button { padding-left: 26px; }
 .app-menu.control-nav button.selected { background: var(--app-nav-hover); }

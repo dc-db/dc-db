@@ -13,6 +13,7 @@ import {
   House as HomeOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
   FolderTree as FolderTreeOutlined, Boxes as BoxesOutlined, Blocks as BlocksOutlined,
+  Network as NetworkOutlined, Cable as CableOutlined,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
 import { downloadCSV } from './csv'
@@ -77,10 +78,11 @@ function messageText(error: unknown) {
   return error instanceof Error ? error.message : '操作失败'
 }
 
-const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'facilities', 'ipam', 'changes', 'password', 'tags', 'groups', 'services', 'users', 'guide']
+const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'facilities', 'subnets', 'vlans', 'ips', 'changes', 'password', 'tags', 'groups', 'services', 'users', 'guide']
 
 function readPageParam(): Page {
   const value = new URLSearchParams(window.location.search).get('page')
+  if (value === 'ipam') return 'subnets'
   return PAGE_KEYS.includes(value as Page) ? (value as Page) : 'home'
 }
 
@@ -178,7 +180,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   const [facilityRackId, setFacilityRackId] = useState<number | null>(null)
   const [ipamSubnetId, setIpamSubnetId] = useState<number | null>(null)
-  const [ipamTab, setIpamTab] = useState<'subnets' | 'addresses' | 'vlans'>('subnets')
   const [collapsed, setCollapsed] = useState(false)
 
   const [assets, setAssets] = useState<Asset[]>([])
@@ -276,7 +277,14 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     { key: 'facilities', label: '数据中心', icon: <BuildingOutlined /> },
     { key: 'host', label: '物理机', icon: <CloudServerOutlined /> },
     { key: 'vm', label: '虚拟机', icon: <DesktopOutlined /> },
-    { key: 'ipam', label: 'IPAM', icon: <GlobalOutlined /> },
+    {
+      key: 'ipam', label: 'IPAM', icon: <GlobalOutlined />,
+      children: [
+        { key: 'subnets', label: '网段', icon: <GlobalOutlined /> },
+        { key: 'vlans', label: 'VLAN', icon: <NetworkOutlined /> },
+        { key: 'ips', label: 'IP', icon: <CableOutlined /> },
+      ],
+    },
     {
       key: 'org', label: '组织结构', icon: <FolderTreeOutlined />,
       children: [
@@ -311,7 +319,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   const scoped = useMemo(() => {
     if (page === 'home' || page === 'changes' || page === 'password' || page === 'facilities' ||
-      page === 'ipam' || page === 'users' || page === 'guide') return []
+      page === 'subnets' || page === 'vlans' || page === 'ips' || page === 'users' || page === 'guide') return []
     if (page === 'vm') return assets.filter(asset => asset.kind === 'vm')
     return assets.filter(asset => asset.kind !== 'vm')
   }, [assets, page])
@@ -672,8 +680,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   function openSubnet(id: number) {
     setIpamSubnetId(id)
-    setIpamTab('subnets')
-    goTo('ipam')
+    goTo('subnets')
   }
 
   function openBulkTags() {
@@ -1167,9 +1174,9 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                 setFacilityRackId(rackId)
                 goTo('facilities')
               }}
-              onIpam={() => { setIpamTab('subnets'); goTo('ipam') }}
-              onIPAddress={() => { setIpamTab('addresses'); goTo('ipam') }}
-              onVLAN={() => { setIpamTab('vlans'); goTo('ipam') }}
+              onIpam={() => goTo('subnets')}
+              onIPAddress={() => goTo('ips')}
+              onVLAN={() => goTo('vlans')}
               onTag={() => goTo('tags')}
             />
           </div>
@@ -1205,7 +1212,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                   <Button type="primary" size="large" icon={<BookOpenOutlined />} onClick={() => goTo('guide')}>查看使用指南</Button>
                   <Button size="large" icon={<PlusOutlined />} onClick={() => { setPage('host'); startNew('host') }}>先录资产</Button>
                   <Button size="large" icon={<BuildingOutlined />} onClick={() => goTo('facilities')}>先建机房</Button>
-                  <Button size="large" icon={<GlobalOutlined />} onClick={() => goTo('ipam')}>先管网络</Button>
+                  <Button size="large" icon={<GlobalOutlined />} onClick={() => goTo('subnets')}>先管网络</Button>
                 </div>
                 <p className="first-run-hint">「使用指南」里有截图级的操作顺序和常见问题。</p>
               </div>
@@ -1245,44 +1252,26 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             />
           )}
 
-          {page === 'ipam' && (
-            <Tabs
-              className="ipam-tabs" listVariant="line"
-              activeKey={ipamTab}
-              onChange={(key: string) => setIpamTab(key as 'subnets' | 'addresses' | 'vlans')}
-              items={[
-                {
-                  key: 'subnets', label: '概览',
-                  children: (
-                    <IpamView
-                      editable={editable}
-                      openSubnetId={ipamSubnetId} onSubnetOpened={() => setIpamSubnetId(null)}
-                      bookmarkedSubnets={subnetBookmarks} onToggleSubnetBookmark={toggleSubnetBookmark}
-                      onSessionError={e => handleError(e)}
-                      onChanged={() => void loadAll()}
-                    />
-                  ),
-                },
-                {
-                  key: 'addresses', label: 'IP 地址',
-                  children: (
-                    <IPAddressView
-                      editable={editable} assets={assets} subnets={subnets}
-                      onOpenAsset={id => void openAsset(id)} onOpenSubnet={openSubnet}
-                      onSessionError={e => handleError(e)} onChanged={() => void loadAll()}
-                    />
-                  ),
-                },
-                {
-                  key: 'vlans', label: 'VLAN',
-                  children: (
-                    <VLANView
-                      editable={editable} rooms={facilities.rooms}
-                      onSessionError={e => handleError(e)} onChanged={() => void loadAll()}
-                    />
-                  ),
-                },
-              ]}
+          {page === 'subnets' && (
+            <IpamView
+              editable={editable}
+              openSubnetId={ipamSubnetId} onSubnetOpened={() => setIpamSubnetId(null)}
+              bookmarkedSubnets={subnetBookmarks} onToggleSubnetBookmark={toggleSubnetBookmark}
+              onSessionError={e => handleError(e)}
+              onChanged={() => void loadAll()}
+            />
+          )}
+          {page === 'ips' && (
+            <IPAddressView
+              editable={editable} assets={assets} subnets={subnets}
+              onOpenAsset={id => void openAsset(id)} onOpenSubnet={openSubnet}
+              onSessionError={e => handleError(e)} onChanged={() => void loadAll()}
+            />
+          )}
+          {page === 'vlans' && (
+            <VLANView
+              editable={editable} rooms={facilities.rooms}
+              onSessionError={e => handleError(e)} onChanged={() => void loadAll()}
             />
           )}
 
