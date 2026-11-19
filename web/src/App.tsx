@@ -212,6 +212,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [importing, setImporting] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [assetImportOpen, setAssetImportOpen] = useState(false)
+  const assetImportRef = useRef<HTMLInputElement>(null)
   const [assetImportFile, setAssetImportFile] = useState<File | null>(null)
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null)
   const [pendingImport, setPendingImport] = useState<File | null>(null)
@@ -1466,7 +1467,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       </Layout>
 
       <Modal
-        open={assetImportOpen} title="导入设备" width={560}
+        open={assetImportOpen} title="导入设备" width={460}
         onCancel={() => { if (!previewing) { setAssetImportOpen(false); setAssetImportFile(null) } }}
         footer={(
           <Space wrap>
@@ -1483,13 +1484,15 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           </Space>
         )}
       >
-        <div className="space-y-3">
-          <p className="muted">CSV 需包含「名称」列，其余字段见模板。选好文件后先预检，确认无误再写入。</p>
+        <div className="import-picker">
           <input
-            type="file" accept=".csv,text/csv"
+            ref={assetImportRef} type="file" accept=".csv,text/csv" hidden
             onChange={event => setAssetImportFile(event.target.files?.[0] ?? null)}
           />
-          {assetImportFile && <p className="muted">已选择：{assetImportFile.name}</p>}
+          <Button variant="outline" onClick={() => assetImportRef.current?.click()}>
+            {assetImportFile ? '重新选择' : '选择 CSV 文件'}
+          </Button>
+          {assetImportFile && <span className="import-picker-name" title={assetImportFile.name}>{assetImportFile.name}</span>}
         </div>
       </Modal>
 

@@ -505,6 +505,8 @@ html[data-theme="dark"] .import-error-row strong { color: #ff7875; }
 .facility-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .facility-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .location-results { border-top: 1px solid var(--line); margin-top: 10px; }
+.import-picker { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.import-picker-name { min-width: 0; overflow: hidden; color: var(--muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .room-modal-actions { display: flex; justify-content: flex-end; margin-top: 4px; }
 .location-result { display: flex; justify-content: space-between; text-align: left; gap: 8px; flex-wrap: wrap; }
 .facility-form { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; }
