@@ -30,6 +30,7 @@ import { GlobalSearch } from './components/GlobalSearch'
 import { GuidePage } from './components/GuidePage'
 import { IPAddressView } from './components/IPAddressView'
 import { IpamView } from './components/IpamView'
+import { LoginBackdrop } from './components/LoginBackdrop'
 import { TagManager } from './components/TagManager'
 import { UserManager } from './components/UserManager'
 import { VLANView } from './components/VLANView'
@@ -1056,16 +1057,11 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   if (!user) {
     return (
       <main className="login-page">
-        <section className="login-visual" aria-label="DC-DB 简介">
-          <div className="login-visual-content">
-            <p className="login-visual-title">让资产与关系清晰可见</p>
-            <p className="login-visual-description">集中管理基础设施资产、网络与配置。</p>
-          </div>
-        </section>
+        <LoginBackdrop />
         <section className="login-panel" aria-label="登录">
-          <ThemeToggle dark={dark} onToggleTheme={onToggleTheme} className="login-theme-toggle" />
           <Card className="login-card" variant="borderless">
             <div className="login-brand"><Wordmark /></div>
+            <p className="login-tagline">登录以管理资产、网络与配置</p>
             {error && <Alert type="error" showIcon message={error} className="login-alert" />}
             <Form layout="vertical" onFinish={login}>
               <Form.Item label="账号" name="username" rules={[{ required: true, message: '请输入账号' }]}>
