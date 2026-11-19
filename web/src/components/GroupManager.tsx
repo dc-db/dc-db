@@ -84,7 +84,7 @@ export function GroupManager({ editable, onSessionError, onChanged }: Props) {
     { accessorKey: 'description', header: '说明', cell: ({ row }) => row.original.description || <span className="text-muted-foreground">—</span> },
     { accessorKey: 'assetCount', header: '资产数', cell: ({ row }) => row.original.assetCount },
     ...(editable ? [{
-      id: 'actions', header: '操作',
+      id: 'actions', header: () => <div className="text-right">操作</div>,
       cell: ({ row }: { row: { original: Group } }) => <div className="flex justify-end gap-1">
         <Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button>
         <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleting(row.original)}><Trash2 />删除</Button>

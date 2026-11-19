@@ -96,7 +96,7 @@ export function ServiceManager({ editable, onSessionError }: Props) {
     { accessorKey: 'description', header: '说明', cell: ({ row }) => row.original.description || <span className="text-muted-foreground">—</span> },
     { id: 'builtin', header: '来源', cell: ({ row }) => <span className="text-muted-foreground">{row.original.builtin ? '内置' : '自定义'}</span> },
     ...(editable ? [{
-      id: 'actions', header: '操作',
+      id: 'actions', header: () => <div className="text-right">操作</div>,
       cell: ({ row }: { row: { original: Service } }) => <div className="flex justify-end gap-1">
         <Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button>
         <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleting(row.original)}><Trash2 />删除</Button>

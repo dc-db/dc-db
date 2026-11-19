@@ -95,7 +95,7 @@ export function TagManager({ editable, onSessionError, onChanged }: Props) {
     { accessorKey: 'name', header: '标签', cell: ({ row }) => <span className="inline-flex rounded-md px-2 py-1 text-xs font-medium" style={{ backgroundColor: row.original.color, color: readableTextColor(row.original.color) }}>{row.original.name}</span> },
     { accessorKey: 'description', header: '说明', cell: ({ row }) => row.original.description || '—' },
     { accessorKey: 'assetCount', header: '关联资产', cell: ({ row }) => row.original.assetCount || '0' },
-    ...(editable ? [{ id: 'actions', header: '', cell: ({ row }: { row: { original: TagItem } }) => <div className="flex gap-1"><Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button><Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleting(row.original)}><Trash2 />删除</Button></div> }] : []),
+    ...(editable ? [{ id: 'actions', header: () => <div className="text-right">操作</div>, cell: ({ row }: { row: { original: TagItem } }) => <div className="flex gap-1"><Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button><Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleting(row.original)}><Trash2 />删除</Button></div> }] : []),
   ]
   const visible = useMemo(() => {
     const query = keyword.trim().toLowerCase()
