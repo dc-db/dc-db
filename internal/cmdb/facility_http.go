@@ -78,10 +78,6 @@ func (s *Server) saveRoom(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "数据中心名称须为 1–160 个字符")
 		return
 	}
-	if !validCell(input.Columns, input.Rows) {
-		fail(w, http.StatusBadRequest, "数据中心网格的行数和列数须为 1–24")
-		return
-	}
 	room, err := SaveRoom(r.Context(), s.db, id, input.RoomFields, input.Version, currentUser(r).Username)
 	s.respondFacility(w, r, room, err)
 }
@@ -116,22 +112,12 @@ func (s *Server) saveRack(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "机柜区域不能超过 40 个字符")
 		return
 	}
-	if input.HeightU < 1 || input.HeightU > 80 || !validCell(input.Column, input.Row) {
-		fail(w, http.StatusBadRequest, "机柜高度须为 1–80U，布局坐标须为 1–24")
-		return
-	}
-	switch input.Rotation {
-	case 0, 90, 180, 270:
-	default:
-		fail(w, http.StatusBadRequest, "机柜朝向无效")
+	if input.HeightU < 1 || input.HeightU > 80 {
+		fail(w, http.StatusBadRequest, "机柜高度须为 1–80U")
 		return
 	}
 	rack, err := SaveRack(r.Context(), s.db, rackID, roomID, input.RackFields, input.Version, currentUser(r).Username)
 	s.respondFacility(w, r, rack, err)
-}
-
-func validCell(column, row int) bool {
-	return column >= 1 && column <= 24 && row >= 1 && row <= 24
 }
 
 func (s *Server) savePlacement(w http.ResponseWriter, r *http.Request) {

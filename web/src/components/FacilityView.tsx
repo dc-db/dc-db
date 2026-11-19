@@ -133,16 +133,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   const locations = useMemo(() => assetLocations(layout, links), [layout, links])
   const mounted = useMemo(() => new Map(layout.placements.map(placement => [placement.assetId, placement])), [layout.placements])
   const candidates = assets.filter(asset => asset.lifecycle === 'active' && isMountKind(asset.kind))
-  const cells = useMemo(() => {
-    if (!room) return []
-    const byCell = new Map(racks.map(item => [item.row + ':' + item.column, item]))
-    return Array.from({ length: room.columns * room.rows }, (_, index) => {
-      const column = index % room.columns + 1
-      const row = Math.floor(index / room.columns) + 1
-      const key = row + ':' + column
-      return { key, row, column, rack: byCell.get(key) }
-    })
-  }, [room, racks])
   const mountLocation = mountDraft?.assetId ? locations.get(mountDraft.assetId) : undefined
 
   useEffect(() => {
@@ -232,7 +222,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
 
   function editRoom(value?: Room) {
     resetForms()
-    setRoomDraft(value ? { ...value } : { name: '', regionId: 0, columns: 8, rows: 6, version: 0 })
+    setRoomDraft(value ? { ...value } : { name: '', regionId: 0, version: 0 })
   }
 
   function editRegion(value?: Region) {
@@ -273,17 +263,15 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
 
   function editRack(value?: Rack) {
     resetForms()
-    const free = cells.find(cell => !cell.rack)
     if (value) setRackDraft({ ...value })
-    else if (free) setRackDraft({ name: '', zone: '', heightU: 42, column: free.column, row: free.row, rotation: 0, version: 0 })
-    else setError('数据中心网格已占满，请先扩大布局')
+    else setRackDraft({ name: '', zone: '', heightU: 42, version: 0 })
   }
 
   function saveRack() {
     if (!rackDraft || !room) return
-    const { id, name, heightU, column, row, rotation, version } = rackDraft
+    const { id, name, zone, heightU, version } = rackDraft
     const path = id ? '/racks/' + id : '/rooms/' + room.id + '/racks'
-    void mutate(() => api<Rack>(path, id ? 'PUT' : 'POST', { name, heightU, column, row, rotation, version }), saved => {
+    void mutate(() => api<Rack>(path, id ? 'PUT' : 'POST', { name, zone, heightU, version }), saved => {
       setRackId(saved.id)
       setRackDraft(null)
     }, '机柜已保存')

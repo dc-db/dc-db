@@ -67,25 +67,25 @@ SELECT v.* FROM (
     UNION ALL SELECT 2, '华东'
 ) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
-INSERT INTO rooms (id, name, region_id, grid_columns, grid_rows)
+INSERT INTO rooms (id, name, region_id)
 SELECT v.* FROM (
-    SELECT 1::bigint, '北京亦庄数据中心'::text, 1::bigint, 6::int, 4::int
-    UNION ALL SELECT 2, '上海数据中心', 2, 6, 4
-    UNION ALL SELECT 3, '测试机房', NULL, 4, 3
+    SELECT 1::bigint, '北京亦庄数据中心'::text, 1::bigint
+    UNION ALL SELECT 2, '上海数据中心', 2
+    UNION ALL SELECT 3, '测试机房', NULL
 ) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
-INSERT INTO racks (id, room_id, name, zone, height_u, grid_col, grid_row, rotation)
+INSERT INTO racks (id, room_id, name, zone, height_u)
 SELECT v.* FROM (
-    SELECT 1::bigint, 1::bigint, 'DEMO-A01'::text, 'A 区'::text, 42::int, 1::int, 1::int, 0::int
-    UNION ALL SELECT 2, 1, 'DEMO-A02', 'A 区', 42, 2, 1, 0
-    UNION ALL SELECT 3, 1, 'DEMO-A03', 'A 区', 42, 3, 1, 0
-    UNION ALL SELECT 4, 1, 'DEMO-A04', 'A 区', 42, 4, 1, 0
-    UNION ALL SELECT 5, 1, 'DEMO-B01', 'B 区', 24, 1, 2, 90
-    UNION ALL SELECT 6, 1, 'DEMO-B02', 'B 区', 42, 2, 2, 0
-    UNION ALL SELECT 7, 2, 'SH-S01', 'S 区', 42, 1, 1, 0
-    UNION ALL SELECT 8, 2, 'SH-S02', 'S 区', 42, 2, 1, 0
-    UNION ALL SELECT 9, 2, 'SH-S03', 'S 区', 24, 3, 1, 0
-    UNION ALL SELECT 10, 3, 'TEST-T01', 'T 区', 42, 1, 1, 0
-    UNION ALL SELECT 11, 3, 'TEST-T02', 'T 区', 42, 2, 1, 0
+    SELECT 1::bigint, 1::bigint, 'DEMO-A01'::text, 'A 区'::text, 42::int
+    UNION ALL SELECT 2, 1, 'DEMO-A02', 'A 区', 42
+    UNION ALL SELECT 3, 1, 'DEMO-A03', 'A 区', 42
+    UNION ALL SELECT 4, 1, 'DEMO-A04', 'A 区', 42
+    UNION ALL SELECT 5, 1, 'DEMO-B01', 'B 区', 24
+    UNION ALL SELECT 6, 1, 'DEMO-B02', 'B 区', 42
+    UNION ALL SELECT 7, 2, 'SH-S01', 'S 区', 42
+    UNION ALL SELECT 8, 2, 'SH-S02', 'S 区', 42
+    UNION ALL SELECT 9, 2, 'SH-S03', 'S 区', 24
+    UNION ALL SELECT 10, 3, 'TEST-T01', 'T 区', 42
+    UNION ALL SELECT 11, 3, 'TEST-T02', 'T 区', 42
 ) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 INSERT INTO rack_placements (asset_id, rack_id, start_u, units, face, depth)
 SELECT v.* FROM (

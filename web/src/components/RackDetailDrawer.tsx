@@ -67,8 +67,8 @@ export function RackDetailDrawer({
 
   const details = [
     ['机柜编号', rack.name], ['所属数据中心', room?.name ?? '—'],
-    ['机柜高度', rack.heightU + 'U'], ['平面位置', `第 ${rack.row} 行，第 ${rack.column} 列`],
-    ['朝向', rack.rotation + '°'], ['已用 U 位', used + 'U'],
+    ['机柜高度', rack.heightU + 'U'],
+    ['已用 U 位', used + 'U'],
     ['前视占用', frontUsed + 'U'], ['后视占用', rearUsed + 'U'],
     ['安装深度', `全深 ${fullDepthCount} · 半深 ${halfDepthCount}`], ['剩余 U 位', (rack.heightU - used) + 'U'],
     ['利用率', percent + '%'],

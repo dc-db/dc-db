@@ -20,11 +20,11 @@ func TestSearch(t *testing.T) {
 		t.Fatalf("save host: %v", err)
 	}
 
-	room, err := SaveRoom(ctx, db, 0, RoomFields{Name: "北京数据中心", Columns: 8, Rows: 6}, 0, "tester")
+	room, err := SaveRoom(ctx, db, 0, RoomFields{Name: "北京数据中心"}, 0, "tester")
 	if err != nil {
 		t.Fatalf("save room: %v", err)
 	}
-	rack, err := SaveRack(ctx, db, 0, room.ID, RackFields{Name: "A-01", HeightU: 42, Column: 1, Row: 1}, 0, "tester")
+	rack, err := SaveRack(ctx, db, 0, room.ID, RackFields{Name: "A-01", HeightU: 42}, 0, "tester")
 	if err != nil {
 		t.Fatalf("save rack: %v", err)
 	}

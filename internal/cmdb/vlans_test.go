@@ -10,7 +10,7 @@ func TestVLANLifecycle(t *testing.T) {
 	db := testDB(t)
 	ctx := context.Background()
 
-	room, err := SaveRoom(ctx, db, 0, RoomFields{Name: "测试机房", Columns: 4, Rows: 2}, 0, "tester")
+	room, err := SaveRoom(ctx, db, 0, RoomFields{Name: "测试机房"}, 0, "tester")
 	if err != nil {
 		t.Fatalf("create room: %v", err)
 	}

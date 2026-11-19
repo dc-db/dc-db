@@ -12,8 +12,6 @@ export interface Region extends RegionFields {
 export interface RoomFields {
   name: string
   regionId: number
-  columns: number
-  rows: number
 }
 
 export interface Room extends RoomFields {
@@ -25,9 +23,6 @@ export interface RackFields {
   name: string
   zone: string
   heightU: number
-  column: number
-  row: number
-  rotation: number
 }
 
 export interface Rack extends RackFields {

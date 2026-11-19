@@ -9,13 +9,13 @@ func TestRackZone(t *testing.T) {
 	db := testDB(t)
 	ctx := context.Background()
 
-	room, err := SaveRoom(ctx, db, 0, RoomFields{Name: "zone-room", Columns: 6, Rows: 4}, 0, "tester")
+	room, err := SaveRoom(ctx, db, 0, RoomFields{Name: "zone-room"}, 0, "tester")
 	if err != nil {
 		t.Fatalf("create room: %v", err)
 	}
 
 	rack, err := SaveRack(ctx, db, 0, room.ID, RackFields{
-		Name: "Z-01", Zone: "A 区", HeightU: 42, Column: 1, Row: 1,
+		Name: "Z-01", Zone: "A 区", HeightU: 42,
 	}, 0, "tester")
 	if err != nil {
 		t.Fatalf("create rack: %v", err)
@@ -42,7 +42,7 @@ func TestRackZone(t *testing.T) {
 	}
 
 	updated, err := SaveRack(ctx, db, rack.ID, room.ID, RackFields{
-		Name: "Z-01", Zone: "B 区 3 排", HeightU: 42, Column: 1, Row: 1,
+		Name: "Z-01", Zone: "B 区 3 排", HeightU: 42,
 	}, rack.Version, "tester")
 	if err != nil {
 		t.Fatalf("update rack: %v", err)

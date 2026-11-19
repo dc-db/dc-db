@@ -22,8 +22,6 @@ type Region struct {
 type RoomFields struct {
 	Name     string `json:"name"`
 	RegionID int64  `json:"regionId"`
-	Columns  int    `json:"columns"`
-	Rows     int    `json:"rows"`
 }
 
 type Room struct {
@@ -33,12 +31,9 @@ type Room struct {
 }
 
 type RackFields struct {
-	Name     string `json:"name"`
-	Zone     string `json:"zone"`
-	HeightU  int    `json:"heightU"`
-	Column   int    `json:"column"`
-	Row      int    `json:"row"`
-	Rotation int    `json:"rotation"`
+	Name    string `json:"name"`
+	Zone    string `json:"zone"`
+	HeightU int    `json:"heightU"`
 }
 
 type Rack struct {
@@ -70,8 +65,8 @@ type Facilities struct {
 }
 
 const regionColumns = "id,name,version"
-const roomColumns = "id,name,COALESCE(region_id,0),grid_columns,grid_rows,version"
-const rackColumns = "id,room_id,name,zone,height_u,grid_col,grid_row,rotation,version"
+const roomColumns = "id,name,COALESCE(region_id,0),version"
+const rackColumns = "id,room_id,name,zone,height_u,version"
 const placementColumns = "asset_id,rack_id,start_u,units,face,depth,version"
 
 func readRegion(row scanner) (Region, error) {
@@ -82,13 +77,13 @@ func readRegion(row scanner) (Region, error) {
 
 func readRoom(row scanner) (Room, error) {
 	var room Room
-	err := row.Scan(&room.ID, &room.Name, &room.RegionID, &room.Columns, &room.Rows, &room.Version)
+	err := row.Scan(&room.ID, &room.Name, &room.RegionID, &room.Version)
 	return room, err
 }
 
 func readRack(row scanner) (Rack, error) {
 	var rack Rack
-	err := row.Scan(&rack.ID, &rack.RoomID, &rack.Name, &rack.Zone, &rack.HeightU, &rack.Column, &rack.Row, &rack.Rotation, &rack.Version)
+	err := row.Scan(&rack.ID, &rack.RoomID, &rack.Name, &rack.Zone, &rack.HeightU, &rack.Version)
 	return rack, err
 }
 
@@ -166,7 +161,7 @@ func ListFacilities(ctx context.Context, db *sql.DB) (Facilities, error) {
 	if err != nil {
 		return Facilities{}, err
 	}
-	racks, err := facilityRows(ctx, tx, "SELECT "+rackColumns+" FROM racks ORDER BY room_id, grid_row, grid_col", readRack)
+	racks, err := facilityRows(ctx, tx, "SELECT "+rackColumns+" FROM racks ORDER BY room_id, lower(name), id", readRack)
 	if err != nil {
 		return Facilities{}, err
 	}
@@ -273,8 +268,8 @@ func SaveRoom(ctx context.Context, db *sql.DB, id int64, fields RoomFields, vers
 
 	var room, before Room
 	if id == 0 {
-		room, err = readRoom(tx.QueryRowContext(ctx, `INSERT INTO rooms (name,region_id,grid_columns,grid_rows)
-			VALUES ($1,$2,$3,$4) RETURNING `+roomColumns, fields.Name, nullID(fields.RegionID), fields.Columns, fields.Rows))
+		room, err = readRoom(tx.QueryRowContext(ctx, `INSERT INTO rooms (name,region_id)
+			VALUES ($1,$2) RETURNING `+roomColumns, fields.Name, nullID(fields.RegionID)))
 	} else {
 		before, err = readRoom(tx.QueryRowContext(ctx, "SELECT "+roomColumns+" FROM rooms WHERE id=$1", id))
 		if err != nil {
@@ -286,17 +281,8 @@ func SaveRoom(ctx context.Context, db *sql.DB, id int64, fields RoomFields, vers
 		if before.RoomFields == fields {
 			return before, tx.Commit()
 		}
-		var outside bool
-		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (
-			SELECT 1 FROM racks WHERE room_id=$1 AND (grid_col>$2 OR grid_row>$3))`,
-			id, fields.Columns, fields.Rows).Scan(&outside); err != nil {
-			return Room{}, err
-		}
-		if outside {
-			return Room{}, invalidFacility("缩小布局前，请先移走超出范围的机柜")
-		}
-		room, err = readRoom(tx.QueryRowContext(ctx, `UPDATE rooms SET name=$2,region_id=$3,grid_columns=$4,grid_rows=$5,
-			version=version+1 WHERE id=$1 RETURNING `+roomColumns, id, fields.Name, nullID(fields.RegionID), fields.Columns, fields.Rows))
+		room, err = readRoom(tx.QueryRowContext(ctx, `UPDATE rooms SET name=$2,region_id=$3,
+			version=version+1 WHERE id=$1 RETURNING `+roomColumns, id, fields.Name, nullID(fields.RegionID)))
 	}
 	if err != nil {
 		return Room{}, facilityUniqueError(err, "数据中心名称已存在")
@@ -332,15 +318,12 @@ func SaveRack(ctx context.Context, db *sql.DB, id, roomID int64, fields RackFiel
 	if err != nil {
 		return Rack{}, err
 	}
-	if fields.Column > room.Columns || fields.Row > room.Rows {
-		return Rack{}, invalidFacility("机柜位置超出数据中心网格")
-	}
 
 	var rack Rack
 	if id == 0 {
-		rack, err = readRack(tx.QueryRowContext(ctx, `INSERT INTO racks (room_id,name,zone,height_u,grid_col,grid_row,rotation)
-			VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING `+rackColumns,
-			roomID, fields.Name, fields.Zone, fields.HeightU, fields.Column, fields.Row, fields.Rotation))
+		rack, err = readRack(tx.QueryRowContext(ctx, `INSERT INTO racks (room_id,name,zone,height_u)
+			VALUES ($1,$2,$3,$4) RETURNING `+rackColumns,
+			roomID, fields.Name, fields.Zone, fields.HeightU))
 	} else {
 		if fields.HeightU < before.HeightU {
 			var outside bool
@@ -353,9 +336,9 @@ func SaveRack(ctx context.Context, db *sql.DB, id, roomID int64, fields RackFiel
 				return Rack{}, invalidFacility("缩减机柜高度前，请先移动超出范围的设备")
 			}
 		}
-		rack, err = readRack(tx.QueryRowContext(ctx, `UPDATE racks SET name=$2,zone=$3,height_u=$4,grid_col=$5,grid_row=$6,
-			rotation=$7,version=version+1 WHERE id=$1 RETURNING `+rackColumns,
-			id, fields.Name, fields.Zone, fields.HeightU, fields.Column, fields.Row, fields.Rotation))
+		rack, err = readRack(tx.QueryRowContext(ctx, `UPDATE racks SET name=$2,zone=$3,height_u=$4,
+			version=version+1 WHERE id=$1 RETURNING `+rackColumns,
+			id, fields.Name, fields.Zone, fields.HeightU))
 	}
 	if err != nil {
 		return Rack{}, facilityUniqueError(err, "该数据中心已使用此机柜名称或布局位置")

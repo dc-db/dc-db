@@ -55,3 +55,6 @@ npm-debug.log*
 
 # Local temporary files
 /tmp/
+
+# Local compose overrides (port, registry mirrors)
+.env

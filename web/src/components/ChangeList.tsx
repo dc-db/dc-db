@@ -30,7 +30,7 @@ const fieldLabels: Record<string, string> = {
   name: '名称', status: '状态', lifecycle: '生命周期', platform: '平台', owner: '负责人',
   environment: '环境', address: '地址', cpu: 'CPU', memoryMiB: '内存（MiB）', notes: '备注',
   attributes: '扩展属性', observed: '采集信息', missingCount: '缺失次数',
-  columns: '数据中心列数', rows: '数据中心行数', heightU: '机柜高度（U）', column: '机柜所在列', row: '机柜所在行', rotation: '朝向',
+  heightU: '机柜高度（U）',
   cidr: 'CIDR', gateway: '网关', vlan: 'VLAN', ip: 'IP 地址', assetId: '关联资产', label: '标签',
   role: '角色', dnsName: 'DNS 名称', vid: 'VLAN ID', description: '描述', roomId: '所属数据中心',
   face: '安装面', depth: '安装深度', passwordReset: '重置密码',
