@@ -31,7 +31,6 @@ import { GuidePage } from './components/GuidePage'
 import { IPAddressView } from './components/IPAddressView'
 import { IpamView } from './components/IpamView'
 import { LoginBackdrop } from './components/LoginBackdrop'
-import loginLogo from './assets/logo-login.svg?raw'
 import { TagManager } from './components/TagManager'
 import { UserManager } from './components/UserManager'
 import { VLANView } from './components/VLANView'
@@ -1061,7 +1060,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         <LoginBackdrop />
         <section className="login-panel" aria-label="登录">
           <Card className="login-card" variant="borderless">
-            <div className="login-brand" role="img" aria-label="DC-DB" dangerouslySetInnerHTML={{ __html: loginLogo }} />
+            <div className="login-brand"><Wordmark /></div>
             {error && <Alert type="error" showIcon message={error} className="login-alert" />}
             <Form layout="vertical" onFinish={login}>
               <Form.Item label="账号" name="username" rules={[{ required: true, message: '请输入账号' }]}>
