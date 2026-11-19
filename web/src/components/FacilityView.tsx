@@ -551,8 +551,8 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                       )}
                     </div>
                     <div className="floor-toolbar-actions">
-                      {editable && <Button size="sm" variant="outline" onClick={() => { setImportOpen(true); setImportFile(null); setImportError('') }}><Upload />导入</Button>}
-                      <Button size="sm" variant="outline" disabled={!rackRows.length} onClick={exportRacks}><Download />导出</Button>
+                      {editable && <Button size="sm" variant="outline" onClick={() => { setImportOpen(true); setImportFile(null); setImportError('') }}><Download />导入</Button>}
+                      <Button size="sm" variant="outline" disabled={!rackRows.length} onClick={exportRacks}><Upload />导出</Button>
                       {editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
                     </div>
                   </div>
