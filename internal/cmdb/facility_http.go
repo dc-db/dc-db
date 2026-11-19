@@ -3,7 +3,9 @@ package cmdb
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -11,6 +13,7 @@ import (
 
 func (s *Server) registerFacilities(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/facilities", s.requireUser(false, s.listFacilities))
+	mux.HandleFunc("GET /api/racks/{id}/elevation.xlsx", s.requireUser(false, s.exportRackElevation))
 	mux.HandleFunc("POST /api/regions", s.requireUser(true, s.saveRegion))
 	mux.HandleFunc("PUT /api/regions/{id}", s.requireUser(true, s.saveRegion))
 	mux.HandleFunc("DELETE /api/regions/{id}", s.requireUser(true, s.deleteFacility(DeleteRegion)))
@@ -193,4 +196,59 @@ func (s *Server) deleteFacility(remove func(context.Context, *sql.DB, int64, int
 		}
 		w.WriteHeader(http.StatusNoContent)
 	}
+}
+
+// exportRackElevation serves one face of a rack as an XLSX sheet whose rows and
+// fills mirror the on-screen elevation.
+func (s *Server) exportRackElevation(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	face := strings.TrimSpace(r.URL.Query().Get("face"))
+	if face != "rear" {
+		face = "front"
+	}
+	facilities, err := ListFacilities(r.Context(), s.db)
+	if err != nil {
+		s.databaseError(w, err)
+		return
+	}
+	var rack Rack
+	var room Room
+	found := false
+	for _, item := range facilities.Racks {
+		if item.ID != id {
+			continue
+		}
+		rack = item
+		found = true
+		break
+	}
+	if !found {
+		fail(w, http.StatusNotFound, "机柜不存在")
+		return
+	}
+	for _, item := range facilities.Rooms {
+		if item.ID == rack.RoomID {
+			room = item
+			break
+		}
+	}
+	assets, err := ListAssets(r.Context(), s.db)
+	if err != nil {
+		s.databaseError(w, err)
+		return
+	}
+	byID := make(map[int64]Asset, len(assets))
+	for _, asset := range assets {
+		byID[asset.ID] = asset
+	}
+
+	file := RackElevationXLSX(rack, room, facilities.Placements, byID, face)
+	name := fmt.Sprintf("%s-%s.xlsx", rack.Name, faceLabel(face))
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"rack-elevation.xlsx\"; filename*=UTF-8''"+url.PathEscape(name))
+	w.Header().Set("Content-Length", strconv.Itoa(len(file)))
+	_, _ = w.Write(file)
 }

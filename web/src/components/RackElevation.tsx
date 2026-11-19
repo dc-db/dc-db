@@ -114,6 +114,14 @@ export function RackElevation({ rack, devices, assets, focused, editable, busy, 
     downloadRackSvg(rackElevationSvg(rack, devices, assets, face))
   }
 
+  function exportXlsx() {
+    const link = document.createElement('a')
+    link.href = `/api/racks/${rack.id}/elevation.xlsx?face=${face}`
+    link.download = `${rack.name}-${face === 'rear' ? '后视图' : '前视图'}.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+  }
   async function exportPng() {
     try {
       await downloadRackPng(rackElevationSvg(rack, devices, assets, face))
@@ -139,6 +147,7 @@ export function RackElevation({ rack, devices, assets, focused, editable, busy, 
           <span className="muted">拖动设备可调整 U 位</span>
           <Button type="button" size="sm" variant="outline" onClick={exportSvg}>导出 SVG</Button>
           <Button type="button" size="sm" variant="outline" onClick={() => void exportPng()}>导出 PNG</Button>
+          <Button type="button" size="sm" variant="outline" onClick={exportXlsx}>导出 Excel</Button>
         </div>
       </div>
       <div
