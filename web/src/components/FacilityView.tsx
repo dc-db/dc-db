@@ -232,12 +232,12 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   }
 
   function exportRacks() {
-    const rows: (string | number)[][] = [['机柜编号', '高度(U)', '已用(U)', '占用率', '设备数', '列', '行', '朝向']]
+    const rows: (string | number)[][] = [['机柜编号', '区域 / 排', '高度(U)', '已用(U)', '占用率', '设备数', '列', '行', '朝向']]
     for (const rack of racks) {
       const placements = roomPlacements.filter(item => item.rackId === rack.id)
       const used = occupiedUnits(placements).size
       const rate = rack.heightU > 0 ? Math.round((used / rack.heightU) * 100) : 0
-      rows.push([rack.name, rack.heightU, used, `${rate}%`, placements.length, rack.column, rack.row, `${rack.rotation}°`])
+      rows.push([rack.name, rack.zone, rack.heightU, used, `${rate}%`, placements.length, rack.column, rack.row, `${rack.rotation}°`])
     }
     downloadCSV(`dc-db-racks-${room?.name ?? 'room'}.csv`, rows)
   }
@@ -246,7 +246,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
     resetForms()
     const free = cells.find(cell => !cell.rack)
     if (value) setRackDraft({ ...value })
-    else if (free) setRackDraft({ name: '', heightU: 42, column: free.column, row: free.row, rotation: 0, version: 0 })
+    else if (free) setRackDraft({ name: '', zone: '', heightU: 42, column: free.column, row: free.row, rotation: 0, version: 0 })
     else setError('数据中心网格已占满，请先扩大布局')
   }
 
@@ -448,6 +448,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                 <CardContent>
                   {rackDraft && <form className="facility-form rack-form flex flex-wrap items-end gap-3" onSubmit={event => { event.preventDefault(); saveRack() }}>
                     <Field label="机柜编号"><Input value={rackDraft.name} placeholder="例如：A-01" maxLength={80} onChange={event => setRackDraft({ ...rackDraft, name: event.target.value })} /></Field>
+                    <Field label="区域 / 排"><Input value={rackDraft.zone} placeholder="例如：A 区" maxLength={40} onChange={event => setRackDraft({ ...rackDraft, zone: event.target.value })} /></Field>
                     <Field label="高度（U）"><Input type="number" className="w-24" min={1} max={80} value={rackDraft.heightU} onChange={event => setRackDraft({ ...rackDraft, heightU: Number(event.target.value) || 1 })} /></Field>
                     <Field label="列"><Input type="number" className="w-20" min={1} max={room.columns} value={rackDraft.column} onChange={event => setRackDraft({ ...rackDraft, column: Number(event.target.value) || 1 })} /></Field>
                     <Field label="行"><Input type="number" className="w-20" min={1} max={room.rows} value={rackDraft.row} onChange={event => setRackDraft({ ...rackDraft, row: Number(event.target.value) || 1 })} /></Field>

@@ -22,6 +22,7 @@ type Room struct {
 
 type RackFields struct {
 	Name     string `json:"name"`
+	Zone     string `json:"zone"`
 	HeightU  int    `json:"heightU"`
 	Column   int    `json:"column"`
 	Row      int    `json:"row"`
@@ -56,7 +57,7 @@ type Facilities struct {
 }
 
 const roomColumns = "id,name,grid_columns,grid_rows,version"
-const rackColumns = "id,room_id,name,height_u,grid_col,grid_row,rotation,version"
+const rackColumns = "id,room_id,name,zone,height_u,grid_col,grid_row,rotation,version"
 const placementColumns = "asset_id,rack_id,start_u,units,face,depth,version"
 
 func readRoom(row scanner) (Room, error) {
@@ -67,7 +68,7 @@ func readRoom(row scanner) (Room, error) {
 
 func readRack(row scanner) (Rack, error) {
 	var rack Rack
-	err := row.Scan(&rack.ID, &rack.RoomID, &rack.Name, &rack.HeightU, &rack.Column, &rack.Row, &rack.Rotation, &rack.Version)
+	err := row.Scan(&rack.ID, &rack.RoomID, &rack.Name, &rack.Zone, &rack.HeightU, &rack.Column, &rack.Row, &rack.Rotation, &rack.Version)
 	return rack, err
 }
 
@@ -244,9 +245,9 @@ func SaveRack(ctx context.Context, db *sql.DB, id, roomID int64, fields RackFiel
 
 	var rack Rack
 	if id == 0 {
-		rack, err = readRack(tx.QueryRowContext(ctx, `INSERT INTO racks (room_id,name,height_u,grid_col,grid_row,rotation)
-			VALUES ($1,$2,$3,$4,$5,$6) RETURNING `+rackColumns,
-			roomID, fields.Name, fields.HeightU, fields.Column, fields.Row, fields.Rotation))
+		rack, err = readRack(tx.QueryRowContext(ctx, `INSERT INTO racks (room_id,name,zone,height_u,grid_col,grid_row,rotation)
+			VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING `+rackColumns,
+			roomID, fields.Name, fields.Zone, fields.HeightU, fields.Column, fields.Row, fields.Rotation))
 	} else {
 		if fields.HeightU < before.HeightU {
 			var outside bool
@@ -259,9 +260,9 @@ func SaveRack(ctx context.Context, db *sql.DB, id, roomID int64, fields RackFiel
 				return Rack{}, invalidFacility("缩减机柜高度前，请先移动超出范围的设备")
 			}
 		}
-		rack, err = readRack(tx.QueryRowContext(ctx, `UPDATE racks SET name=$2,height_u=$3,grid_col=$4,grid_row=$5,
-			rotation=$6,version=version+1 WHERE id=$1 RETURNING `+rackColumns,
-			id, fields.Name, fields.HeightU, fields.Column, fields.Row, fields.Rotation))
+		rack, err = readRack(tx.QueryRowContext(ctx, `UPDATE racks SET name=$2,zone=$3,height_u=$4,grid_col=$5,grid_row=$6,
+			rotation=$7,version=version+1 WHERE id=$1 RETURNING `+rackColumns,
+			id, fields.Name, fields.Zone, fields.HeightU, fields.Column, fields.Row, fields.Rotation))
 	}
 	if err != nil {
 		return Rack{}, facilityUniqueError(err, "该数据中心已使用此机柜名称或布局位置")

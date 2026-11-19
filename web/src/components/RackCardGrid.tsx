@@ -33,6 +33,7 @@ export function RackCardGrid({ racks, placements, assets, keyword, onOpen }: Pro
           <button key={rack.id} type="button" className="rack-card" onClick={() => onOpen(rack.id)}>
             <div className="rack-card-head">
               <span className="rack-card-name">{rack.name}</span>
+              {rack.zone && <span className="rack-card-zone">{rack.zone}</span>}
               <span className="rack-card-height">{rack.heightU}U</span>
             </div>
 

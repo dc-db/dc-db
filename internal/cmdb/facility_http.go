@@ -87,6 +87,11 @@ func (s *Server) saveRack(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "机柜名称须为 1–80 个字符")
 		return
 	}
+	input.Zone = strings.TrimSpace(input.Zone)
+	if utf8.RuneCountInString(input.Zone) > 40 {
+		fail(w, http.StatusBadRequest, "机柜区域不能超过 40 个字符")
+		return
+	}
 	if input.HeightU < 1 || input.HeightU > 80 || !validCell(input.Column, input.Row) {
 		fail(w, http.StatusBadRequest, "机柜高度须为 1–80U，布局坐标须为 1–24")
 		return

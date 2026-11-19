@@ -13,6 +13,7 @@ export interface Room extends RoomFields {
 
 export interface RackFields {
   name: string
+  zone: string
   heightU: number
   column: number
   row: number
