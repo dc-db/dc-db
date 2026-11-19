@@ -8,7 +8,7 @@ import {
 import type { TableColumnsType } from './components/AppControls'
 const zhCN = {}
 import {
-  Network as ApartmentOutlined, Cable as ApiOutlined, Server as CloudServerOutlined,
+  Network as ApartmentOutlined, BookOpen as BookOpenOutlined, Cable as ApiOutlined, Server as CloudServerOutlined,
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Filter as FilterOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
   House as HomeOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
@@ -27,6 +27,7 @@ import { ChangePassword } from './components/ChangePassword'
 import { Dashboard } from './components/Dashboard'
 import { FacilityView } from './components/FacilityView'
 import { GlobalSearch } from './components/GlobalSearch'
+import { GuidePage } from './components/GuidePage'
 import { IPAddressView } from './components/IPAddressView'
 import { IpamView } from './components/IpamView'
 import { TagManager } from './components/TagManager'
@@ -253,6 +254,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     { key: 'host', label: '物理机', icon: <CloudServerOutlined /> },
     { key: 'vm', label: '虚拟机', icon: <DesktopOutlined /> },
     { key: 'ipam', label: 'IPAM', icon: <GlobalOutlined /> },
+    { key: 'guide', label: '使用指南', icon: <BookOpenOutlined /> },
     {
       key: 'system', label: '系统管理', icon: <SettingOutlined />,
       children: systemChildren,
@@ -283,7 +285,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   const scoped = useMemo(() => {
     if (page === 'home' || page === 'changes' || page === 'password' || page === 'facilities' ||
-      page === 'ipam' || page === 'users') return []
+      page === 'ipam' || page === 'users' || page === 'guide') return []
     if (page === 'vm') return assets.filter(asset => asset.kind === 'vm')
     return assets.filter(asset => asset.kind !== 'vm')
   }, [assets, page])
@@ -596,10 +598,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     }
   }
 
-  function startNew() {
+  function startNew(kind?: Kind) {
     setSelectedId(null)
     setAssetTags([])
-    setNewKind(page === 'vm' ? 'vm' : 'host')
+    setNewKind(kind ?? (page === 'vm' ? 'vm' : 'host'))
     setEditor(true)
     setDrawerError('')
     setDrawerOpen(true)
@@ -1216,17 +1218,25 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         <Content className="app-content">
           {error && <Alert type="error" showIcon closable message={error} className="page-alert" onClose={() => setError('')} />}
 
+          {page === 'guide' && (
+            <GuidePage
+              onGo={goTo}
+              onStartAsset={() => { setPage('host'); startNew('host') }}
+            />
+          )}
+
           {page === 'home' && (firstRun ? (
             <div className="first-run">
               <div className="first-run-card">
                 <h2>还没有任何数据</h2>
-                <p>你想先从哪里开始？三条路以后都能补，不用一次填完。</p>
+                <p>第一次使用？先花两分钟看一遍使用指南，了解三条上手路径。</p>
                 <div className="first-run-actions">
-                  <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => { setPage('host'); startNew() }}>先录资产</Button>
+                  <Button type="primary" size="large" icon={<BookOpenOutlined />} onClick={() => goTo('guide')}>查看使用指南</Button>
+                  <Button size="large" icon={<PlusOutlined />} onClick={() => { setPage('host'); startNew('host') }}>先录资产</Button>
                   <Button size="large" icon={<ApartmentOutlined />} onClick={() => goTo('facilities')}>先建机房</Button>
                   <Button size="large" icon={<GlobalOutlined />} onClick={() => goTo('ipam')}>先管网络</Button>
                 </div>
-                <p className="first-run-hint">「先录资产」可以手工加一台，也可以导入 CSV。</p>
+                <p className="first-run-hint">「使用指南」里有截图级的操作顺序和常见问题。</p>
               </div>
             </div>
           ) : (
