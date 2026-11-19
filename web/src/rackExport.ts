@@ -79,6 +79,7 @@ export function rackElevationSvg(
   const rackX = LEGEND_WIDTH + BORDER
   const body: string[] = []
 
+  body.push('<defs><pattern id="rack-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="var(--hatch-bg, #f7f7f7)"/><rect width="4" height="8" fill="var(--hatch-line, #e9b3b3)"/></pattern></defs>')
   body.push(`<rect class="rack-bg" x="0" y="0" width="${width}" height="${height}" fill="${LIGHT.bg}"/>`)
 
   // One slot per U, top to bottom, plus the unit legend on the left.
@@ -111,10 +112,10 @@ export function rackElevationSvg(
     const top = BORDER + (rack.heightU - (device.startU + device.units - 1)) * UNIT_HEIGHT
     const blockHeight = device.units * UNIT_HEIGHT
     body.push(
-      `<g class="device-bar"${interactive ? ` data-asset="${device.assetId}"` : ''}><title>${esc(`${label} · ${uRange(device)}`)}</title>` +
-      `<rect x="${rackX}" y="${top}" width="${UNIT_WIDTH}" height="${blockHeight}" fill="${style.fill}"/>` +
+      `<g class="device-bar${device.face !== face ? ' opposite' : ''}"${interactive ? ` data-asset="${device.assetId}"` : ''}><title>${esc(`${label} · ${uRange(device)}`)}</title>` +
+      `<rect x="${rackX}" y="${top}" width="${UNIT_WIDTH}" height="${blockHeight}" fill="${device.face !== face ? 'url(#rack-hatch)' : style.fill}"/>` +
       `<text class="device" x="${rackX + UNIT_WIDTH / 2}" y="${top + blockHeight / 2}" font-size="14" ` +
-      `text-anchor="middle" dominant-baseline="middle" fill="#ffffff">` +
+      `text-anchor="middle" dominant-baseline="middle" fill="${device.face !== face ? 'var(--hatch-text, #5c1a1a)' : '#ffffff'}">` +
       `${esc(fit(label, UNIT_WIDTH - 10, 14))}</text></g>`,
     )
   }

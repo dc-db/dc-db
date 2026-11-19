@@ -51,4 +51,10 @@ func TestRackElevationSVG(t *testing.T) {
 	if !strings.Contains(rear, "demo-rear-01") || !strings.Contains(rear, "demo-host-01") {
 		t.Fatal("rear drawing should show rear-only and full-depth devices")
 	}
+	if !strings.Contains(rear, `class="device-bar opposite"`) || !strings.Contains(rear, `fill="url(#rack-hatch)"`) {
+		t.Fatal("front-mounted devices should be hatched in the rear drawing")
+	}
+	if strings.Contains(front, "url(#rack-hatch)") {
+		t.Fatal("front drawing should not hatch its own devices")
+	}
 }

@@ -216,6 +216,8 @@ html[data-theme="dark"] .rack-board-figure svg .rack-bg { fill: #141414; }
 html[data-theme="dark"] .rack-board-figure svg .slot { fill: #232323; stroke: #303030; }
 html[data-theme="dark"] .rack-board-figure svg .frame { stroke: #6e6e6e; }
 html[data-theme="dark"] .rack-board-figure svg .unit { fill: #adb5bd; }
+.rack-board-figure svg { --hatch-bg: #f7f7f7; --hatch-line: #e9b3b3; --hatch-text: #5c1a1a; }
+html[data-theme="dark"] .rack-board-figure svg { --hatch-bg: #1c1c1c; --hatch-line: #4a2a2a; --hatch-text: #f0c9c9; }
 .facility-table-wrap { overflow-x: auto; }
 .facility-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .facility-table th { padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; font-weight: 500; text-align: left; white-space: nowrap; }

@@ -81,6 +81,9 @@ func TestRackElevationXLSX(t *testing.T) {
 	if !strings.Contains(rearSheet, "demo-host-01") {
 		t.Fatal("full-depth device should also appear on the rear sheet")
 	}
+	if !strings.Contains(rearSheet, `s="9"`) {
+		t.Fatal("front-mounted devices should use the hatch style on the rear sheet")
+	}
 }
 
 func sheetOf(t *testing.T, file []byte) string {

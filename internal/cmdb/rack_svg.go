@@ -18,11 +18,16 @@ type rackPalette struct {
 	slotBorder string
 	frame      string
 	unit       string
+	hatchBg    string
+	hatchLine  string
+	hatchText  string
 }
 
 var rackPalettes = map[bool]rackPalette{
-	false: {bg: "#f6f8fb", slot: "#e9ecef", slotBorder: "#adb5bd", frame: "#000000", unit: "#6c757d"},
-	true:  {bg: "#141414", slot: "#232323", slotBorder: "#303030", frame: "#6e6e6e", unit: "#adb5bd"},
+	false: {bg: "#f6f8fb", slot: "#e9ecef", slotBorder: "#adb5bd", frame: "#000000", unit: "#6c757d",
+		hatchBg: "#f7f7f7", hatchLine: "#e9b3b3", hatchText: "#5c1a1a"},
+	true: {bg: "#141414", slot: "#232323", slotBorder: "#303030", frame: "#6e6e6e", unit: "#adb5bd",
+		hatchBg: "#1c1c1c", hatchLine: "#4a2a2a", hatchText: "#f0c9c9"},
 }
 
 var rackStatusColors = map[string]string{
@@ -60,6 +65,9 @@ func RackElevationSVG(rack Rack, placements []RackPlacement, assets map[int64]As
 	rackX := legend + border
 
 	var body strings.Builder
+	fmt.Fprintf(&body, `<defs><pattern id="rack-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">`+
+		`<rect width="8" height="8" fill="%s"/><rect width="4" height="8" fill="%s"/></pattern></defs>`,
+		palette.hatchBg, palette.hatchLine)
 	fmt.Fprintf(&body, `<rect x="0" y="0" width="%d" height="%d" fill="%s"/>`, width, height, palette.bg)
 
 	taken := make(map[int]bool)
@@ -106,10 +114,19 @@ func RackElevationSVG(rack Rack, placements []RackPlacement, assets map[int64]As
 		if options.Interactive {
 			attrs = fmt.Sprintf(` data-asset="%d"`, placement.AssetID)
 		}
-		body.WriteString(fmt.Sprintf(`<g class="device-bar"%s><title>%s · U%d-%d</title>`, attrs, xmlText(label), placement.StartU, placement.StartU+placement.Units-1))
-		body.WriteString(fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" fill="%s"/>`, rackX, top, unitWidth, blockHeight, rackStatusColor(asset.Status)))
-		body.WriteString(fmt.Sprintf(`<text class="device" x="%d" y="%d" font-size="14" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">%s</text></g>`,
-			rackX+unitWidth/2, top+blockHeight/2, xmlText(label)))
+		opposite := placement.Face != face
+		fill := rackStatusColor(asset.Status)
+		textFill := "#ffffff"
+		class := "device-bar"
+		if opposite {
+			fill = "url(#rack-hatch)"
+			textFill = palette.hatchText
+			class = "device-bar opposite"
+		}
+		body.WriteString(fmt.Sprintf(`<g class="%s"%s><title>%s · U%d-%d</title>`, class, attrs, xmlText(label), placement.StartU, placement.StartU+placement.Units-1))
+		body.WriteString(fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" fill="%s"/>`, rackX, top, unitWidth, blockHeight, fill))
+		body.WriteString(fmt.Sprintf(`<text class="device" x="%d" y="%d" font-size="14" fill="%s" text-anchor="middle" dominant-baseline="middle">%s</text></g>`,
+			rackX+unitWidth/2, top+blockHeight/2, textFill, xmlText(label)))
 	}
 
 	body.WriteString(fmt.Sprintf(`<rect class="frame" x="%d" y="%d" width="%d" height="%d" fill="none" stroke="%s" stroke-width="2"/>`,
