@@ -163,6 +163,21 @@ a { color: var(--info); }
 .captcha-image-button img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .captcha-placeholder { color: var(--muted); font-size: 12px; }
 .app-layout { min-height: 100vh; --sider-width: 200px; }
+
+/* Row flash after a successful save. */
+.control-table tbody tr.row-highlight > td { background: var(--info-soft); transition: background-color .6s ease; }
+
+/* Empty state that tells the user what to do next. */
+.empty-guide { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 48px 24px; text-align: center; }
+.empty-guide-mark { display: grid; place-items: center; width: 56px; height: 56px; margin-bottom: 2px; border-radius: 50%; background: var(--subtle); color: var(--muted); }
+.empty-guide h2 { margin: 0; color: var(--text); font-size: 16px; font-weight: 600; }
+.empty-guide p { margin: 0; max-width: 420px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.empty-guide.compact { padding: 32px 24px; }
+
+/* Inline field validation. */
+.field-invalid input, .field-invalid textarea { border-color: var(--destructive) !important; }
+.field-invalid > span:first-child { color: var(--destructive); }
+.field-error { color: var(--destructive); font-size: 12px; line-height: 1.4; }
 .app-sider { background: var(--surface) !important; border-right: 1px solid var(--line); min-height: 100vh; }
 .brand { display: flex; align-items: center; justify-content: center; height: 60px; padding: 0 var(--app-nav-inline-padding); font-size: 20px; font-weight: 650; color: var(--text); white-space: nowrap; overflow: hidden; }
 .brand .wordmark { gap: .3em; }

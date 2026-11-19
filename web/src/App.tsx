@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   Alert, App as UIApp, Button, Card, Checkbox, ConfigProvider, Descriptions,
@@ -188,6 +188,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [newKind, setNewKind] = useState<Kind>('host')
   const [saving, setSaving] = useState(false)
   const [drawerError, setDrawerError] = useState('')
+  const [highlightId, setHighlightId] = useState<number | null>(null)
+  const restoredAssetRef = useRef(false)
   const [assetTab, setAssetTab] = useState('overview')
   const [assetChanges, setAssetChanges] = useState<Change[]>([])
   const [assetTags, setAssetTags] = useState<TagItem[]>([])
@@ -420,6 +422,23 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     }
   }
 
+  // Restore a shared asset link (?asset=12) once the inventory is loaded.
+  useEffect(() => {
+    if (restoredAssetRef.current || !user || !assets.length) return
+    restoredAssetRef.current = true
+    const wanted = Number(new URLSearchParams(window.location.search).get('asset'))
+    if (!wanted) return
+    const asset = assets.find(item => item.id === wanted)
+    if (!asset) {
+      syncAssetParam(null)
+      return
+    }
+    setPage(asset.kind === 'vm' ? 'vm' : 'host')
+    void openAsset(asset.id)
+    // openAsset is stable enough for a one-shot restore; it only depends on the id.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assets, user])
+
   function handleError(e: unknown, inDrawer = false) {
     if (e instanceof APIError && e.status === 401 && user) {
       closeDrawer()
@@ -523,13 +542,34 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setFacilityFocus(null)
   }
 
-  function closeDrawer() {
-    if (saving) return
+  function clearFilters() {
+    setKeyword('')
+    setPlatformFilter(undefined)
+    setLifecycleFilter('active')
+    setStatusFilter(undefined)
+    setTagFilter([])
+    setTagFilterMode('all')
+    setPagination(1)
+  }
+
+  // Keeping the open asset in the URL makes a detail view shareable and lets a
+  // refresh restore it.
+  function syncAssetParam(id: number | null) {
+    const params = new URLSearchParams(window.location.search)
+    if (id === null) params.delete('asset')
+    else params.set('asset', String(id))
+    const query = params.toString()
+    window.history.replaceState(null, '', query ? `${window.location.pathname}?${query}` : window.location.pathname)
+  }
+
+  function closeDrawer(force = false) {
+    if (saving && !force) return
     setDrawerOpen(false)
     setSelectedId(null)
     setEditor(false)
     setDrawerError('')
     setShowRelationForm(false)
+    syncAssetParam(null)
   }
 
   async function openAsset(id: number) {
@@ -541,6 +581,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setDrawerError('')
     setShowRelationForm(false)
     setDrawerOpen(true)
+    syncAssetParam(id)
     try {
       const [changes, tags] = await Promise.all([
         api<Change[]>('/changes?assetId=' + id),
@@ -560,6 +601,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setEditor(true)
     setDrawerError('')
     setDrawerOpen(true)
+    syncAssetParam(null)
   }
 
   async function saveAsset(fields: AssetFields & { version: number }) {
@@ -569,7 +611,9 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       const id = selectedId
       const saved = await api<Asset>(id ? '/assets/' + id : '/assets', id ? 'PUT' : 'POST', fields)
       await loadAll()
-      await openAsset(saved.id)
+      closeDrawer(true)
+      setHighlightId(saved.id)
+      window.setTimeout(() => setHighlightId(current => (current === saved.id ? null : current)), 1800)
       void message.success(id ? '资产已更新' : '资产已添加')
     } catch (e) {
       handleError(e, true)
@@ -1068,6 +1112,37 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     )
   }
 
+  const emptyAssets = assets.length === 0 ? (
+    <div className="empty-guide">
+      <div className="empty-guide-mark" aria-hidden>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3.5" width="18" height="7" rx="1.5" />
+          <rect x="3" y="13.5" width="18" height="7" rx="1.5" />
+          <path d="M6.5 7h.01M6.5 17h.01" />
+        </svg>
+      </div>
+      <h2>还没有录入任何资产</h2>
+      <p>可以先加一台试试，或用 CSV 批量导入现有台账。</p>
+      <Space wrap>
+        {editable && <Button type="primary" icon={<PlusOutlined />} onClick={startNew}>新增资产</Button>}
+        <Button icon={<DownloadOutlined />} onClick={downloadTemplate}>下载模板</Button>
+        {editable && (
+          <Upload accept=".csv,text/csv" showUploadList={false}
+            beforeUpload={(file: File) => { void previewCSV(file); return false }}>
+            <Button icon={<UploadOutlined />}>导入 CSV</Button>
+          </Upload>
+        )}
+      </Space>
+    </div>
+  ) : (
+    <div className="empty-guide compact">
+      <h2>没有匹配的资源</h2>
+      <p>试试清空筛选条件，或换个关键词。</p>
+      <Button onClick={clearFilters}>清除筛选</Button>
+    </div>
+  )
+
   return (
     <Layout className="app-layout">
       <Sider
@@ -1325,9 +1400,14 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               )}
               <Table<Asset>
                 rowKey="id" columns={columns} dataSource={filtered} loading={busy} size="middle"
-                scroll={{ x: 'max-content' }} locale={{ emptyText: '暂无匹配资源' }}
+                scroll={{ x: 'max-content' }} locale={{ emptyText: emptyAssets }}
                 sortDirections={['ascend', 'descend']}
                 showSorterTooltip={{ title: '点击排序' }}
+                rowClassName={asset => (asset.id === highlightId ? 'row-highlight' : '')}
+                onRowClick={(asset, event) => {
+                  if ((event.target as HTMLElement).closest('button, a, input, label, [role="checkbox"]')) return
+                  void openAsset(asset.id)
+                }}
                 rowSelection={editable ? {
                   selectedRowKeys: selectedAssetIds,
                   preserveSelectedRowKeys: true,
