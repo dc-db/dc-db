@@ -226,11 +226,11 @@ Free addresses in a subnet are shown in a paginated table with 10/20/50 rows per
 
 ## Data center layouts
 
-Open the data center view (`数据中心`). You can group data centers under an optional region (city or area) first, or skip regions and create a data center directly. Then add racks with a label, an optional zone/row, height, grid position, and orientation. Racks can be viewed as cards or as a table with total, used and free units plus utilisation; edit a rack to change its grid position. The 3D overview supports rotation, zoom, rack selection, and opening device details.
+Open the data center view (`数据中心`). You can group data centers under an optional region (city or area) first, or skip regions and create a data center directly. Then add racks with a label, a height, and an optional zone/row. Racks can be viewed as a table with total, used and free units plus utilisation, or as an elevation board.
 
 Use the rack elevation to mount an existing asset or create and mount a physical host or switch in one step. Set the starting rack unit, height, mounting face (front/rear), and depth (full/half). dc-db validates overlaps per face and depth: a full-depth device occupies both faces, while a half-depth device occupies only its selected face. Drag a device to move it, or click an empty unit to prefill the mount position. Asset details link back to the data center and rack, and virtual machines follow their host relationship. Unmounting a device keeps its asset record.
 
-The rack drawer switches between front and rear elevations, reports occupied units for each face, and can export the current view as SVG or PNG. Device lists and rack details show mounting face and depth. Racks occupy grid cells in the data center layout. The floor plan, rack elevation, and 3D overview share the same placement data. Data center, rack, and placement changes appear in change history.
+The rack drawer switches between front and rear elevations, reports occupied units for each face, and can export the current view as SVG or PNG. Device lists and rack details show mounting face and depth. The rack table and the elevation board share the same placement data. Data center, rack, and placement changes appear in change history.
 
 ## Back up and restore
 
