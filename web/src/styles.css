@@ -203,7 +203,7 @@ a { color: var(--info); }
 .rack-board-figure:hover { border-color: var(--muted); }
 .rack-board-figure svg .slot.free { cursor: pointer; }
 .rack-board-figure svg .slot-row:hover .slot { fill: color-mix(in srgb, var(--primary) 22%, transparent); }
-.rack-board-figure svg .slot-add { opacity: 0; pointer-events: none; }
+.rack-board-figure svg .slot-add { fill: var(--muted); opacity: 0; pointer-events: none; }
 .rack-board-figure svg .slot-row:hover .slot-add { opacity: 1; }
 .rack-board-figure svg .device-bar { cursor: pointer; }
 .rack-board-figure svg .device-bar:hover rect { opacity: .82; }
@@ -216,6 +216,7 @@ html[data-theme="dark"] .rack-board-figure svg .rack-bg { fill: #141414; }
 html[data-theme="dark"] .rack-board-figure svg .slot { fill: #232323; stroke: #303030; }
 html[data-theme="dark"] .rack-board-figure svg .frame { stroke: #6e6e6e; }
 html[data-theme="dark"] .rack-board-figure svg .unit { fill: #adb5bd; }
+html[data-theme="dark"] .rack-board-figure svg .slot-add { fill: #adb5bd; }
 .rack-board-figure svg { --hatch-bg: #f7f7f7; --hatch-line: #ffc0c0; --hatch-text: #1a1a1a; }
 .facility-table-wrap { overflow-x: auto; }
 .facility-table { width: 100%; border-collapse: collapse; font-size: 13px; }
