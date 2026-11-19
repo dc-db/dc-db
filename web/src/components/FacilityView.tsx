@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Boxes, Columns3, Download, List, MoreHorizontal, Pencil, Plus } from 'lucide-react'
+import { Columns3, Download, List, MoreHorizontal, Pencil, Plus } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
@@ -15,7 +15,6 @@ import { assetLocations, isMountKind, locationLabel, mountKinds, occupiedUnits, 
 import type { AssetLocation, Facilities, MountKind, Placement, PlacementDepth, Rack, RackFace, RackFields, Region, Room, RoomFields } from '../facilities'
 import { downloadRackSvg, rackElevationSvg } from '../rackExport'
 import { RackDetailDrawer } from './RackDetailDrawer'
-import { RoomScene } from './RoomScene'
 
 interface Props {
   roomId: number | null
@@ -26,7 +25,6 @@ interface Props {
   assets: Asset[]
   links: Link[]
   editable: boolean
-  dark: boolean
   focus: AssetLocation | null
   reload: () => Promise<void>
   onOpenAsset: (id: number) => void
@@ -62,10 +60,10 @@ function ConfirmDelete({ title, disabled, onConfirm, children }: { title: string
   return <AlertDialog><AlertDialogTrigger asChild><Button type="button" variant="destructive" disabled={disabled}>{children}</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{title}</AlertDialogTitle><AlertDialogDescription>此操作无法撤销。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={onConfirm}>删除</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
 }
 
-export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, layout, assets, links, editable, dark, focus, reload, onOpenAsset, bookmarkedRacks, onToggleRackBookmark, onSessionError }: Props) {
+export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, layout, assets, links, editable, focus, reload, onOpenAsset, bookmarkedRacks, onToggleRackBookmark, onSessionError }: Props) {
   const [rackId, setRackId] = useState<number | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
-  const [view, setView] = useState<'table' | 'elevations' | '3d'>('elevations')
+  const [view, setView] = useState<'table' | 'elevations'>('elevations')
   const [roomDraft, setRoomDraft] = useState<RoomDraft | null>(null)
   const [regionDraft, setRegionDraft] = useState<{ id?: number; version: number; name: string } | null>(null)
   const [rackDraft, setRackDraft] = useState<RackDraft | null>(null)
@@ -73,7 +71,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
-  const [search, setSearch] = useState('')
   const [roomSearch, setRoomSearch] = useState('')
   const [rackKeyword, setRackKeyword] = useState('')
   const [rackDrawerOpen, setRackDrawerOpen] = useState(false)
@@ -136,15 +133,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   const locations = useMemo(() => assetLocations(layout, links), [layout, links])
   const mounted = useMemo(() => new Map(layout.placements.map(placement => [placement.assetId, placement])), [layout.placements])
   const candidates = assets.filter(asset => asset.lifecycle === 'active' && isMountKind(asset.kind))
-  const searchResults = useMemo(() => {
-    const keyword = search.trim().toLowerCase()
-    if (!keyword) return []
-    return assets.flatMap(asset => {
-      const location = locations.get(asset.id)
-      return location && [asset.name, asset.address, location.room.name, location.rack.name]
-        .some(value => value.toLowerCase().includes(keyword)) ? [{ asset, location }] : []
-    }).slice(0, 8)
-  }, [assets, locations, search])
   const cells = useMemo(() => {
     if (!room) return []
     const byCell = new Map(racks.map(item => [item.row + ':' + item.column, item]))
@@ -218,18 +206,10 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
 
   function showLocation(location: AssetLocation) {
     resetForms()
-    setRackDrawerOpen(false)
     onRoomChange(location.room.id)
     setRackId(location.rack.id)
     setFocused(location.placement.assetId)
-    setView('3d')
-    setSearch('')
-  }
-
-  function openSceneDevice(assetId: number, cabinetId: number) {
-    selectRack(cabinetId)
-    setFocused(assetId)
-    onOpenAsset(assetId)
+    setRackDrawerOpen(true)
   }
 
   async function mutate<T>(action: () => Promise<T>, done: (result: T) => void, notice: string) {
@@ -515,19 +495,16 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                   </form>}
                   <div className="floor-toolbar">
                     <div className="floor-toolbar-search">
-                      {view === '3d' ? <Input type="search" className="w-[320px]" aria-label="搜索已上架资产、数据中心或机柜" placeholder="搜索已上架资产、数据中心或机柜…" value={search} onChange={event => setSearch(event.target.value)} /> : <Input type="search" className="w-[320px]" aria-label="搜索机柜名称" placeholder="搜索机柜名称…" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />}
-                      {view === '3d' && racks.length > 0 && <><span className="muted">机柜</span><Choice label="机柜" className="w-[140px]" value={rackId ?? undefined} disabled={busy} onChange={openRack} options={racks.map(item => ({ value: item.id, label: item.name }))} /></>}
+                      <Input type="search" className="w-[320px]" aria-label="搜索机柜名称" placeholder="搜索机柜名称…" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />
                     </div>
                     <div className="floor-toolbar-actions">
                       <div className="view-toggle">
                         <Button variant={view === 'table' ? 'default' : 'outline'} size="icon-sm" aria-label="表格" title="表格" onClick={() => setView('table')}><List /></Button>
                         <Button variant={view === 'elevations' ? 'default' : 'outline'} size="icon-sm" aria-label="立面图" title="立面图" onClick={() => setView('elevations')}><Columns3 /></Button>
-                        <Button variant={view === '3d' ? 'default' : 'outline'} size="icon-sm" aria-label="3D 总览" title="3D 总览" onClick={() => setView('3d')}><Boxes /></Button>
                       </div>
                       {editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
                     </div>
                   </div>
-                  {view === '3d' && search.trim() && <div className="location-results">{searchResults.length ? searchResults.map(({ asset, location }) => <div key={asset.id} className="border-b py-1"><Button variant="link" className="location-result" onClick={() => showLocation(location)}><strong>{asset.name}</strong><span className="muted">{locationLabel(location)}</span></Button></div>) : <div className="p-3 text-sm text-muted-foreground">暂无匹配的上架位置</div>}</div>}
                   {view === 'table' ? (
                     <div className="facility-table-wrap">
                       <table className="facility-table">
@@ -555,7 +532,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                         </tbody>
                       </table>
                     </div>
-                  ) : view === 'elevations' ? (
+                  ) : (
                     <div className="rack-board">
                       {rackRows.map(item => {
                         const placements = roomPlacements.filter(entry => entry.rackId === item.id)
@@ -597,7 +574,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                       })}
                       {!rackRows.length && <p className="muted">当前数据中心还没有机柜</p>}
                     </div>
-                  ) : <RoomScene room={room} racks={racks} placements={roomPlacements} assets={byId} selectedRack={rackId} selectedAsset={focused} dark={dark} onRack={openRack} onDevice={openSceneDevice} />}
+                  )}
                 </CardContent>
               </Card>
             </div>

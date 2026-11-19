@@ -1255,7 +1255,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               roomId={facilityRoomId} onRoomChange={setFacilityRoomId}
               openRackId={facilityRackId} onRackOpened={() => setFacilityRackId(null)}
               layout={facilities} assets={assets} links={links} editable={editable}
-              focus={facilityFocus} reload={loadAll} dark={dark}
+              focus={facilityFocus} reload={loadAll}
               bookmarkedRacks={rackBookmarks} onToggleRackBookmark={toggleRackBookmark}
               onOpenAsset={id => void openAsset(id)}
               onSessionError={e => handleError(e)}
