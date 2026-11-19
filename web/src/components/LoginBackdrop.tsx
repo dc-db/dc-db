@@ -1,9 +1,12 @@
 /**
- * Sign-in backdrop: a near-black page with one wide glow rising from the
- * bottom edge. Mirrors the console-style login pages that keep a single warm
- * or cool accent instead of a full illustration.
+ * Sign-in backdrop: a near-black page with a faint grid and one wide blue glow
+ * rising from the bottom edge. The grid gives the surface some texture without
+ * turning it into an illustration.
  */
 export function LoginBackdrop() {
+  const columns = Array.from({ length: 19 }, (_, index) => index * 80)
+  const rows = Array.from({ length: 12 }, (_, index) => index * 80)
+
   return (
     <svg
       className="login-backdrop" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"
@@ -22,6 +25,12 @@ export function LoginBackdrop() {
       </defs>
 
       <rect width="1440" height="900" fill="url(#login-base)" />
+
+      <g stroke="#ffffff" strokeOpacity="0.05" strokeWidth="1">
+        {columns.map(x => <line key={`v${x}`} x1={x} y1="0" x2={x} y2="900" />)}
+        {rows.map(y => <line key={`h${y}`} x1="0" y1={y} x2="1440" y2={y} />)}
+      </g>
+
       <ellipse cx="720" cy="985" rx="1000" ry="580" fill="url(#login-glow)" />
     </svg>
   )
