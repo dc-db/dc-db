@@ -486,10 +486,10 @@ html[data-theme="dark"] .import-error-row strong { color: #ff7875; }
 .location-result { display: flex; justify-content: space-between; text-align: left; gap: 8px; flex-wrap: wrap; }
 .facility-form { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; }
 .rack-form, .mount-form { border-bottom: 1px solid var(--line); padding-bottom: 12px; }
-.facility-layout { display: grid; grid-template-columns: 260px 6px minmax(0, 1fr); gap: 0; align-items: stretch; min-height: calc(100vh - 104px); }
+.facility-layout { display: grid; grid-template-columns: 260px 6px minmax(0, 1fr); gap: 0; align-items: stretch; min-height: calc(100vh - 100px); }
 .facility-sidebar { position: sticky; top: 16px; align-self: start; display: flex; flex-direction: column; gap: 10px; padding: 4px 14px 4px 0; border: 0; border-radius: 0; background: transparent; }
 .facility-resizer { position: relative; align-self: stretch; cursor: col-resize; }
-.facility-resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: 2px; width: 2px; border-radius: 2px; background: var(--line); transition: background .15s ease; }
+.facility-resizer::after { content: ""; position: absolute; top: -20px; bottom: -24px; left: 2px; width: 2px; border-radius: 2px; background: var(--line); transition: background .15s ease; }
 .facility-resizer:hover::after, .facility-resizer.is-active::after { background: var(--muted); }
 .facility-sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .facility-sidebar-search { display: flex; align-items: center; gap: 6px; }
