@@ -535,7 +535,7 @@ html[data-theme="dark"] .import-error-row strong { color: #ff7875; }
 .facility-workspace { display: block; }
 .floor-toolbar-search { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; }
 .floor-toolbar-actions { display: flex; align-items: center; gap: 8px; }
-.view-toggle { display: flex; align-items: center; gap: 4px; }
+.view-toggle { display: flex; align-items: center; gap: 8px; }
 .floor-toolbar { display: flex; justify-content: space-between; gap: 7px; flex-wrap: wrap; align-items: center; padding: 2px 0 8px; border-bottom: 1px solid var(--line); }
 .floor-scroll { overflow-x: auto; padding: 12px 0 0; background: var(--floor-bg); }
 .floor-grid { display: grid; gap: 5px; }

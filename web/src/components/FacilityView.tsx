@@ -499,8 +499,8 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                     </div>
                     <div className="floor-toolbar-actions">
                       <div className="view-toggle">
-                        <Button variant={view === 'table' ? 'default' : 'outline'} size="icon-sm" aria-label="表格" title="表格" onClick={() => setView('table')}><List /></Button>
-                        <Button variant={view === 'elevations' ? 'default' : 'outline'} size="icon-sm" aria-label="立面图" title="立面图" onClick={() => setView('elevations')}><Columns3 /></Button>
+                        <Button variant={view === 'table' ? 'default' : 'outline'} size="sm" onClick={() => setView('table')}><List />查看列表</Button>
+                        <Button variant={view === 'elevations' ? 'default' : 'outline'} size="sm" onClick={() => setView('elevations')}><Columns3 />查看机柜立面图</Button>
                       </div>
                       {editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
                     </div>
