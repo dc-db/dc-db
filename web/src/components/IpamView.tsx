@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus, RefreshCw, Star, X } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Plus, RefreshCw, Star, X } from 'lucide-react'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
@@ -11,6 +11,7 @@ import { Textarea } from './ui/textarea'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 import { SearchableSelect } from './SearchableSelect'
 import { api, APIError } from '../api'
+import { downloadCSV } from '../csv'
 import type { Allocation, Asset, AvailableIPs, IPUsage, Subnet, SubnetDetail, SubnetFields, VLAN } from '../api'
 
 interface Props {
@@ -471,7 +472,21 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
   function renderTable<T>(table: ReturnType<typeof useReactTable<T>>, empty: string) {
     return <Table><TableHeader>{table.getHeaderGroups().map(group => <TableRow key={group.id}>{group.headers.map(header => <TableHead key={header.id}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{table.getRowModel().rows.length ? table.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={table.getAllColumns().length} className="py-8 text-center text-muted-foreground">{empty}</TableCell></TableRow>}</TableBody></Table>
   }
-  return <Card><CardHeader className="flex flex-row items-center justify-between gap-4"><CardTitle className="flex items-center gap-2">网段与 IP 地址 <Badge variant="secondary">{subnets.length} 个网段</Badge></CardTitle><div className="flex gap-2"><Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>{editable && <Button onClick={addSubnet}><Plus />新增网段</Button>}</div></CardHeader><CardContent>
+  function exportSubnets() {
+    downloadCSV('dc-db-subnets.csv', [
+      ['网段名称', 'CIDR', '网关', 'VLAN', '状态', '用途', '可用地址', '已用', '空闲', '备注'],
+      ...subnetRows.map(row => {
+        const subnet = row.subnet
+        return [
+          subnet.name, subnet.cidr, subnet.gateway, subnet.vlan,
+          subnetStatusMeta[subnet.status]?.label ?? subnet.status,
+          roleLabels[subnet.role ?? ''] ?? (subnet.role || ''), subnet.usable, subnet.used, subnet.free, subnet.notes,
+        ]
+      }),
+    ])
+  }
+
+  return <Card><CardHeader className="flex flex-row items-center justify-between gap-4"><CardTitle className="flex items-center gap-2">网段与 IP 地址 <Badge variant="secondary">{subnets.length} 个网段</Badge></CardTitle><div className="flex gap-2"><Button variant="outline" disabled={!subnetRows.length} onClick={exportSubnets}><Download />导出 CSV</Button><Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>{editable && <Button onClick={addSubnet}><Plus />新增网段</Button>}</div></CardHeader><CardContent>
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
     {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
     {draft && <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{draft.id ? '编辑网段' : '新增网段'}</CardTitle><Button variant="ghost" size="icon" aria-label="关闭" onClick={() => setDraft(null)}><X /></Button></CardHeader><CardContent><form onSubmit={event => { event.preventDefault(); void saveSubnet() }}><div className="grid grid-cols-2 gap-3">

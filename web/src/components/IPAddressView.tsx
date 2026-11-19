@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { flexRender, getCoreRowModel, getPaginationRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
+import { downloadCSV } from '../csv'
 import type { Asset, IPAddress, Subnet } from '../api'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -78,7 +79,18 @@ export function IPAddressView({ editable, assets, subnets, onOpenAsset, onOpenSu
     ...(editable ? [{ id: 'actions', header: '操作', cell: ({ row }: { row: { original: IPAddress } }) => row.original.allocationId ? <div className="flex gap-1"><Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button><Button variant="ghost" size="icon" className="text-destructive" aria-label={`释放 ${row.original.ip}`} onClick={() => setReleasing(row.original)}><Trash2 /></Button></div> : '—' }] : []),
   ]
   const table = useReactTable({ data: visible, columns, initialState: { pagination: { pageIndex: 0, pageSize: 20 } }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel() })
-  return <Card><CardHeader className="flex flex-row items-center justify-between gap-4"><CardTitle className="flex items-center gap-2">IP 地址 <Badge variant="secondary">{addresses.length} 条记录</Badge></CardTitle><div className="flex gap-2"><Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>{editable && <Button onClick={() => showForm(null)}><Plus />分配 IP</Button>}</div></CardHeader><CardContent>
+  function exportCSV() {
+    downloadCSV('dc-db-ip-addresses.csv', [
+      ['IP 地址', '来源', '状态', 'DNS 名称', '角色', '网段', '资产', '标签', '备注'],
+      ...visible.map(item => [
+        item.ip, sourceMeta[item.source] ?? item.source,
+        stateMeta[item.state] ?? item.state, item.dnsName ?? '', item.role ?? '',
+        item.subnetName, item.assetName ?? '', item.label ?? '', item.notes ?? '',
+      ]),
+    ])
+  }
+
+  return <Card><CardHeader className="flex flex-row items-center justify-between gap-4"><CardTitle className="flex items-center gap-2">IP 地址 <Badge variant="secondary">{addresses.length} 条记录</Badge></CardTitle><div className="flex gap-2"><Button variant="outline" disabled={!visible.length} onClick={exportCSV}><Download />导出 CSV</Button><Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>{editable && <Button onClick={() => showForm(null)}><Plus />分配 IP</Button>}</div></CardHeader><CardContent>
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
     {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
     <div className="mb-4 grid grid-cols-4 gap-3">{stats.map(([label, value]) => <div key={label} className="rounded-lg border p-4"><div className="text-sm text-muted-foreground">{label}</div><div className="mt-1 text-2xl font-semibold">{value}</div></div>)}</div>

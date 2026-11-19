@@ -5,6 +5,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import type { Change } from '../api'
+import { downloadCSV } from '../csv'
 
 interface Props {
   changes: Change[]
@@ -108,11 +109,6 @@ function date(value: string) {
   return new Date(value).toLocaleString('zh-CN', { hour12: false })
 }
 
-function csvCell(value: string | number) {
-  const text = String(value)
-  return /[",\r\n]/.test(text) ? '"' + text.replaceAll('"', '""') + '"' : text
-}
-
 function downloadChanges(changes: Change[]) {
   const rows: (string | number)[][] = [['时间', '动作', '资产', '操作人', '摘要', '变更字段']]
   for (const change of changes) {
@@ -125,13 +121,7 @@ function downloadChanges(changes: Change[]) {
       differences(change).map(diff => `${diff.field}: ${diff.before} → ${diff.after}`).join('; '),
     ])
   }
-  const csv = '\uFEFF' + rows.map(row => row.map(csvCell).join(',')).join('\r\n')
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'dc-db-changes.csv'
-  link.click()
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  downloadCSV('dc-db-changes.csv', rows)
 }
 
 export function ChangeList({ changes, hideAsset, filterable, onOpen }: Props) {

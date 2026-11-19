@@ -14,6 +14,7 @@ import {
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
+import { downloadCSV } from './csv'
 import type { Asset, AssetFields, Captcha, Change, ImportPreview, Kind, Link, LinkKind, Subnet, Tag as TagItem, User } from './api'
 import { assetLocations, locationLabel } from './facilities'
 import type { AssetLocation, Facilities } from './facilities'
@@ -833,22 +834,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     closeDrawer()
     goTo('facilities')
     setFacilityFocus(location)
-  }
-
-  function csvCell(input: string | number) {
-    const text = String(input)
-    const safe = /^[\s\uFEFF]*[=+\-@]|^[\t\r\n]/.test(text) ? "'" + text : text
-    return '"' + safe.replaceAll('"', '""') + '"'
-  }
-
-  function downloadCSV(filename: string, rows: (string | number)[][]) {
-    const csv = '\uFEFF' + rows.map(row => row.map(csvCell).join(',')).join('\r\n')
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    link.click()
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
   function downloadImportErrors() {
