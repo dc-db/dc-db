@@ -1224,7 +1224,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
           {page === 'ipam' && (
             <Tabs
-              className="ipam-tabs"
+              className="ipam-tabs" listVariant="line"
               activeKey={ipamTab}
               onChange={(key: string) => setIpamTab(key as 'subnets' | 'addresses' | 'vlans')}
               items={[
