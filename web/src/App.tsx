@@ -63,8 +63,8 @@ const relations: { kind: LinkKind; from: Kind; to: Kind[]; outgoing: string; inc
   { kind: 'hosts', from: 'host', to: ['vm'], outgoing: '承载虚拟机', incoming: '所在宿主机' },
 ]
 const defaultPageSize = 10
-const defaultAssetColumns = ['name', 'kind', 'status', 'tags', 'meta', 'address', 'owner', 'actions']
-const assetColumnKeys = ['name', 'kind', 'status', 'tags', 'meta', 'address', 'owner', 'group', 'environment', 'capacity', 'updated', 'actions']
+const defaultAssetColumns = ['name', 'kind', 'status', 'tags', 'meta', 'address', 'owner']
+const assetColumnKeys = ['name', 'kind', 'status', 'tags', 'meta', 'address', 'owner', 'group', 'environment', 'capacity', 'updated']
 
 
 function platformLabel(asset: Pick<Asset, 'platform'>) {
@@ -985,25 +985,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         title: '更新时间', dataIndex: 'updatedAt', key: 'updated', width: 165,
         sorter: (left, right) => Date.parse(left.updatedAt) - Date.parse(right.updatedAt),
         render: value => value ? new Date(String(value)).toLocaleString('zh-CN', { hour12: false }) : '—',
-      },
-    },
-    {
-      key: 'actions', label: '操作',
-      column: {
-        title: '', key: 'actions', width: 112,
-        render: (_, asset) => (
-          <Space size={0}>
-            <Tooltip title={bookmarks.includes(asset.id) ? '取消收藏' : '收藏'}>
-              <Button
-                type="text" size="small"
-                aria-label={bookmarks.includes(asset.id) ? '取消收藏' : '收藏'}
-                icon={bookmarks.includes(asset.id) ? <StarFilled /> : <StarOutlined />}
-                onClick={() => toggleBookmark(asset.id)}
-              />
-            </Tooltip>
-            <Button type="link" size="small" onClick={() => void openAsset(asset.id)}>查看</Button>
-          </Space>
-        ),
       },
     },
   ]
