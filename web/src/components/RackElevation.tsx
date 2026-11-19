@@ -5,6 +5,7 @@ import type { Asset } from '../api'
 import { occupiedUnits, placementFaceLabel, placementsConflict, uRange } from '../facilities'
 import type { Placement, Rack, RackFace } from '../facilities'
 import { RackDeviceSvg } from './RackDeviceSvg'
+import { downloadRackPng, downloadRackSvg, rackElevationSvg } from '../rackExport'
 
 interface Props {
   rack: Rack
@@ -109,6 +110,18 @@ export function RackElevation({ rack, devices, assets, focused, editable, busy, 
     onOpen(assetId)
   }
 
+  function exportSvg() {
+    downloadRackSvg(rackElevationSvg(rack, devices, assets, face))
+  }
+
+  async function exportPng() {
+    try {
+      await downloadRackPng(rackElevationSvg(rack, devices, assets, face))
+    } catch {
+      // Canvas export can fail if the browser blocks blobs; the SVG button still works.
+    }
+  }
+
   return (
     <div className="rack-elevation" style={{ '--rack-u-height': `${unitHeight}px` } as CSSProperties}>
       <div className="rack-stage-head">
@@ -122,7 +135,11 @@ export function RackElevation({ rack, devices, assets, focused, editable, busy, 
             {face === 'rear' ? '（含全深设备）' : ''}
           </span>
         </div>
-        <span className="muted">拖动设备可调整 U 位</span>
+        <div className="rack-stage-actions">
+          <span className="muted">拖动设备可调整 U 位</span>
+          <Button type="button" size="sm" variant="outline" onClick={exportSvg}>导出 SVG</Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => void exportPng()}>导出 PNG</Button>
+        </div>
       </div>
       <div
         ref={scrollRef} className="rack-scroll"
