@@ -287,7 +287,6 @@ func (s *Server) saveAsset(w http.ResponseWriter, r *http.Request) {
 
 func validateFields(fields *Fields) error {
 	fields.Name = strings.TrimSpace(fields.Name)
-	fields.Role = strings.TrimSpace(fields.Role)
 	fields.Address = strings.TrimSpace(fields.Address)
 	fields.Owner = strings.TrimSpace(fields.Owner)
 	fields.Environment = strings.TrimSpace(fields.Environment)
@@ -299,9 +298,6 @@ func validateFields(fields *Fields) error {
 	}
 	if fields.Name == "" || utf8.RuneCountInString(fields.Name) > 160 {
 		return errors.New("资源名称须为 1–160 个字符")
-	}
-	if utf8.RuneCountInString(fields.Role) > 40 {
-		return errors.New("设备角色不能超过 40 个字符")
 	}
 	switch fields.Platform {
 	case "", "pve", "kvm":

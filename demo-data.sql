@@ -20,26 +20,24 @@ SELECT CASE WHEN
     EXISTS (SELECT 1 FROM interfaces) OR EXISTS (SELECT 1 FROM changes)
     THEN 0 ELSE 1 END;
 
-INSERT INTO assets (id, kind, name, role, platform, status, lifecycle, owner, environment, address, cpu, memory_mib, notes, attributes)
+INSERT INTO assets (id, kind, name, platform, status, lifecycle, owner, environment, address, cpu, memory_mib, notes, attributes)
 SELECT v.* FROM (
-    SELECT 1::bigint, 'host'::text, 'demo-host-01'::text, '服务器'::text, 'pve'::text, 'online'::text, 'active'::text,
-           '示例运维组'::text, '演示'::text, '192.0.2.11'::text, 32::int, 131072::bigint, '虚构宿主机'::text, '{}'::text
-    UNION ALL SELECT 2, 'host', 'demo-host-02', '服务器', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.12', 24, 98304, '虚构宿主机', '{}'
-    UNION ALL SELECT 3, 'vm', 'demo-web-01', 'Web 服务器', 'pve', 'running', 'active', '示例应用组', '演示', '198.51.100.21', 4, 8192, '虚构 Web 虚拟机', '{}'
-    UNION ALL SELECT 4, 'vm', 'demo-db-01', '数据库', 'pve', 'running', 'active', '示例应用组', '演示', '198.51.100.22', 8, 16384, '虚构数据库虚拟机', '{}'
-    UNION ALL SELECT 5, 'vm', 'demo-worker-01', '应用服务器', 'kvm', 'stopped', 'active', '示例应用组', '演示', '198.51.100.23', 4, 8192, '虚构工作节点', '{}'
-    UNION ALL SELECT 6, 'switch', 'demo-switch-01', '交换机', '', 'online', 'active', '示例网络组', '演示', '192.0.2.2', 0, 0, '虚构核心交换机', '{}'
-    UNION ALL SELECT 7, 'switch', 'demo-switch-02', '交换机', '', 'offline', 'active', '示例网络组', '演示', '192.0.2.3', 0, 0, '虚构接入交换机', '{}'
-    UNION ALL SELECT 8, 'host', 'demo-fw-01', '防火墙', '', 'online', 'active', '示例网络组', '演示', '192.0.2.1', 0, 0, '虚构边界防火墙', '{}'
-    UNION ALL SELECT 9, 'host', 'demo-host-03', '服务器', 'pve', 'online', 'active', '示例运维组', '演示', '192.0.2.13', 16, 65536, '虚构宿主机', '{}'
-    UNION ALL SELECT 10, 'host', 'demo-host-04', '服务器', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.14', 16, 65536, '虚构宿主机', '{}'
-    UNION ALL SELECT 11, 'switch', 'demo-switch-03', '交换机', '', 'online', 'active', '示例网络组', '演示', '192.0.2.4', 0, 0, '虚构汇聚交换机', '{}'
-    UNION ALL SELECT 12, 'host', 'demo-host-05', '服务器', 'pve', 'offline', 'active', '示例运维组', '演示', '192.0.2.15', 8, 32768, '虚构宿主机', '{}'
-    UNION ALL SELECT 13, 'switch', 'demo-switch-04', '交换机', '', 'online', 'active', '示例网络组', '演示', '192.0.2.5', 0, 0, '虚构接入交换机', '{}'
-    UNION ALL SELECT 14, 'host', 'demo-host-06', '服务器', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.16', 12, 49152, '虚构宿主机', '{}'
-    UNION ALL SELECT 15, 'host', 'demo-host-07', '服务器', 'pve', 'online', 'active', '示例运维组', '演示', '192.0.2.17', 8, 32768, '虚构宿主机', '{}'
-    UNION ALL SELECT 16, 'switch', 'demo-switch-05', '交换机', '', 'online', 'active', '示例网络组', '演示', '192.0.2.6', 0, 0, '虚构接入交换机', '{}'
-) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+    SELECT 1::bigint, 'host'::text, 'demo-host-01'::text, 'pve'::text, 'online'::text, 'active'::text, '示例运维组'::text, '演示'::text, '192.0.2.11'::text, 32::int, 131072::bigint, '虚构宿主机'::text, '{}'::text
+    UNION ALL SELECT 2, 'host', 'demo-host-02', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.12', 24, 98304, '虚构宿主机', '{}'
+    UNION ALL SELECT 3, 'vm', 'demo-web-01', 'pve', 'running', 'active', '示例应用组', '演示', '198.51.100.21', 4, 8192, '虚构 Web 虚拟机', '{}'
+    UNION ALL SELECT 4, 'vm', 'demo-db-01', 'pve', 'running', 'active', '示例应用组', '演示', '198.51.100.22', 8, 16384, '虚构数据库虚拟机', '{}'
+    UNION ALL SELECT 5, 'vm', 'demo-worker-01', 'kvm', 'stopped', 'active', '示例应用组', '演示', '198.51.100.23', 4, 8192, '虚构工作节点', '{}'
+    UNION ALL SELECT 6, 'switch', 'demo-switch-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.2', 0, 0, '虚构核心交换机', '{}'
+    UNION ALL SELECT 7, 'switch', 'demo-switch-02', '', 'offline', 'active', '示例网络组', '演示', '192.0.2.3', 0, 0, '虚构接入交换机', '{}'
+    UNION ALL SELECT 8, 'host', 'demo-fw-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.1', 0, 0, '虚构边界防火墙', '{}'
+    UNION ALL SELECT 9, 'host', 'demo-host-03', 'pve', 'online', 'active', '示例运维组', '演示', '192.0.2.13', 16, 65536, '虚构宿主机', '{}'
+    UNION ALL SELECT 10, 'host', 'demo-host-04', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.14', 16, 65536, '虚构宿主机', '{}'
+    UNION ALL SELECT 11, 'switch', 'demo-switch-03', '', 'online', 'active', '示例网络组', '演示', '192.0.2.4', 0, 0, '虚构汇聚交换机', '{}'
+    UNION ALL SELECT 12, 'host', 'demo-host-05', 'pve', 'offline', 'active', '示例运维组', '演示', '192.0.2.15', 8, 32768, '虚构宿主机', '{}'
+    UNION ALL SELECT 13, 'switch', 'demo-switch-04', '', 'online', 'active', '示例网络组', '演示', '192.0.2.5', 0, 0, '虚构接入交换机', '{}'
+    UNION ALL SELECT 14, 'host', 'demo-host-06', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.16', 12, 49152, '虚构宿主机', '{}'
+    UNION ALL SELECT 15, 'host', 'demo-host-07', 'pve', 'online', 'active', '示例运维组', '演示', '192.0.2.17', 8, 32768, '虚构宿主机', '{}'
+    UNION ALL SELECT 16, 'switch', 'demo-switch-05', '', 'online', 'active', '示例网络组', '演示', '192.0.2.6', 0, 0, '虚构接入交换机', '{}') AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
 INSERT INTO asset_links (from_id, to_id, kind)
 SELECT v.* FROM (

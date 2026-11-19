@@ -96,7 +96,6 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, onSave, o
   const [fields, setFields] = useState<AssetFields>({
     kind: asset?.kind ?? defaultKind,
     name: asset?.name ?? '',
-    role: asset?.role ?? '',
     platform: asset?.platform ?? '',
     status: asset?.status ?? 'unknown',
     lifecycle: asset?.lifecycle ?? 'active',
@@ -173,11 +172,7 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, onSave, o
       {(validation || error) && <p role="alert" className="col-span-2 text-destructive">{validation || error}</p>}
       <label className="grid gap-2">资源类型 *<Choice value={fields.kind} disabled={!!asset} onChange={value => update('kind', value as Kind)} options={[{ value: 'host', label: '物理机' }, { value: 'switch', label: '交换机' }, { value: 'vm', label: '虚拟机' }]} /></label>
       <label className={errors.name ? 'grid gap-2 field-invalid' : 'grid gap-2'}>资源名称 *<Input required value={fields.name} maxLength={160} aria-invalid={!!errors.name} onChange={event => update('name', event.target.value)} />{errors.name && <span className="field-error" role="alert">{errors.name}</span>}</label>
-      <label className="grid gap-2">设备角色<Choice value={fields.role} onChange={value => update('role', value)} options={[
-        { value: '', label: '未指定' }, { value: '服务器', label: '服务器' }, { value: '交换机', label: '交换机' },
-        { value: '路由器', label: '路由器' }, { value: '防火墙', label: '防火墙' }, { value: '存储', label: '存储' },
-        { value: '负载均衡', label: '负载均衡' }, { value: '其他', label: '其他' },
-      ]} /></label>
+
       <label className="grid gap-2">平台<Choice value={fields.platform} onChange={value => update('platform', value as AssetFields['platform'])} options={[{ value: '', label: '未指定' }, { value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM / libvirt' }]} /></label>
       <label className="grid gap-2">状态<Choice value={fields.status} onChange={value => update('status', value as AssetFields['status'])} options={[{ value: 'unknown', label: '未知' }, { value: 'online', label: '在线' }, { value: 'offline', label: '离线' }, { value: 'running', label: '运行中' }, { value: 'stopped', label: '已停止' }, { value: 'paused', label: '已暂停' }]} /></label>
       <label className="grid gap-2">负责人<Input value={fields.owner} maxLength={160} placeholder="姓名或团队" onChange={event => update('owner', event.target.value)} /></label>

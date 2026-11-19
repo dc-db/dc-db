@@ -15,7 +15,6 @@ var ErrConflict = errors.New("记录已被更新，请刷新后重试")
 type Fields struct {
 	Kind        string          `json:"kind"`
 	Name        string          `json:"name"`
-	Role        string          `json:"role"`
 	Platform    string          `json:"platform"`
 	Status      string          `json:"status"`
 	Lifecycle   string          `json:"lifecycle"`
@@ -63,7 +62,7 @@ type Change struct {
 	CreatedAt time.Time       `json:"createdAt"`
 }
 
-const assetColumns = `id, kind, name, role, platform, status, lifecycle, owner, environment, address, cpu,
+const assetColumns = `id, kind, name, platform, status, lifecycle, owner, environment, address, cpu,
 	memory_mib, notes, attributes, version, updated_at, COALESCE(source_key, ''),
 	COALESCE(external_key, ''), last_seen_at, missing_count, observed, COALESCE(group_id, 0)`
 
@@ -72,7 +71,7 @@ type scanner interface{ Scan(...any) error }
 func readAsset(row scanner) (Asset, error) {
 	var a Asset
 	var attributes, observed string
-	err := row.Scan(&a.ID, &a.Kind, &a.Name, &a.Role, &a.Platform, &a.Status, &a.Lifecycle, &a.Owner,
+	err := row.Scan(&a.ID, &a.Kind, &a.Name, &a.Platform, &a.Status, &a.Lifecycle, &a.Owner,
 		&a.Environment, &a.Address, &a.CPU, &a.MemoryMiB, &a.Notes, &attributes,
 		&a.Version, &a.UpdatedAt, &a.SourceKey, &a.ExternalKey, &a.LastSeenAt, &a.MissingCount, &observed,
 		&a.GroupID)
@@ -199,11 +198,11 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 
 	asset, err := readAsset(tx.QueryRowContext(ctx, `
 		UPDATE assets SET name=$2, platform=$3, status=$4, lifecycle=$5, owner=$6, environment=$7,
-			address=$8, cpu=$9, memory_mib=$10, notes=$11, attributes=$12, role=$13,
-			group_id=NULLIF($14,0), version=version+1, updated_at=$15
+			address=$8, cpu=$9, memory_mib=$10, notes=$11, attributes=$12,
+			group_id=NULLIF($13,0), version=version+1, updated_at=$14
 		WHERE id=$1 RETURNING `+assetColumns, id, fields.Name, fields.Platform, fields.Status,
 		fields.Lifecycle, fields.Owner, fields.Environment, fields.Address, fields.CPU, fields.MemoryMiB,
-		fields.Notes, string(fields.Attributes), fields.Role, fields.GroupID, nowText()))
+		fields.Notes, string(fields.Attributes), fields.GroupID, nowText()))
 	if err != nil {
 		return Asset{}, err
 	}
@@ -216,11 +215,11 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 func createAsset(ctx context.Context, tx *sql.Tx, fields Fields, actor string) (Asset, error) {
 	asset, err := readAsset(tx.QueryRowContext(ctx, `
 		INSERT INTO assets (kind, name, platform, status, lifecycle, owner, environment, address,
-			cpu, memory_mib, notes, attributes, role, group_id, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NULLIF($14,0),$15) RETURNING `+assetColumns,
+			cpu, memory_mib, notes, attributes, group_id, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NULLIF($13,0),$14) RETURNING `+assetColumns,
 		fields.Kind, fields.Name, fields.Platform, fields.Status, fields.Lifecycle, fields.Owner,
 		fields.Environment, fields.Address, fields.CPU, fields.MemoryMiB, fields.Notes,
-		string(fields.Attributes), fields.Role, fields.GroupID, nowText()))
+		string(fields.Attributes), fields.GroupID, nowText()))
 	if err != nil {
 		return Asset{}, err
 	}

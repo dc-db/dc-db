@@ -35,7 +35,6 @@ type importRow struct {
 var importHeaderAliases = map[string]string{
 	"资源名称": "name", "名称": "name", "name": "name",
 	"类型": "kind", "资源类型": "kind", "kind": "kind",
-	"角色": "role", "设备角色": "role", "role": "role",
 	"平台": "platform", "platform": "platform",
 	"状态": "status", "status": "status",
 	"生命周期": "lifecycle", "lifecycle": "lifecycle",
@@ -429,7 +428,7 @@ func decodeImportRow(record []string, columns map[string]int, rowNumber int) (Fi
 	}
 
 	fields := Fields{
-		Kind: kind, Name: name, Role: value("role"), Platform: platform, Status: status, Lifecycle: lifecycle,
+		Kind: kind, Name: name, Platform: platform, Status: status, Lifecycle: lifecycle,
 		Owner: value("owner"), Environment: value("environment"), Address: value("address"),
 		CPU: int(cpu), MemoryMiB: memory, Notes: value("notes"), Attributes: json.RawMessage(attributes),
 	}
