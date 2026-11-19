@@ -26,6 +26,7 @@ export interface NetworkInterface extends InterfaceFields {
 export interface AssetFields {
   kind: Kind
   name: string
+  role: string
   platform: '' | 'pve' | 'kvm'
   status: string
   lifecycle: 'active' | 'retired'

@@ -861,11 +861,11 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   function exportCSV() {
     const rows: (string | number)[][] = [[
-      '资源名称', '类型', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '负责人', '环境', '备注', '扩展属性', '标签',
+      '资源名称', '类型', '角色', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '负责人', '环境', '备注', '扩展属性', '标签',
     ]]
     for (const asset of filtered) {
       rows.push([
-        asset.name, kinds[asset.kind].label, platformLabel(asset), statusOf(asset).label,
+        asset.name, kinds[asset.kind].label, asset.role, platformLabel(asset), statusOf(asset).label,
         asset.lifecycle === 'retired' ? '已退役' : '在册', asset.address, asset.cpu, asset.memoryMiB,
         asset.owner, asset.environment, asset.notes, JSON.stringify(asset.attributes),
         asset.tags?.map(tag => tag.name).join('; ') ?? '',
@@ -876,7 +876,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   function downloadTemplate() {
     downloadCSV('dc-db-import-template.csv', [[
-      '资源名称', '类型', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '负责人', '环境', '备注', '扩展属性', '标签',
+      '资源名称', '类型', '角色', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '负责人', '环境', '备注', '扩展属性', '标签',
     ]])
   }
 
@@ -951,6 +951,14 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     {
       key: 'kind', label: '类型',
       column: { title: '类型', key: 'kind', width: 90, sorter: (left, right) => kinds[left.kind].label.localeCompare(kinds[right.kind].label, 'zh-CN'), render: (_, asset) => kinds[asset.kind].label },
+    },
+    {
+      key: 'role', label: '角色',
+      column: {
+        title: '角色', key: 'role', width: 100,
+        sorter: (left, right) => (left.role || '').localeCompare(right.role || '', 'zh-CN'),
+        render: (_, asset) => asset.role || '—',
+      },
     },
     {
       key: 'status', label: '状态',
@@ -1031,6 +1039,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   const descriptions = selected ? [
     { key: 'platform', label: '平台', children: platformLabel(selected) },
+    { key: 'role', label: '设备角色', children: selected.role || '—' },
     { key: 'owner', label: '负责人', children: selected.owner || '—' },
     { key: 'environment', label: '环境', children: selected.environment || '—' },
     { key: 'address', label: '管理地址 / IP', children: <span className="mono">{selected.address || '—'}</span> },

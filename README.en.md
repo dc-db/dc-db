@@ -179,10 +179,11 @@ Add individual assets with the `新增资产` button. For larger inventories, us
 Template columns:
 
 ```text
-资源名称,类型,平台,状态,生命周期,地址 / IP,CPU,内存 MiB,负责人,环境,备注,扩展属性,标签
+资源名称,类型,角色,平台,状态,生命周期,地址 / IP,CPU,内存 MiB,负责人,环境,备注,扩展属性,标签
 ```
 
 - Type: `host`, `vm`, `switch`, or the Chinese labels 物理机, 虚拟机, 交换机.
+- Role: a free-text purpose such as server, switch, router, firewall, or storage; empty means unset.
 - Platform: `pve`, `kvm`, `Proxmox VE`, `KVM`, or empty.
 - Status: `unknown`, `online`, `offline`, `running`, `stopped`, `paused`, or the Chinese labels 未知, 在线, 离线, 运行中, 已停止, 已暂停.
 - Lifecycle: `active`, `retired`, 在册, 已退役; empty defaults to active.
