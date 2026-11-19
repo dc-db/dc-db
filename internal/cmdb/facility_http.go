@@ -22,6 +22,7 @@ func (s *Server) registerFacilities(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/rooms/{id}", s.requireUser(true, s.saveRoom))
 	mux.HandleFunc("DELETE /api/rooms/{id}", s.requireUser(true, s.deleteFacility(DeleteRoom)))
 	mux.HandleFunc("POST /api/rooms/{id}/racks", s.requireUser(true, s.saveRack))
+	mux.HandleFunc("POST /api/rooms/{id}/racks/import", s.requireUser(true, s.importRacks))
 	mux.HandleFunc("PUT /api/racks/{id}", s.requireUser(true, s.saveRack))
 	mux.HandleFunc("DELETE /api/racks/{id}", s.requireUser(true, s.deleteFacility(DeleteRack)))
 	mux.HandleFunc("POST /api/placements", s.requireUser(true, s.savePlacement))
@@ -296,4 +297,23 @@ func (s *Server) exportRackElevation(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", "attachment; filename=\"rack-elevation.xlsx\"; filename*=UTF-8''"+url.PathEscape(name))
 	w.Header().Set("Content-Length", strconv.Itoa(len(file)))
 	_, _ = w.Write(file)
+}
+
+// importRacks creates racks in a room from a CSV upload.
+func (s *Server) importRacks(w http.ResponseWriter, r *http.Request) {
+	roomID, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	body := http.MaxBytesReader(w, r.Body, 1<<20)
+	result, err := ImportRacks(r.Context(), s.db, roomID, body, currentUser(r).Username)
+	if err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if len(result.Errors) > 0 {
+		respond(w, http.StatusUnprocessableEntity, result)
+		return
+	}
+	respond(w, http.StatusOK, result)
 }

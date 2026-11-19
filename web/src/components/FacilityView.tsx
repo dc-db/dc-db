@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Download, MoreHorizontal, Pencil, Plus } from 'lucide-react'
+import { Download, MoreHorizontal, Pencil, Plus, Upload } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
@@ -14,6 +14,7 @@ import type { Asset, Link } from '../api'
 import { assetLocations, isMountKind, locationLabel, mountKinds, occupiedUnits, placementsConflict } from '../facilities'
 import type { AssetLocation, Facilities, MountKind, Placement, PlacementDepth, Rack, RackFace, RackFields, Region, Room, RoomFields } from '../facilities'
 import { rackElevationSvg } from '../rackExport'
+import { downloadCSV } from '../csv'
 import { RackDetailDrawer } from './RackDetailDrawer'
 
 interface Props {
@@ -74,6 +75,10 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   const [feedback, setFeedback] = useState('')
   const [roomSearch, setRoomSearch] = useState('')
   const [rackKeyword, setRackKeyword] = useState('')
+  const [importOpen, setImportOpen] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importError, setImportError] = useState('')
+  const [importBusy, setImportBusy] = useState(false)
   const [rackDrawerOpen, setRackDrawerOpen] = useState(false)
   const [treeWidth, setTreeWidth] = useState(() => {
     const saved = Number(window.localStorage.getItem('dc-db-tree-width'))
@@ -276,6 +281,48 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
       setRackId(saved.id)
       setRackDraft(null)
     }, '机柜已保存')
+  }
+
+  function exportRacks() {
+    if (!room) return
+    const rows: (string | number)[][] = [['机柜编号', '区域/排', '高度（U）', '已用U位', '空闲U位', '占用率', '设备数']]
+    for (const item of rackRows) {
+      const placements = roomPlacements.filter(entry => entry.rackId === item.id)
+      const used = occupiedUnits(placements).size
+      const rate = item.heightU > 0 ? Math.round((used / item.heightU) * 100) : 0
+      rows.push([item.name, item.zone, item.heightU, used, Math.max(0, item.heightU - used), `${rate}%`, placements.length])
+    }
+    downloadCSV(`${room.name}-机柜.csv`, rows)
+  }
+
+  async function submitImport() {
+    if (!room || !importFile || importBusy) return
+    setImportBusy(true)
+    setImportError('')
+    try {
+      const text = await importFile.text()
+      const response = await fetch(`/api/rooms/${room.id}/racks/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/csv; charset=utf-8' },
+        body: text,
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        const details = Array.isArray(payload?.errors) && payload.errors.length
+          ? payload.errors.map((item: { row: number; message: string }) => `第 ${item.row} 行：${item.message}`).join('；')
+          : ''
+        setImportError(details || payload?.error || '导入失败')
+        return
+      }
+      setImportOpen(false)
+      setImportFile(null)
+      setFeedback(`已导入 ${payload.created ?? 0} 个机柜`)
+      await reload()
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : '导入失败')
+    } finally {
+      setImportBusy(false)
+    }
   }
 
   function removeRack(value: Rack) {
@@ -504,6 +551,8 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                       )}
                     </div>
                     <div className="floor-toolbar-actions">
+                      {editable && <Button size="sm" variant="outline" onClick={() => { setImportOpen(true); setImportFile(null); setImportError('') }}><Upload />导入</Button>}
+                      <Button size="sm" variant="outline" disabled={!rackRows.length} onClick={exportRacks}><Download />导出</Button>
                       {editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
                     </div>
                   </div>
@@ -612,6 +661,27 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
               </div>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={importOpen} onOpenChange={open => { if (!open) { setImportOpen(false); setImportBusy(false) } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-center">导入机柜</DialogTitle>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={event => { event.preventDefault(); void submitImport() }}>
+            <p className="text-sm text-muted-foreground">
+              CSV 需包含「机柜编号」列，可选「区域/排」「高度（U）」；高度留空按 42U。导入到当前数据中心：{room?.name ?? '—'}
+            </p>
+            <Input
+              type="file" accept=".csv,text/csv"
+              onChange={event => setImportFile(event.target.files?.[0] ?? null)}
+            />
+            {importError && <div role="alert" className="text-sm text-destructive">{importError}</div>}
+            <div className="room-modal-actions flex flex-wrap gap-2">
+              <Button type="submit" disabled={importBusy || !importFile}>{importBusy ? '导入中…' : '导入'}</Button>
+              <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>取消</Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
       <Dialog open={!!rackDraft} onOpenChange={open => { if (!open) setRackDraft(null) }}>
