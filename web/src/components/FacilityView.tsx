@@ -484,15 +484,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
               </div>
               <Card className="floor-panel">
                 <CardContent>
-                  {rackDraft && <form className="facility-form rack-form flex flex-wrap items-end gap-3" onSubmit={event => { event.preventDefault(); saveRack() }}>
-                    <Field label="机柜编号"><Input value={rackDraft.name} placeholder="例如：A-01" maxLength={80} onChange={event => setRackDraft({ ...rackDraft, name: event.target.value })} /></Field>
-                    <Field label="区域 / 排"><Input value={rackDraft.zone} placeholder="例如：A 区" maxLength={40} onChange={event => setRackDraft({ ...rackDraft, zone: event.target.value })} /></Field>
-                    <Field label="高度（U）"><Input type="number" className="w-24" min={1} max={80} value={rackDraft.heightU} onChange={event => setRackDraft({ ...rackDraft, heightU: Number(event.target.value) || 1 })} /></Field>
-                    <Field label="列"><Input type="number" className="w-20" min={1} max={room.columns} value={rackDraft.column} onChange={event => setRackDraft({ ...rackDraft, column: Number(event.target.value) || 1 })} /></Field>
-                    <Field label="行"><Input type="number" className="w-20" min={1} max={room.rows} value={rackDraft.row} onChange={event => setRackDraft({ ...rackDraft, row: Number(event.target.value) || 1 })} /></Field>
-                    <Field label="朝向"><Choice label="朝向" value={rackDraft.rotation} onChange={rotation => setRackDraft({ ...rackDraft, rotation })} options={[{ value: 0, label: '向下' }, { value: 90, label: '向左' }, { value: 180, label: '向上' }, { value: 270, label: '向右' }]} /></Field>
-                    <div className="flex gap-2"><Button type="submit" disabled={busy}>保存机柜</Button><Button type="button" variant="outline" onClick={() => setRackDraft(null)}>取消</Button>{rackDraft.id && rack?.id === rackDraft.id && !devices.length && <ConfirmDelete title="删除该空机柜？" disabled={busy} onConfirm={() => removeRack(rack)}>删除空机柜</ConfirmDelete>}</div>
-                  </form>}
                   <div className="floor-toolbar">
                     <div className="floor-toolbar-search">
                       <Input type="search" className="w-[320px]" aria-label="搜索机柜名称" placeholder="搜索机柜名称…" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />
@@ -607,6 +598,25 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                 <Button type="submit" disabled={busy}>保存区域</Button>
                 <Button type="button" variant="outline" onClick={() => setRegionDraft(null)}>取消</Button>
                 {regionDraft.id && <ConfirmDelete title={`删除区域「${regionDraft.name}」？`} disabled={busy} onConfirm={() => removeRegion({ id: regionDraft.id!, name: regionDraft.name, version: regionDraft.version })}>删除区域</ConfirmDelete>}
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!rackDraft} onOpenChange={open => { if (!open) setRackDraft(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{rackDraft?.id ? '编辑机柜' : '新增机柜'}</DialogTitle>
+            <DialogDescription>机柜默认 42U，位置自动排到机房网格的空位；编号会在立面和列表里显示。</DialogDescription>
+          </DialogHeader>
+          {rackDraft && (
+            <form className="space-y-4" onSubmit={event => { event.preventDefault(); saveRack() }}>
+              <Field label="机柜编号"><Input required value={rackDraft.name} placeholder="例如：A-01" maxLength={80} onChange={event => setRackDraft({ ...rackDraft, name: event.target.value })} /></Field>
+              <Field label="区域 / 排"><Input value={rackDraft.zone} placeholder="例如：A 区" maxLength={40} onChange={event => setRackDraft({ ...rackDraft, zone: event.target.value })} /></Field>
+              <div className="room-modal-actions flex flex-wrap gap-2">
+                <Button type="submit" disabled={busy}>{rackDraft.id ? '保存机柜' : '新增机柜'}</Button>
+                <Button type="button" variant="outline" onClick={() => setRackDraft(null)}>取消</Button>
+                {rackDraft.id && rack?.id === rackDraft.id && !devices.length && <ConfirmDelete title="删除该空机柜？" disabled={busy} onConfirm={() => removeRack(rack)}>删除空机柜</ConfirmDelete>}
               </div>
             </form>
           )}
