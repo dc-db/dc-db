@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
-import { ChevronDown, ChevronRight, Download, Plus, RefreshCw, Star, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, Download, Plus, Star, Upload, X } from 'lucide-react'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
@@ -10,7 +10,7 @@ import { Progress } from './ui/progress'
 import { Textarea } from './ui/textarea'
 import { SearchableSelect } from './SearchableSelect'
 import { Select } from './AppControls'
-import { api, APIError } from '../api'
+import { api, apiCSV, APIError } from '../api'
 import { downloadCSV } from '../csv'
 import type { Subnet, SubnetFields, VLAN } from '../api'
 
@@ -138,6 +138,11 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
+  const [importOpen, setImportOpen] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importBusy, setImportBusy] = useState(false)
+  const importRef = useRef<HTMLInputElement>(null)
+  const [importError, setImportError] = useState('')
 
   const subnetTree = useMemo(() => buildSubnetTree(subnets), [subnets])
   const subnetRows = useMemo(() => flattenSubnetTree(subnetTree, collapsed), [subnetTree, collapsed])
@@ -255,6 +260,32 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
   }
 
 
+  function downloadSubnetTemplate() {
+    downloadCSV('dc-db-subnet-template.csv', [
+      ['网段名称', 'CIDR', '网关', 'VLAN', '状态', '用途', '备注'],
+      ['办公网', '192.0.2.0/24', '192.0.2.1', '100', '启用', '办公', '示例行，可删除'],
+    ])
+  }
+
+  async function importSubnets() {
+    if (!importFile) { setImportError('请选择 CSV 文件'); return }
+    setImportBusy(true)
+    setImportError('')
+    try {
+      const result = await apiCSV<{ imported: number }>('/subnets/import', importFile)
+      setImportOpen(false)
+      setImportFile(null)
+      await load()
+      setFeedback(`已导入 ${result.imported} 个网段`)
+      onChanged()
+    } catch (e) {
+      if (e instanceof APIError && e.status === 401) { onSessionError(e); return }
+      setImportError(e instanceof Error ? e.message : '导入失败')
+    } finally {
+      setImportBusy(false)
+    }
+  }
+
   const selectBaseClass = 'h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
   const selectClass = `${selectBaseClass} w-full`
   const labelClass = 'space-y-2 text-sm font-medium'
@@ -294,7 +325,7 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
         />
         <div className="ipam-toolbar-actions">
           <Button variant="outline" disabled={!subnetRows.length} onClick={exportSubnets}><Download />导出</Button>
-          <Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
+          {editable && <Button variant="outline" onClick={() => { setImportFile(null); setImportError(''); setImportOpen(true) }}><Upload />导入</Button>}
           {editable && <Button onClick={addSubnet}><Plus />新增网段</Button>}
         </div>
       </div>
@@ -335,6 +366,23 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
         </table>
       </div>
     </>}
-  </CardContent><Dialog open={!!deleting} onOpenChange={next => { if (!busy) setDeleting(next ? deleting : null) }}><DialogContent><DialogHeader><DialogTitle>确定删除该网段？</DialogTitle><DialogDescription>确认删除 {deleting?.name}。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (deleting) void deleteSubnet(deleting) }}>删除</Button></DialogFooter></DialogContent></Dialog>
+  </CardContent><Dialog open={importOpen} onOpenChange={next => { if (!importBusy) setImportOpen(next) }}><DialogContent>
+      <DialogHeader><DialogTitle>导入网段</DialogTitle><DialogDescription>CSV 表头：网段名称、CIDR、网关、VLAN、状态、用途、备注。</DialogDescription></DialogHeader>
+      {importError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{importError}</div>}
+      <div className="space-y-3">
+        <div className="import-picker">
+          <input
+            ref={importRef} type="file" accept=".csv,text/csv" hidden aria-label="选择 CSV 文件"
+            onChange={event => { setImportFile(event.target.files?.[0] ?? null); setImportError('') }}
+          />
+          <Button variant="outline" onClick={() => importRef.current?.click()}>{importFile ? '重新选择' : '选择 CSV 文件'}</Button>
+          {importFile && <span className="import-picker-name" title={importFile.name}>{importFile.name}</span>}
+        </div>
+        <p className="text-sm text-muted-foreground">单次最多 500 行，UTF-8 编码</p>
+        <Button type="button" variant="link" className="h-auto p-0" onClick={downloadSubnetTemplate}><Download />下载 CSV 模板</Button>
+      </div>
+      <DialogFooter><Button variant="outline" disabled={importBusy} onClick={() => setImportOpen(false)}>取消</Button><Button disabled={importBusy || !importFile} onClick={() => void importSubnets()}>{importBusy ? '正在导入…' : '导入'}</Button></DialogFooter>
+    </DialogContent></Dialog>
+    <Dialog open={!!deleting} onOpenChange={next => { if (!busy) setDeleting(next ? deleting : null) }}><DialogContent><DialogHeader><DialogTitle>确定删除该网段？</DialogTitle><DialogDescription>确认删除 {deleting?.name}。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (deleting) void deleteSubnet(deleting) }}>删除</Button></DialogFooter></DialogContent></Dialog>
   </Card>
 }

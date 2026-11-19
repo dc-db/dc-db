@@ -10,6 +10,7 @@ func (s *Server) registerIPAM(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/subnets", s.requireUser(true, s.saveSubnet))
 	mux.HandleFunc("PUT /api/subnets/{id}", s.requireUser(true, s.saveSubnet))
 	mux.HandleFunc("DELETE /api/subnets/{id}", s.requireUser(true, s.deleteSubnet))
+	mux.HandleFunc("POST /api/subnets/import", s.requireUser(true, s.importSubnets))
 	mux.HandleFunc("GET /api/subnets/{id}/addresses", s.requireUser(false, s.listSubnetAddresses))
 	mux.HandleFunc("GET /api/subnets/{id}/available-ips", s.requireUser(false, s.listAvailableIPs))
 	mux.HandleFunc("POST /api/subnets/{id}/allocations", s.requireUser(true, s.saveAllocation))
@@ -183,4 +184,13 @@ func (s *Server) deleteAllocation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) importSubnets(w http.ResponseWriter, r *http.Request) {
+	imported, err := ImportSubnets(r.Context(), s.db, r.Body, currentUser(r).Username)
+	if err != nil {
+		s.databaseError(w, err)
+		return
+	}
+	respond(w, http.StatusOK, map[string]int{"imported": imported})
 }
