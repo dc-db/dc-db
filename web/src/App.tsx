@@ -13,7 +13,7 @@ import {
   House as HomeOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
   FolderTree as FolderTreeOutlined, Boxes as BoxesOutlined, Blocks as BlocksOutlined,
-  Network as NetworkOutlined, Split as SplitOutlined, CircleDot as CircleDotOutlined,
+  Network as NetworkOutlined, Split as SplitOutlined, LocateFixed as LocateFixedOutlined,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
 import { downloadCSV } from './csv'
@@ -282,7 +282,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       children: [
         { key: 'subnets', label: '网段', icon: <NetworkOutlined /> },
         { key: 'vlans', label: 'VLAN', icon: <SplitOutlined /> },
-        { key: 'ips', label: 'IP', icon: <CircleDotOutlined /> },
+        { key: 'ips', label: 'IP', icon: <LocateFixedOutlined /> },
       ],
     },
     {
