@@ -11,7 +11,7 @@ html[data-theme="dark"] .control-alert.error { color:#ffb4a8; border-color:#7931
 .control-alert button,.control-input button { border:0; background:transparent; color:inherit; cursor:pointer; }
 .control-input { display:inline-flex; align-items:center; gap:5px; min-width:0; }
 .control-input>input { min-width:0; }
-.control-password { display:flex; align-items:center; gap:6px; }.control-password .control-input { flex:1; }.control-password>button { display:grid; place-items:center; border:0; background:transparent; color:var(--muted); cursor:pointer; }
+.control-password { position:relative; display:block; }.control-password .control-input { width:100%; }.control-password .control-input input { padding-right:36px; }.control-password>button { position:absolute; top:50%; right:8px; display:grid; place-items:center; width:24px; height:24px; padding:0; border:0; border-radius:4px; background:transparent; color:var(--muted); cursor:pointer; transform:translateY(-50%); }.control-password>button:hover { color:var(--text); }
 .control-empty { padding:24px; text-align:center; color:var(--muted); }
 .control-tag { display:inline-flex; align-items:center; padding:2px 8px; border:1px solid var(--line); border-radius:999px; background:var(--surface); color:var(--text); font-size:12px; white-space:nowrap; }
 .control-tag.blue { color:var(--info); border-color:var(--info-border); background:var(--info-soft); }
