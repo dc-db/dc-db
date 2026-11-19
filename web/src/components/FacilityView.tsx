@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Columns3, Download, List, MoreHorizontal, Pencil, Plus } from 'lucide-react'
+import { Download, MoreHorizontal, Pencil, Plus } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
@@ -498,9 +498,17 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                       <Input type="search" className="w-[320px]" aria-label="搜索机柜名称" placeholder="搜索机柜名称…" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />
                     </div>
                     <div className="floor-toolbar-actions">
-                      <div className="view-toggle">
-                        <Button variant={view === 'table' ? 'default' : 'outline'} size="sm" onClick={() => setView('table')}><List />查看列表</Button>
-                        <Button variant={view === 'elevations' ? 'default' : 'outline'} size="sm" onClick={() => setView('elevations')}><Columns3 />查看机柜立面图</Button>
+                      <div className="view-toggle view-switch" role="tablist" aria-label="机柜视图">
+                        <button
+                          type="button" role="tab" aria-selected={view === 'table'}
+                          className={view === 'table' ? 'is-active' : ''}
+                          onClick={() => setView('table')}
+                        >查看列表</button>
+                        <button
+                          type="button" role="tab" aria-selected={view === 'elevations'}
+                          className={view === 'elevations' ? 'is-active' : ''}
+                          onClick={() => setView('elevations')}
+                        >查看机柜立面图</button>
                       </div>
                       {editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
                     </div>
