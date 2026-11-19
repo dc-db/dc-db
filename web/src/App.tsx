@@ -244,6 +244,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     { key: 'changes', label: '变更记录', icon: <HistoryOutlined /> },
     { key: 'tags', label: '标签管理', icon: <TagsOutlined /> },
     { key: 'password', label: '更改密码', icon: <LockOutlined /> },
+    { key: 'guide', label: '使用指南', icon: <BookOpenOutlined /> },
   ]
   if (user?.role === 'admin') {
     systemChildren.splice(1, 0, { key: 'users', label: '用户管理', icon: <TeamOutlined /> })
@@ -254,7 +255,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     { key: 'host', label: '物理机', icon: <CloudServerOutlined /> },
     { key: 'vm', label: '虚拟机', icon: <DesktopOutlined /> },
     { key: 'ipam', label: 'IPAM', icon: <GlobalOutlined /> },
-    { key: 'guide', label: '使用指南', icon: <BookOpenOutlined /> },
     {
       key: 'system', label: '系统管理', icon: <SettingOutlined />,
       children: systemChildren,
