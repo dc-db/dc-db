@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Boxes, ChartPie, LayoutGrid, List, MoreHorizontal, Pencil, Plus, Server } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { Card, CardContent, CardHeader } from './ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu'
 import { Input } from './ui/input'
@@ -476,12 +476,13 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
           {!room ? <Card><CardContent className="p-6 text-center text-muted-foreground"><p>暂无数据中心</p>{editable && <Button onClick={() => editRoom()}>新增数据中心</Button>}</CardContent></Card> : (
             <div className="facility-workspace">
               <div className="dc-summary">
+                <h2 className="dc-title">{room.name}</h2>
                 <div className="dc-stat"><div className="dc-stat-icon racks"><Boxes size="1em" aria-hidden="true" /></div><div className="dc-stat-copy"><span>机柜数</span><strong>{racks.length}</strong><small>台机柜</small></div></div>
                 <div className="dc-stat"><div className="dc-stat-icon devices"><Server size="1em" aria-hidden="true" /></div><div className="dc-stat-copy"><span>设备数</span><strong>{roomPlacements.length}</strong><small>台设备</small></div></div>
                 <div className="dc-stat dc-stat-usage"><div className="dc-stat-icon usage"><ChartPie size="1em" aria-hidden="true" /></div><div className="dc-stat-copy"><span>利用率</span><strong>{roomUtilization}%</strong><small>已用 {usedRoomU}U · 空闲 {Math.max(0, totalRoomU - usedRoomU)}U</small><Progress value={roomUtilization} aria-label="数据中心利用率" /></div></div>
               </div>
               <Card className="floor-panel">
-                <CardHeader className="flex flex-row items-center justify-between"><CardTitle>{room.name}</CardTitle><div className="flex gap-2">{editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}</div></CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between"><div className="flex gap-2">{editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}</div></CardHeader>
                 <CardContent>
                   {rackDraft && <form className="facility-form rack-form flex flex-wrap items-end gap-3" onSubmit={event => { event.preventDefault(); saveRack() }}>
                     <Field label="机柜编号"><Input value={rackDraft.name} placeholder="例如：A-01" maxLength={80} onChange={event => setRackDraft({ ...rackDraft, name: event.target.value })} /></Field>
