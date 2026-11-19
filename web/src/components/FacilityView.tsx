@@ -503,12 +503,12 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                           type="button" role="tab" aria-selected={view === 'table'}
                           className={view === 'table' ? 'is-active' : ''}
                           onClick={() => setView('table')}
-                        >查看列表</button>
+                        >列表</button>
                         <button
                           type="button" role="tab" aria-selected={view === 'elevations'}
                           className={view === 'elevations' ? 'is-active' : ''}
                           onClick={() => setView('elevations')}
-                        >查看机柜立面图</button>
+                        >立面图</button>
                       </div>
                       {editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
                     </div>
