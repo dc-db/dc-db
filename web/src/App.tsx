@@ -13,7 +13,7 @@ import {
   House as HomeOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
   FolderTree as FolderTreeOutlined, Boxes as BoxesOutlined, Blocks as BlocksOutlined,
-  Network as NetworkOutlined, Cable as CableOutlined,
+  Network as NetworkOutlined, Layers as LayersOutlined, Hash as HashOutlined,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
 import { downloadCSV } from './csv'
@@ -280,9 +280,9 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     {
       key: 'ipam', label: 'IPAM', icon: <GlobalOutlined />,
       children: [
-        { key: 'subnets', label: '网段', icon: <GlobalOutlined /> },
-        { key: 'vlans', label: 'VLAN', icon: <NetworkOutlined /> },
-        { key: 'ips', label: 'IP', icon: <CableOutlined /> },
+        { key: 'subnets', label: '网段', icon: <NetworkOutlined /> },
+        { key: 'vlans', label: 'VLAN', icon: <LayersOutlined /> },
+        { key: 'ips', label: 'IP', icon: <HashOutlined /> },
       ],
     },
     {
