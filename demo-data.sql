@@ -54,6 +54,21 @@ SELECT v.* FROM (
     UNION ALL SELECT 3, '网络', '#fa8c16', '虚构网络设备'
 ) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
+INSERT INTO asset_groups (id, name, description)
+SELECT v.* FROM (
+    SELECT 1::bigint, '核心业务'::text, '交易与支付系统'::text
+    UNION ALL SELECT 2, '数据平台', '报表与分析'
+    UNION ALL SELECT 3, '研发测试', '测试与预发环境'
+) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+
+-- 网络设备不归属项目，其余按用途分组。
+UPDATE assets SET group_id = CASE id
+    WHEN 3 THEN 1 WHEN 4 THEN 1 WHEN 5 THEN 1
+    WHEN 1 THEN 2 WHEN 2 THEN 2
+    WHEN 9 THEN 3 WHEN 10 THEN 3 WHEN 12 THEN 3 WHEN 14 THEN 3 WHEN 15 THEN 3
+    ELSE NULL END
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+
 INSERT INTO asset_tags (asset_id, tag_id)
 SELECT v.* FROM (
     SELECT 1::bigint, 1::bigint UNION ALL SELECT 2, 1 UNION ALL SELECT 3, 1 UNION ALL SELECT 4, 1 UNION ALL SELECT 5, 1 UNION ALL SELECT 6, 1
@@ -156,6 +171,7 @@ WHERE a.asset_id = 7 AND a.name = 'Gi0/1' AND b.asset_id = 2 AND b.name = 'eth0'
 SELECT setval(pg_get_serial_sequence('assets', 'id'), (SELECT max(id) FROM assets));
 SELECT setval(pg_get_serial_sequence('regions', 'id'), (SELECT max(id) FROM regions));
 SELECT setval(pg_get_serial_sequence('tags', 'id'), (SELECT max(id) FROM tags));
+SELECT setval(pg_get_serial_sequence('asset_groups', 'id'), (SELECT max(id) FROM asset_groups));
 SELECT setval(pg_get_serial_sequence('rooms', 'id'), (SELECT max(id) FROM rooms));
 SELECT setval(pg_get_serial_sequence('racks', 'id'), (SELECT max(id) FROM racks));
 SELECT setval(pg_get_serial_sequence('vlans', 'id'), (SELECT max(id) FROM vlans));
