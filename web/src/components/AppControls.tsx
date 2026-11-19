@@ -146,7 +146,7 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, p
     const sorted = header.column.getIsSorted()
     if (!header.column.getCanSort()) return flexRender(header.column.columnDef.header, header.getContext())
     return (
-      <button type="button" onClick={header.column.getToggleSortingHandler()}>
+      <button type="button" className="control-sort-button" onClick={header.column.getToggleSortingHandler()}>
         {flexRender(header.column.columnDef.header, header.getContext())}{' '}
         <span className="control-sort-icon" aria-hidden>{sorted === 'asc' ? <ArrowUp size={12} /> : sorted === 'desc' ? <ArrowDown size={12} /> : <ChevronsUpDown size={12} />}</span>
       </button>
