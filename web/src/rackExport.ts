@@ -59,14 +59,20 @@ export function rackElevationSvg(
   const padTop = minimal ? 10 : PAD_TOP
   const padBottom = minimal ? 10 : PAD_BOTTOM
   const visible = devices.filter(device => device.depth === 'full' || device.face === face)
-  const height = padTop + rack.heightU * UNIT + padBottom
+  const unit = minimal ? 16 : UNIT
+  const height = padTop + rack.heightU * unit + padBottom
   const frameX = minimal ? 30 : FRAME_X
   const frameW = minimal ? 210 : FRAME_W
   const width = frameX + frameW + (minimal ? 6 : RIGHT)
   const body: string[] = []
 
-  body.push(`<rect x="0" y="0" width="${width}" height="${height}" fill="#ffffff"/>`)
+  const frameFill = minimal ? 'rgba(127,127,127,0.12)' : '#f5f5f5'
+  const frameStroke = minimal ? 'var(--line)' : '#d4d4d4'
+  const lineStroke = minimal ? 'var(--line)' : '#e5e5e5'
+  const labelFill = minimal ? 'var(--muted)' : '#9ca3af'
+
   if (!minimal) {
+    body.push(`<rect x="0" y="0" width="${width}" height="${height}" fill="#ffffff"/>`)
     body.push(`<text x="${frameX}" y="30" font-size="17" font-weight="600" fill="#111827">${esc(rack.name)}</text>`)
     body.push(
       `<text x="${frameX}" y="48" font-size="11" fill="#6b7280">${face === 'rear' ? '后视图' : '前视图'}` +
@@ -76,22 +82,22 @@ export function rackElevationSvg(
 
   // U scale and unit separators.
   const frameTop = padTop
-  const frameHeight = rack.heightU * UNIT
-  body.push(`<rect x="${frameX}" y="${frameTop}" width="${frameW}" height="${frameHeight}" fill="#f5f5f5" stroke="#d4d4d4"/>`)
+  const frameHeight = rack.heightU * unit
+  body.push(`<rect x="${frameX}" y="${frameTop}" width="${frameW}" height="${frameHeight}" fill="${frameFill}" stroke="${frameStroke}"/>`)
   for (let index = 0; index < rack.heightU; index++) {
-    const y = frameTop + index * UNIT
-    body.push(`<line x1="${frameX}" y1="${y}" x2="${frameX + frameW}" y2="${y}" stroke="#e5e5e5"/>`)
+    const y = frameTop + index * unit
+    body.push(`<line x1="${frameX}" y1="${y}" x2="${frameX + frameW}" y2="${y}" stroke="${lineStroke}"/>`)
     const unitNumber = rack.heightU - index
     body.push(
-      `<text x="${frameX - 8}" y="${y + UNIT / 2 + 4}" font-size="9" fill="#9ca3af" text-anchor="end">U${unitNumber}</text>`,
+      `<text x="${frameX - 8}" y="${y + unit / 2 + 4}" font-size="9" fill="${labelFill}" text-anchor="end">U${unitNumber}</text>`,
     )
   }
 
   for (const device of visible) {
     const asset = assets.get(device.assetId)
     const style = kindStyle(asset?.kind ?? 'host')
-    const top = frameTop + (rack.heightU - (device.startU + device.units - 1)) * UNIT
-    const blockHeight = Math.max(UNIT - 3, device.units * UNIT - 3)
+    const top = frameTop + (rack.heightU - (device.startU + device.units - 1)) * unit
+    const blockHeight = Math.max(unit - 3, device.units * unit - 3)
     const label = asset?.name ?? `资产 #${device.assetId}`
     const fontSize = blockHeight >= 34 ? 12 : 10
     const textY = top + blockHeight / 2 + fontSize / 3
