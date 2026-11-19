@@ -105,7 +105,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   const rooms = layout.rooms
   const activeRoomId = roomId ?? rooms[0]?.id ?? null
   const room = rooms.find(item => item.id === activeRoomId)
-  const roomRegion = layout.regions.find(item => item.id === room?.regionId)
   const sortedRooms = useMemo(() => rooms.slice().sort((left, right) => left.name.localeCompare(right.name, 'zh-CN')), [rooms])
   const filteredRooms = roomSearch.trim()
     ? sortedRooms.filter(item => item.name.toLowerCase().includes(roomSearch.trim().toLowerCase()))
@@ -478,7 +477,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
             <div className="facility-workspace">
               <div className="dc-summary">
                 <div className="dc-heading">
-                  <span className="dc-heading-meta">{roomRegion ? `${roomRegion.name} · ` : ''}{racks.length} 个机柜 · {roomPlacements.length} 台设备</span>
                   <h2 className="dc-title">{room.name}</h2>
                 </div>
                 <div className="dc-stat"><div className="dc-stat-icon racks"><Boxes size="1em" aria-hidden="true" /></div><div className="dc-stat-copy"><span>机柜数</span><strong>{racks.length}</strong><small>台机柜</small></div></div>
