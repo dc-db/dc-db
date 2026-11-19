@@ -184,6 +184,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [subnets, setSubnets] = useState<Subnet[]>([])
 
   const [keyword, setKeyword] = useState('')
+  const [kindFilter, setKindFilter] = useState<Kind | undefined>(undefined)
   const [platformFilter, setPlatformFilter] = useState<string | undefined>()
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const [tagFilter, setTagFilter] = useState<number[]>([])
@@ -306,6 +307,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
     const query = keyword.trim().toLowerCase()
     return scoped.filter(asset => {
+      if (kindFilter && asset.kind !== kindFilter) return false
       if (platformFilter && asset.platform !== platformFilter) return false
       if (statusFilter && asset.status !== statusFilter) return false
       if (tagFilter.length) {
@@ -318,7 +320,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       return !query || [asset.name, asset.address, asset.owner, asset.environment, ...(asset.tags?.map(tag => tag.name) ?? []), ...(vmRelations.get(asset.id) ?? [])]
         .some(value => value?.toLowerCase().includes(query))
     })
-  }, [scoped, platformFilter, statusFilter, tagFilter, tagFilterMode, keyword, vmRelations])
+  }, [scoped, kindFilter, platformFilter, statusFilter, tagFilter, tagFilterMode, keyword, vmRelations])
 
   const relationOptions = useMemo(() => {
     if (!selected) return []
@@ -355,7 +357,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   useEffect(() => {
     setPagination(1)
-  }, [keyword, platformFilter, page])
+  }, [keyword, kindFilter, platformFilter, page])
 
   useEffect(() => {
     try {
@@ -384,7 +386,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   useEffect(() => {
     setSelectedAssetIds([])
-  }, [page, keyword, platformFilter, statusFilter, tagFilter, tagFilterMode])
+  }, [page, keyword, kindFilter, platformFilter, statusFilter, tagFilter, tagFilterMode])
 
   useEffect(() => {
     if (!assetPage) return
@@ -536,6 +538,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     if (next !== 'facilities') setFacilityRackId(null)
     if (window.innerWidth < 992) setCollapsed(true)
     setKeyword('')
+    setKindFilter(undefined)
     setPlatformFilter(undefined)
     setStatusFilter(undefined)
     setTagFilter([])
@@ -546,6 +549,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   function clearFilters() {
     setKeyword('')
+    setKindFilter(undefined)
     setPlatformFilter(undefined)
     setStatusFilter(undefined)
     setTagFilter([])
@@ -1263,6 +1267,13 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             <Card variant="borderless">
               <div className="table-toolbar">
                 <Space wrap>
+                  {page === 'host' && (
+                    <Select
+                      style={{ width: 120 }} allowClear searchable={false} placeholder="全部类型" value={kindFilter}
+                      onChange={setKindFilter}
+                      options={[{ value: 'host', label: '物理机' }, { value: 'switch', label: '交换机' }]}
+                    />
+                  )}
                   <Select
                     style={{ width: 145 }} allowClear searchable={false} placeholder="全部平台" value={platformFilter}
                     onChange={setPlatformFilter}
