@@ -105,6 +105,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   const rooms = layout.rooms
   const activeRoomId = roomId ?? rooms[0]?.id ?? null
   const room = rooms.find(item => item.id === activeRoomId)
+  const roomRegion = layout.regions.find(item => item.id === room?.regionId)
   const sortedRooms = useMemo(() => rooms.slice().sort((left, right) => left.name.localeCompare(right.name, 'zh-CN')), [rooms])
   const filteredRooms = roomSearch.trim()
     ? sortedRooms.filter(item => item.name.toLowerCase().includes(roomSearch.trim().toLowerCase()))
@@ -476,7 +477,10 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
           {!room ? <Card><CardContent className="p-6 text-center text-muted-foreground"><p>暂无数据中心</p>{editable && <Button onClick={() => editRoom()}>新增数据中心</Button>}</CardContent></Card> : (
             <div className="facility-workspace">
               <div className="dc-summary">
-                <h2 className="dc-title">{room.name}</h2>
+                <div className="dc-heading">
+                  <span className="dc-heading-meta">{roomRegion ? `${roomRegion.name} · ` : ''}{racks.length} 个机柜 · {roomPlacements.length} 台设备</span>
+                  <h2 className="dc-title">{room.name}</h2>
+                </div>
                 <div className="dc-stat"><div className="dc-stat-icon racks"><Boxes size="1em" aria-hidden="true" /></div><div className="dc-stat-copy"><span>机柜数</span><strong>{racks.length}</strong><small>台机柜</small></div></div>
                 <div className="dc-stat"><div className="dc-stat-icon devices"><Server size="1em" aria-hidden="true" /></div><div className="dc-stat-copy"><span>设备数</span><strong>{roomPlacements.length}</strong><small>台设备</small></div></div>
                 <div className="dc-stat dc-stat-usage"><div className="dc-stat-icon usage"><ChartPie size="1em" aria-hidden="true" /></div><div className="dc-stat-copy"><span>利用率</span><strong>{roomUtilization}%</strong><small>已用 {usedRoomU}U · 空闲 {Math.max(0, totalRoomU - usedRoomU)}U</small><Progress value={roomUtilization} aria-label="数据中心利用率" /></div></div>
