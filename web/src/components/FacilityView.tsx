@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Building2, Boxes, ChartPie, LayoutGrid, List, MoreHorizontal, Pencil, Plus, Server } from 'lucide-react'
+import { Boxes, ChartPie, LayoutGrid, List, MoreHorizontal, Pencil, Plus, Server } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
@@ -442,7 +442,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
       <div className="facility-layout" style={{ gridTemplateColumns: `${treeWidth}px 6px minmax(0, 1fr)` }}>
         <aside className="facility-sidebar">
           <div className="facility-sidebar-head">
-            <div className="facility-sidebar-title"><Building2 size="1em" aria-hidden="true" /><strong>数据中心</strong><span>{rooms.length}</span></div>
+            <div className="facility-sidebar-title"><strong>数据中心</strong></div>
             {editable && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="数据中心操作"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => editRegion()}><Plus />新增区域</DropdownMenuItem><DropdownMenuItem onSelect={() => editRoom()}><Plus />新增数据中心</DropdownMenuItem><DropdownMenuItem disabled={!room} onSelect={() => { if (room) editRoom(room) }}><Pencil />编辑当前数据中心</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
           </div>
           <Input type="search" placeholder="搜索数据中心" aria-label="搜索数据中心" value={roomSearch} onChange={event => setRoomSearch(event.target.value)} />
@@ -452,7 +452,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                 {group.region && (
                   <div className="facility-tree-region">
                     <span className="facility-tree-region-name">{group.region.name}</span>
-                    <span className="facility-tree-count">{group.rooms.length}</span>
                     {editable && (
                       <button type="button" className="facility-tree-region-action" aria-label={`编辑区域 ${group.region.name}`} onClick={() => editRegion(group.region)}>
                         <Pencil size={12} aria-hidden="true" />
@@ -460,10 +459,9 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                     )}
                   </div>
                 )}
-                {group.rooms.map(item => {
-                  const count = layout.racks.filter(rack => rack.roomId === item.id).length
-                  return <button key={item.id} type="button" className={`facility-tree-item${item.id === activeRoomId ? ' active' : ''}`} title={`${item.name} · ${count} 台机柜`} onClick={() => selectRoom(item.id)}><Boxes size="1em" aria-hidden="true" /><span className="facility-tree-name">{item.name}</span><span className="facility-tree-count">{count}</span></button>
-                })}
+                {group.rooms.map(item => (
+                  <button key={item.id} type="button" className={`facility-tree-item${item.id === activeRoomId ? ' active' : ''}`} title={item.name} onClick={() => selectRoom(item.id)}><span className="facility-tree-name">{item.name}</span></button>
+                ))}
               </div>
             ))}
             {!filteredRooms.length && <div className="facility-tree-empty">暂无匹配的数据中心</div>}
