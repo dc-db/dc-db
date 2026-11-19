@@ -195,6 +195,14 @@ a { color: var(--info); }
 .facility-tree-region-action:hover { background: var(--subtle); color: var(--text); }
 
 /* Rack table view. */
+.rack-board { display: flex; gap: 14px; align-items: flex-start; overflow-x: auto; padding: 6px 0 10px; }
+.rack-board-item { display: flex; flex-direction: column; gap: 8px; flex: 0 0 196px; width: 196px; }
+.rack-board-head { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.rack-board-zone { padding: 1px 6px; border-radius: 4px; background: var(--subtle); color: var(--muted); font-size: 11px; }
+.rack-board-u { margin-left: auto; color: var(--muted); font-size: 11px; }
+.rack-board-figure { overflow: hidden; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; }
+.rack-board-figure:hover { border-color: var(--muted); }
+.rack-board-figure svg { display: block; width: 100%; height: auto; }
 .facility-table-wrap { overflow-x: auto; }
 .facility-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .facility-table th { padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; font-weight: 500; text-align: left; white-space: nowrap; }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Boxes, LayoutGrid, List, MoreHorizontal, Pencil, Plus } from 'lucide-react'
+import { Boxes, Columns3, LayoutGrid, List, MoreHorizontal, Pencil, Plus } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
@@ -14,6 +14,7 @@ import type { Asset, Link } from '../api'
 import { assetLocations, isMountKind, locationLabel, mountKinds, occupiedUnits, placementsConflict } from '../facilities'
 import type { AssetLocation, Facilities, MountKind, Placement, PlacementDepth, Rack, RackFace, RackFields, Region, Room, RoomFields } from '../facilities'
 import { RackCardGrid } from './RackCardGrid'
+import { downloadRackSvg, rackElevationSvg } from '../rackExport'
 import { RackDetailDrawer } from './RackDetailDrawer'
 import { RoomScene } from './RoomScene'
 
@@ -65,7 +66,7 @@ function ConfirmDelete({ title, disabled, onConfirm, children }: { title: string
 export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, layout, assets, links, editable, dark, focus, reload, onOpenAsset, bookmarkedRacks, onToggleRackBookmark, onSessionError }: Props) {
   const [rackId, setRackId] = useState<number | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
-  const [view, setView] = useState<'cards' | 'table' | '3d'>('cards')
+  const [view, setView] = useState<'cards' | 'table' | 'elevations' | '3d'>('cards')
   const [roomDraft, setRoomDraft] = useState<RoomDraft | null>(null)
   const [regionDraft, setRegionDraft] = useState<{ id?: number; version: number; name: string } | null>(null)
   const [rackDraft, setRackDraft] = useState<RackDraft | null>(null)
@@ -503,6 +504,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                       <div className="view-toggle">
                         <Button variant={view === 'cards' ? 'default' : 'outline'} size="icon-sm" aria-label="机柜视图" title="机柜视图" onClick={() => setView('cards')}><LayoutGrid /></Button>
                         <Button variant={view === 'table' ? 'default' : 'outline'} size="icon-sm" aria-label="表格" title="表格" onClick={() => setView('table')}><List /></Button>
+                        <Button variant={view === 'elevations' ? 'default' : 'outline'} size="icon-sm" aria-label="立面图" title="立面图" onClick={() => setView('elevations')}><Columns3 /></Button>
                         <Button variant={view === '3d' ? 'default' : 'outline'} size="icon-sm" aria-label="3D 总览" title="3D 总览" onClick={() => setView('3d')}><Boxes /></Button>
                       </div>
                       {editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
@@ -535,6 +537,29 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                           {!rackRows.length && <tr><td colSpan={8} className="facility-table-empty">{rackKeyword ? '没有匹配的机柜' : '还没有机柜，点右上角「新增机柜」开始'}</td></tr>}
                         </tbody>
                       </table>
+                    </div>
+                  ) : view === 'elevations' ? (
+                    <div className="rack-board">
+                      {rackRows.map(item => {
+                        const placements = roomPlacements.filter(entry => entry.rackId === item.id)
+                        const preview = rackElevationSvg(item, placements, byId, 'front', { minimal: true })
+                        return (
+                          <div key={item.id} className="rack-board-item">
+                            <div className="rack-board-head">
+                              <strong>{item.name}</strong>
+                              {item.zone && <span className="rack-board-zone">{item.zone}</span>}
+                              <span className="rack-board-u">{item.heightU}U</span>
+                            </div>
+                            <button
+                              type="button" className="rack-board-figure" aria-label={`打开 ${item.name}`}
+                              onClick={() => openRack(item.id)}
+                              dangerouslySetInnerHTML={{ __html: preview.svg }}
+                            />
+                            <Button size="sm" variant="outline" onClick={() => downloadRackSvg(rackElevationSvg(item, placements, byId, 'front'))}>下载 SVG</Button>
+                          </div>
+                        )
+                      })}
+                      {!rackRows.length && <p className="muted">当前数据中心还没有机柜</p>}
                     </div>
                   ) : <RoomScene room={room} racks={racks} placements={roomPlacements} assets={byId} selectedRack={rackId} selectedAsset={focused} dark={dark} onRack={openRack} onDevice={openSceneDevice} />}
                 </CardContent>

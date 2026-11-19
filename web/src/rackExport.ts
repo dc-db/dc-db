@@ -53,29 +53,37 @@ export function rackElevationSvg(
   devices: Placement[],
   assets: Map<number, Asset>,
   face: RackFace,
+  options: { minimal?: boolean } = {},
 ): RackSvg {
+  const minimal = options.minimal === true
+  const padTop = minimal ? 10 : PAD_TOP
+  const padBottom = minimal ? 10 : PAD_BOTTOM
   const visible = devices.filter(device => device.depth === 'full' || device.face === face)
-  const height = PAD_TOP + rack.heightU * UNIT + PAD_BOTTOM
-  const width = FRAME_X + FRAME_W + RIGHT
+  const height = padTop + rack.heightU * UNIT + padBottom
+  const frameX = minimal ? 30 : FRAME_X
+  const frameW = minimal ? 210 : FRAME_W
+  const width = frameX + frameW + (minimal ? 6 : RIGHT)
   const body: string[] = []
 
   body.push(`<rect x="0" y="0" width="${width}" height="${height}" fill="#ffffff"/>`)
-  body.push(`<text x="${FRAME_X}" y="30" font-size="17" font-weight="600" fill="#111827">${esc(rack.name)}</text>`)
-  body.push(
-    `<text x="${FRAME_X}" y="48" font-size="11" fill="#6b7280">${face === 'rear' ? '后视图' : '前视图'}` +
-    ` · ${rack.heightU}U · ${visible.length} 台设备 · 已占用 ${occupiedUnits(visible).size}U</text>`,
-  )
+  if (!minimal) {
+    body.push(`<text x="${frameX}" y="30" font-size="17" font-weight="600" fill="#111827">${esc(rack.name)}</text>`)
+    body.push(
+      `<text x="${frameX}" y="48" font-size="11" fill="#6b7280">${face === 'rear' ? '后视图' : '前视图'}` +
+      ` · ${rack.heightU}U · ${visible.length} 台设备 · 已占用 ${occupiedUnits(visible).size}U</text>`,
+    )
+  }
 
   // U scale and unit separators.
-  const frameTop = PAD_TOP
+  const frameTop = padTop
   const frameHeight = rack.heightU * UNIT
-  body.push(`<rect x="${FRAME_X}" y="${frameTop}" width="${FRAME_W}" height="${frameHeight}" fill="#f5f5f5" stroke="#d4d4d4"/>`)
+  body.push(`<rect x="${frameX}" y="${frameTop}" width="${frameW}" height="${frameHeight}" fill="#f5f5f5" stroke="#d4d4d4"/>`)
   for (let index = 0; index < rack.heightU; index++) {
     const y = frameTop + index * UNIT
-    body.push(`<line x1="${FRAME_X}" y1="${y}" x2="${FRAME_X + FRAME_W}" y2="${y}" stroke="#e5e5e5"/>`)
+    body.push(`<line x1="${frameX}" y1="${y}" x2="${frameX + frameW}" y2="${y}" stroke="#e5e5e5"/>`)
     const unitNumber = rack.heightU - index
     body.push(
-      `<text x="${FRAME_X - 8}" y="${y + UNIT / 2 + 4}" font-size="9" fill="#9ca3af" text-anchor="end">U${unitNumber}</text>`,
+      `<text x="${frameX - 8}" y="${y + UNIT / 2 + 4}" font-size="9" fill="#9ca3af" text-anchor="end">U${unitNumber}</text>`,
     )
   }
 
@@ -90,21 +98,26 @@ export function rackElevationSvg(
 
     body.push(
       `<g><title>${esc(`${label} · ${uRange(device)} · ${placementFaceLabel(device)}`)}</title>` +
-      `<rect x="${FRAME_X + 4}" y="${top}" width="${FRAME_W - 8}" height="${blockHeight}" rx="2"` +
+      `<rect x="${frameX + 4}" y="${top}" width="${frameW - 8}" height="${blockHeight}" rx="2"` +
       ` fill="${style.fill}" stroke="${style.stroke}"/>` +
-      `<text x="${FRAME_X + 12}" y="${textY}" font-size="${fontSize}" fill="${style.text}">` +
-      `${esc(fit(label, FRAME_W - 90, fontSize))}</text>` +
-      `<text x="${FRAME_X + FRAME_W - 12}" y="${textY}" font-size="9" fill="${style.text}" text-anchor="end" opacity="0.9">` +
+      `<text x="${frameX + 12}" y="${textY}" font-size="${fontSize}" fill="${style.text}">` +
+      `${esc(fit(label, frameW - 90, fontSize))}</text>` +
+      `<text x="${frameX + frameW - 12}" y="${textY}" font-size="9" fill="${style.text}" text-anchor="end" opacity="0.9">` +
       `${esc(uRange(device))}</text></g>`,
     )
     if (asset?.status === 'offline' || asset?.status === 'stopped') {
-      body.push(`<circle cx="${FRAME_X + 12}" cy="${top + 8}" r="3" fill="#ffffff" opacity="0.75"/>`)
+      body.push(`<circle cx="${frameX + 12}" cy="${top + 8}" r="3" fill="#ffffff" opacity="0.75"/>`)
     }
+  }
+
+  if (minimal) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="-apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif">${body.join('')}</svg>`
+    return { svg, width, height, filename: `${rack.name}-${face === 'rear' ? '后视图' : '前视图'}` }
   }
 
   // Legend.
   const legendY = height - 34
-  let legendX = FRAME_X
+  let legendX = frameX
   for (const style of Object.values(KIND)) {
     body.push(`<rect x="${legendX}" y="${legendY}" width="12" height="12" rx="2" fill="${style.fill}" stroke="${style.stroke}"/>`)
     body.push(`<text x="${legendX + 18}" y="${legendY + 10}" font-size="11" fill="#6b7280">${style.label}</text>`)
