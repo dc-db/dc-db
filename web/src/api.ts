@@ -1,5 +1,27 @@
 export type Kind = 'host' | 'vm' | 'switch'
 export type LinkKind = 'hosts'
+export type InterfaceMedium = 'copper' | 'fiber' | 'virtual'
+export type InterfaceStatus = 'up' | 'down' | 'disabled'
+
+export interface InterfaceFields {
+  name: string
+  medium: InterfaceMedium
+  speedMbps: number
+  mac: string
+  status: InterfaceStatus
+  description: string
+}
+
+export interface NetworkInterface extends InterfaceFields {
+  id: number
+  assetId: number
+  version: number
+  updatedAt: string
+  peerId?: number
+  peerAssetId?: number
+  peerAssetName?: string
+  peerName?: string
+}
 
 export interface AssetFields {
   kind: Kind

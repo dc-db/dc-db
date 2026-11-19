@@ -172,6 +172,13 @@ a { color: var(--info); }
 .first-run-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 22px 0 14px; }
 .first-run-hint { color: var(--muted); font-size: 12px; }
 
+/* Asset interfaces tab. */
+.asset-interfaces { display: flex; flex-direction: column; gap: 12px; }
+.asset-interfaces-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.asset-interfaces-head .muted { font-size: 12px; }
+.interface-form { display: grid; gap: 12px; }
+.interface-form label { display: grid; gap: 6px; color: var(--text); font-size: 13px; }
+
 /* Row flash after a successful save. */
 .control-table tbody tr.row-highlight > td { background: var(--info-soft); transition: background-color .6s ease; }
 

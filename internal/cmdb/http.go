@@ -63,6 +63,7 @@ func NewServer(db *sql.DB, secureCookie bool, frontend http.Handler) http.Handle
 	mux.HandleFunc("GET /api/changes", s.requireUser(false, s.listChanges))
 	s.registerFacilities(mux)
 	s.registerIPAM(mux)
+	s.registerInterfaces(mux)
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusNotFound, "接口不存在")
 	})

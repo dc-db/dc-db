@@ -1,0 +1,264 @@
+import { useCallback, useEffect, useState } from 'react'
+import type { ChangeEvent } from 'react'
+import { Link2, Pencil, Plus, Trash2, Unlink } from 'lucide-react'
+import { api } from '../api'
+import type { Asset, InterfaceFields, NetworkInterface } from '../api'
+import { Alert, Button, Input, Modal, Select, Space, Table, Tag } from './AppControls'
+
+interface Props {
+  assetId: number
+  assets: Asset[]
+  editable: boolean
+}
+
+const mediumOptions = [
+  { value: 'copper', label: '电口' },
+  { value: 'fiber', label: '光口' },
+  { value: 'virtual', label: '虚拟' },
+]
+
+const statusOptions = [
+  { value: 'up', label: '启用' },
+  { value: 'down', label: '停用' },
+  { value: 'disabled', label: '禁用' },
+]
+
+const emptyFields: InterfaceFields = {
+  name: '', medium: 'copper', speedMbps: 1000, mac: '', status: 'up', description: '',
+}
+
+function message(e: unknown, fallback: string) {
+  return e instanceof Error && e.message ? e.message : fallback
+}
+
+function speedLabel(mbps: number) {
+  if (!mbps) return '—'
+  return mbps >= 1000 ? `${Number((mbps / 1000).toFixed(1))} Gbps` : `${mbps} Mbps`
+}
+
+function statusColor(status: string) {
+  return status === 'up' ? 'green' : status === 'disabled' ? 'red' : 'orange'
+}
+
+export function AssetInterfaces({ assetId, assets, editable }: Props) {
+  const [items, setItems] = useState<NetworkInterface[]>([])
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [draft, setDraft] = useState<{ id: number; version: number; fields: InterfaceFields } | null>(null)
+  const [connecting, setConnecting] = useState<NetworkInterface | null>(null)
+  const [peerAssetId, setPeerAssetId] = useState<number | null>(null)
+  const [peerItems, setPeerItems] = useState<NetworkInterface[]>([])
+  const [peerId, setPeerId] = useState<number | null>(null)
+
+  const load = useCallback(async () => {
+    setError('')
+    try {
+      setItems(await api<NetworkInterface[]>(`/assets/${assetId}/interfaces`))
+    } catch (e) {
+      setError(message(e, '接口加载失败'))
+    }
+  }, [assetId])
+
+  useEffect(() => { void load() }, [load])
+
+  function startCreate() {
+    setDraft({ id: 0, version: 0, fields: { ...emptyFields } })
+  }
+
+  function startEdit(item: NetworkInterface) {
+    setDraft({
+      id: item.id,
+      version: item.version,
+      fields: {
+        name: item.name, medium: item.medium, speedMbps: item.speedMbps,
+        mac: item.mac, status: item.status, description: item.description,
+      },
+    })
+  }
+
+  function update<K extends keyof InterfaceFields>(key: K, value: InterfaceFields[K]) {
+    setDraft(current => current && { ...current, fields: { ...current.fields, [key]: value } })
+  }
+
+  async function save() {
+    if (!draft) return
+    setBusy(true)
+    setError('')
+    try {
+      if (draft.id) {
+        await api(`/assets/${assetId}/interfaces/${draft.id}`, 'PUT', { ...draft.fields, version: draft.version })
+      } else {
+        await api(`/assets/${assetId}/interfaces`, 'POST', draft.fields)
+      }
+      setDraft(null)
+      await load()
+    } catch (e) {
+      setError(message(e, '保存失败'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove(item: NetworkInterface) {
+    if (!window.confirm(`删除接口「${item.name}」？`)) return
+    setBusy(true)
+    setError('')
+    try {
+      await api(`/assets/${assetId}/interfaces/${item.id}`, 'DELETE')
+      await load()
+    } catch (e) {
+      setError(message(e, '删除失败'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function openConnect(item: NetworkInterface) {
+    setConnecting(item)
+    setPeerAssetId(null)
+    setPeerId(null)
+    setPeerItems([])
+  }
+
+  async function choosePeerAsset(id: number | null) {
+    setPeerAssetId(id)
+    setPeerId(null)
+    setPeerItems([])
+    if (!id) return
+    try {
+      const list = await api<NetworkInterface[]>(`/assets/${id}/interfaces`)
+      setPeerItems(list.filter(entry => !entry.peerId))
+    } catch (e) {
+      setError(message(e, '对端接口加载失败'))
+    }
+  }
+
+  async function connect() {
+    if (!connecting || !peerId) return
+    setBusy(true)
+    setError('')
+    try {
+      await api(`/interfaces/${connecting.id}/connect`, 'POST', { peerId })
+      setConnecting(null)
+      await load()
+    } catch (e) {
+      setError(message(e, '连接失败'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function disconnect(item: NetworkInterface) {
+    setBusy(true)
+    setError('')
+    try {
+      await api(`/interfaces/${item.id}/disconnect`, 'POST', {})
+      await load()
+    } catch (e) {
+      setError(message(e, '断开失败'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const columns = [
+    { title: '名称', dataIndex: 'name' as const, key: 'name' },
+    {
+      title: '介质', key: 'medium',
+      render: (_: unknown, item: NetworkInterface) => (
+        <Tag>{mediumOptions.find(option => option.value === item.medium)?.label ?? item.medium}</Tag>
+      ),
+    },
+    { title: '速率', key: 'speed', render: (_: unknown, item: NetworkInterface) => speedLabel(item.speedMbps) },
+    { title: 'MAC', key: 'mac', render: (_: unknown, item: NetworkInterface) => item.mac || '—' },
+    {
+      title: '状态', key: 'status',
+      render: (_: unknown, item: NetworkInterface) => (
+        <Tag color={statusColor(item.status)}>{statusOptions.find(option => option.value === item.status)?.label ?? item.status}</Tag>
+      ),
+    },
+    {
+      title: '对端', key: 'peer',
+      render: (_: unknown, item: NetworkInterface) => item.peerId
+        ? `${item.peerAssetName ?? ''} / ${item.peerName ?? ''}`
+        : <span className="muted">未连接</span>,
+    },
+    ...(editable ? [{
+      title: '操作', key: 'actions',
+      render: (_: unknown, item: NetworkInterface) => (
+        <Space size={4} wrap>
+          {item.peerId
+            ? <Button size="small" onClick={() => void disconnect(item)}><Unlink size={14} />断开</Button>
+            : <Button size="small" onClick={() => void openConnect(item)}><Link2 size={14} />连接</Button>}
+          <Button size="small" onClick={() => startEdit(item)}><Pencil size={14} /></Button>
+          <Button size="small" danger onClick={() => void remove(item)}><Trash2 size={14} /></Button>
+        </Space>
+      ),
+    }] : []),
+  ]
+
+  return (
+    <div className="asset-interfaces">
+      {error && <Alert type="error" showIcon message={error} className="drawer-alert" />}
+      <div className="asset-interfaces-head">
+        <span className="muted">记录设备的网口与上联关系，连接后两端都会显示对端设备。</span>
+        {editable && <Button size="small" icon={<Plus size={14} />} onClick={startCreate}>添加接口</Button>}
+      </div>
+      <Table<NetworkInterface>
+        rowKey="id" columns={columns} dataSource={items} loading={busy} size="small"
+        pagination={false} locale={{ emptyText: '暂无接口，点击「添加接口」开始记录' }}
+      />
+
+      <Modal
+        open={draft !== null} title={draft?.id ? '编辑接口' : '添加接口'} width={520}
+        onCancel={() => setDraft(null)}
+        footer={(
+          <Space>
+            <Button type="primary" loading={busy} onClick={() => void save()}>保存</Button>
+            <Button onClick={() => setDraft(null)}>取消</Button>
+          </Space>
+        )}
+      >
+        {draft && (
+          <div className="interface-form">
+            <label>名称<Input value={draft.fields.name} maxLength={64} placeholder="例如：eth0、Gi0/1" onChange={(event: ChangeEvent<HTMLInputElement>) => update('name', event.target.value)} /></label>
+            <label>介质<Select value={draft.fields.medium} options={mediumOptions} onChange={value => update('medium', value as InterfaceFields['medium'])} /></label>
+            <label>速率（Mbps）<Input type="number" min={0} max={1600000} value={draft.fields.speedMbps} onChange={(event: ChangeEvent<HTMLInputElement>) => update('speedMbps', Number(event.target.value))} /></label>
+            <label>MAC 地址<Input value={draft.fields.mac} maxLength={17} placeholder="aa:bb:cc:dd:ee:ff" onChange={(event: ChangeEvent<HTMLInputElement>) => update('mac', event.target.value)} /></label>
+            <label>状态<Select value={draft.fields.status} options={statusOptions} onChange={value => update('status', value as InterfaceFields['status'])} /></label>
+            <label>描述<Input value={draft.fields.description} maxLength={200} onChange={(event: ChangeEvent<HTMLInputElement>) => update('description', event.target.value)} /></label>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={connecting !== null} title={`连接「${connecting?.name ?? ''}」`} width={520}
+        onCancel={() => setConnecting(null)}
+        footer={(
+          <Space>
+            <Button type="primary" loading={busy} disabled={!peerId} onClick={() => void connect()}>连接</Button>
+            <Button onClick={() => setConnecting(null)}>取消</Button>
+          </Space>
+        )}
+      >
+        <div className="interface-form">
+          <label>对端设备
+            <Select
+              value={peerAssetId} placeholder="选择设备"
+              options={assets.filter(asset => asset.id !== assetId).map(asset => ({ value: asset.id, label: asset.name }))}
+              onChange={value => void choosePeerAsset(value as number)}
+            />
+          </label>
+          <label>对端接口
+            <Select
+              value={peerId} placeholder={peerAssetId ? '选择接口' : '请先选择设备'} disabled={!peerAssetId}
+              options={peerItems.map(item => ({ value: item.id, label: item.name }))}
+              onChange={value => setPeerId(value as number)}
+            />
+          </label>
+          {peerAssetId && peerItems.length === 0 && <p className="muted">该设备没有空闲接口。</p>}
+        </div>
+      </Modal>
+    </div>
+  )
+}

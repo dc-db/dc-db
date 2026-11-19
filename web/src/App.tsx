@@ -19,6 +19,7 @@ import { assetLocations, locationLabel } from './facilities'
 import type { AssetLocation, Facilities } from './facilities'
 import type { Page } from './types'
 import { AssetEditor } from './components/AssetEditor'
+import { AssetInterfaces } from './components/AssetInterfaces'
 import { AssetRelationGraph } from './components/AssetRelationGraph'
 import { ChangeList } from './components/ChangeList'
 import { ChangePassword } from './components/ChangePassword'
@@ -1721,6 +1722,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                       )}
                     </>
                   ),
+                },
+                {
+                  key: 'interfaces', label: '接口',
+                  children: <AssetInterfaces assetId={selected.id} assets={assets} editable={editable} />,
                 },
                 {
                   key: 'attributes', label: `扩展信息 (${Object.keys(selected.attributes).length})`,
