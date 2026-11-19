@@ -1229,7 +1229,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               onChange={(key: string) => setIpamTab(key as 'subnets' | 'addresses' | 'vlans')}
               items={[
                 {
-                  key: 'subnets', label: '网段与 IP',
+                  key: 'subnets', label: '概览',
                   children: (
                     <IpamView
                       editable={editable}
