@@ -6,6 +6,7 @@ import type { Tag as TagItem, TagFields } from '../api'
 import { Button } from './ui/button'
 import { PageHeader } from './PageHeader'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog'
+import { Select } from './AppControls'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
@@ -116,7 +117,16 @@ export function TagManager({ editable, onSessionError, onChanged }: Props) {
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
       <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save() }}>
         <div className="space-y-2"><label htmlFor="tag-name" className="text-sm font-medium">标签名称</label><Input id="tag-name" required maxLength={80} placeholder="例如：生产、核心业务、待迁移" value={fields.name} onChange={event => setFields({ ...fields, name: event.target.value })} /></div>
-        <div className="space-y-2"><label htmlFor="tag-color" className="text-sm font-medium">颜色</label><select id="tag-color" className={selectClass} value={fields.color} onChange={event => setFields({ ...fields, color: event.target.value })}>{!colorPresets.some(item => item.value === fields.color) && <option value={fields.color}>自定义颜色 {fields.color}</option>}{colorPresets.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div>
+        <div className="space-y-2"><label htmlFor="tag-color" className="text-sm font-medium">颜色</label><Select
+          id="tag-color" searchable={false} value={fields.color} style={{ width: '100%' }}
+          onChange={(value: string) => setFields({ ...fields, color: value })}
+          options={[
+            ...(!colorPresets.some(item => item.value === fields.color)
+              ? [{ value: fields.color, label: <span className="tag-color-option"><i style={{ background: fields.color }} />自定义颜色 {fields.color}</span> }]
+              : []),
+            ...colorPresets.map(item => ({ value: item.value, label: <span className="tag-color-option"><i style={{ background: item.value }} />{item.label}</span> })),
+          ]}
+        /></div>
         <div className="space-y-2"><label htmlFor="tag-description" className="text-sm font-medium">说明</label><Textarea id="tag-description" maxLength={200} rows={3} placeholder="可选，说明这个标签的用途" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /></div>
         <DialogFooter><Button type="button" variant="outline" disabled={saving} onClick={() => setOpen(false)}>取消</Button><Button type="submit" disabled={saving}>{saving ? '保存中...' : '保存'}</Button></DialogFooter>
       </form>

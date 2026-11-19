@@ -58,7 +58,10 @@ export function Select({ value, onChange, options = [], mode, placeholder, allow
     onChange?.(next)
     if (!multi) { setOpen(false); setQuery('') }
   }
-  const label = selected.length ? selected.map(v => options.find(o => o.value === v)?.label ?? v).join('、') : placeholder || '请选择'
+  const picked = selected.map(v => options.find(o => o.value === v)?.label ?? v)
+  const label = picked.length
+    ? picked.map((item, index) => <React.Fragment key={index}>{index > 0 && '、'}{item}</React.Fragment>)
+    : placeholder || '请选择'
   return (
     <UiPopover open={open} onOpenChange={v => { setOpen(v); if (!v) setQuery('') }}>
       <PopoverTrigger asChild>
