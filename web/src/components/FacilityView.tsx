@@ -443,9 +443,11 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
         <aside className="facility-sidebar">
           <div className="facility-sidebar-head">
             <div className="facility-sidebar-title"><strong>数据中心</strong></div>
+          </div>
+          <div className="facility-sidebar-search">
+            <Input type="search" placeholder="搜索数据中心" aria-label="搜索数据中心" value={roomSearch} onChange={event => setRoomSearch(event.target.value)} />
             {editable && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="数据中心操作"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => editRegion()}><Plus />新增区域</DropdownMenuItem><DropdownMenuItem onSelect={() => editRoom()}><Plus />新增数据中心</DropdownMenuItem><DropdownMenuItem disabled={!room} onSelect={() => { if (room) editRoom(room) }}><Pencil />编辑当前数据中心</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
           </div>
-          <Input type="search" placeholder="搜索数据中心" aria-label="搜索数据中心" value={roomSearch} onChange={event => setRoomSearch(event.target.value)} />
           <div className="facility-tree">
             {groupedRooms.map(group => (
               <div key={group.key} className="facility-tree-group">
