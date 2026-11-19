@@ -4,13 +4,14 @@ import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Plus, Trash2 } from 'lucide-react'
-import type { Asset, AssetFields, Kind } from '../api'
+import type { Asset, AssetFields, Group, Kind } from '../api'
 
 interface Props {
   asset: Asset | null
   defaultKind: Kind
   busy: boolean
   error: string
+  groups: Group[]
   onSave: (fields: AssetFields & { version: number }) => void
   onCancel: () => void
 }
@@ -91,7 +92,7 @@ function parseAttributeRows(rows: AttributeRow[]): Record<string, unknown> {
   return attributes
 }
 
-export function AssetEditor({ asset, defaultKind, busy, error, onSave, onCancel }: Props) {
+export function AssetEditor({ asset, defaultKind, busy, error, groups, onSave, onCancel }: Props) {
   const [fields, setFields] = useState<AssetFields>({
     kind: asset?.kind ?? defaultKind,
     name: asset?.name ?? '',
@@ -104,6 +105,7 @@ export function AssetEditor({ asset, defaultKind, busy, error, onSave, onCancel 
     address: asset?.address ?? '',
     cpu: asset?.cpu ?? 0,
     memoryMiB: asset?.memoryMiB ?? 0,
+    groupId: asset?.groupId ?? 0,
     notes: asset?.notes ?? '',
     attributes: asset?.attributes ?? {},
   })
@@ -161,6 +163,7 @@ export function AssetEditor({ asset, defaultKind, busy, error, onSave, onCancel 
       attributes,
       cpu: Number(fields.cpu || 0),
       memoryMiB: Number(fields.memoryMiB || 0),
+      groupId: Number(fields.groupId || 0),
       version: asset?.version ?? 0,
     })
   }
@@ -179,6 +182,7 @@ export function AssetEditor({ asset, defaultKind, busy, error, onSave, onCancel 
       <label className="grid gap-2">状态<Choice value={fields.status} onChange={value => update('status', value as AssetFields['status'])} options={[{ value: 'unknown', label: '未知' }, { value: 'online', label: '在线' }, { value: 'offline', label: '离线' }, { value: 'running', label: '运行中' }, { value: 'stopped', label: '已停止' }, { value: 'paused', label: '已暂停' }]} /></label>
       <label className="grid gap-2">负责人<Input value={fields.owner} maxLength={160} placeholder="姓名或团队" onChange={event => update('owner', event.target.value)} /></label>
       <label className="grid gap-2">环境<Input value={fields.environment} maxLength={40} placeholder="例如：生产" onChange={event => update('environment', event.target.value)} /></label>
+      <label className="grid gap-2">所属群组<select aria-label="所属群组" className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring" value={fields.groupId} onChange={event => update('groupId', Number(event.target.value))}><option value={0}>未归属</option>{groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label>
       <label className="col-span-2 grid gap-2">管理地址 / IP<Input value={fields.address} maxLength={160} placeholder="例如：192.0.2.11" onChange={event => update('address', event.target.value)} /></label>
       <label className={errors.cpu ? 'grid gap-2 field-invalid' : 'grid gap-2'}>CPU 核数 / vCPU<Input type="number" min={0} max={65536} value={fields.cpu} aria-invalid={!!errors.cpu} onChange={event => update('cpu', Number(event.target.value))} />{errors.cpu && <span className="field-error" role="alert">{errors.cpu}</span>}</label>
       <label className={errors.memoryMiB ? 'grid gap-2 field-invalid' : 'grid gap-2'}>内存（MiB）<Input type="number" min={0} max={1073741824} value={fields.memoryMiB} aria-invalid={!!errors.memoryMiB} onChange={event => update('memoryMiB', Number(event.target.value))} />{errors.memoryMiB && <span className="field-error" role="alert">{errors.memoryMiB}</span>}</label>

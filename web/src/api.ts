@@ -35,6 +35,7 @@ export interface AssetFields {
   address: string
   cpu: number
   memoryMiB: number
+  groupId: number
   notes: string
   attributes: Record<string, unknown>
 }
@@ -192,6 +193,28 @@ export interface ImportPreview {
   valid: number
   errors: ImportRowError[]
   sample: ImportPreviewRow[]
+}
+
+export interface GroupFields {
+  name: string
+  description: string
+}
+
+export interface Group extends GroupFields {
+  id: number
+  assetCount: number
+}
+
+export interface ServiceFields {
+  name: string
+  category: string
+  defaultPort: number
+  description: string
+}
+
+export interface Service extends ServiceFields {
+  id: number
+  builtin: boolean
 }
 
 export interface Tag {

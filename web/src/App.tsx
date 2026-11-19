@@ -12,10 +12,11 @@ import {
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
   House as HomeOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
+  FolderTree as FolderTreeOutlined, Boxes as BoxesOutlined,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
 import { downloadCSV } from './csv'
-import type { Asset, AssetFields, Captcha, Change, ImportPreview, Kind, Link, LinkKind, Subnet, Tag as TagItem, User } from './api'
+import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, Subnet, Tag as TagItem, User } from './api'
 import { assetLocations, locationLabel } from './facilities'
 import type { AssetLocation, Facilities } from './facilities'
 import type { Page } from './types'
@@ -32,6 +33,8 @@ import { IPAddressView } from './components/IPAddressView'
 import { IpamView } from './components/IpamView'
 import { LoginBackdrop } from './components/LoginBackdrop'
 import { TagManager } from './components/TagManager'
+import { GroupManager } from './components/GroupManager'
+import { ServiceManager } from './components/ServiceManager'
 import { UserManager } from './components/UserManager'
 import { VLANView } from './components/VLANView'
 import { Wordmark } from './components/Wordmark'
@@ -59,7 +62,7 @@ const relations: { kind: LinkKind; from: Kind; to: Kind[]; outgoing: string; inc
 ]
 const defaultPageSize = 10
 const defaultAssetColumns = ['name', 'kind', 'status', 'tags', 'meta', 'address', 'owner', 'actions']
-const assetColumnKeys = ['name', 'kind', 'status', 'tags', 'meta', 'address', 'owner', 'environment', 'capacity', 'updated', 'actions']
+const assetColumnKeys = ['name', 'kind', 'status', 'tags', 'meta', 'address', 'owner', 'group', 'environment', 'capacity', 'updated', 'actions']
 
 
 function platformLabel(asset: Pick<Asset, 'platform'>) {
@@ -73,7 +76,7 @@ function messageText(error: unknown) {
   return error instanceof Error ? error.message : '操作失败'
 }
 
-const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'facilities', 'ipam', 'changes', 'password', 'tags', 'users', 'guide']
+const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'facilities', 'ipam', 'changes', 'password', 'tags', 'groups', 'services', 'users', 'guide']
 
 function readPageParam(): Page {
   const value = new URLSearchParams(window.location.search).get('page')
@@ -215,6 +218,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [assetChanges, setAssetChanges] = useState<Change[]>([])
   const [assetTags, setAssetTags] = useState<TagItem[]>([])
   const [allTags, setAllTags] = useState<TagItem[]>([])
+  const [groups, setGroups] = useState<Group[]>([])
   const [bookmarks, setBookmarks] = useState<number[]>(() => {
     try {
       const parsed: unknown = JSON.parse(localStorage.getItem('dc-db-bookmarks') ?? '[]')
@@ -260,7 +264,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   const systemChildren: NavLeaf[] = [
     { key: 'changes', label: '变更记录', icon: <HistoryOutlined /> },
-    { key: 'tags', label: '标签管理', icon: <TagsOutlined /> },
     { key: 'password', label: '更改密码', icon: <LockOutlined /> },
     { key: 'guide', label: '使用指南', icon: <BookOpenOutlined /> },
   ]
@@ -273,6 +276,14 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     { key: 'host', label: '物理机', icon: <CloudServerOutlined /> },
     { key: 'vm', label: '虚拟机', icon: <DesktopOutlined /> },
     { key: 'ipam', label: 'IPAM', icon: <GlobalOutlined /> },
+    {
+      key: 'org', label: '组织结构', icon: <FolderTreeOutlined />,
+      children: [
+        { key: 'tags', label: '标签', icon: <TagsOutlined /> },
+        { key: 'groups', label: '群组', icon: <FolderTreeOutlined /> },
+        { key: 'services', label: '服务', icon: <BoxesOutlined /> },
+      ],
+    },
     {
       key: 'system', label: '系统管理', icon: <SettingOutlined />,
       children: systemChildren,
@@ -410,9 +421,9 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setBusy(true)
     setError('')
     try {
-      const [nextAssets, nextLinks, nextChanges, nextFacilities, nextSubnets, nextTags] = await Promise.all([
+      const [nextAssets, nextLinks, nextChanges, nextFacilities, nextSubnets, nextTags, nextGroups] = await Promise.all([
         api<Asset[]>('/assets'), api<Link[]>('/links'), api<Change[]>('/changes'),
-        api<Facilities>('/facilities'), api<Subnet[]>('/subnets'), api<TagItem[]>('/tags'),
+        api<Facilities>('/facilities'), api<Subnet[]>('/subnets'), api<TagItem[]>('/tags'), api<Group[]>('/groups'),
       ])
       setAssets(nextAssets)
       setLinks(nextLinks)
@@ -420,6 +431,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       setFacilities(nextFacilities)
       setSubnets(nextSubnets)
       setAllTags(nextTags)
+      setGroups(nextGroups)
     } catch (e) {
       handleError(e)
     } finally {
@@ -875,6 +887,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     return link.fromId === selectedId ? link.toId : link.fromId
   }
 
+  const groupName = (id: number) => groups.find(item => item.id === id)?.name ?? '—'
   const metaTitle = page === 'vm' ? '宿主机' : '平台'
   const metaValue = (asset: Asset) => page === 'vm' ? hostName(asset) : platformLabel(asset)
   const assetColumns: { key: string; label: string; column: TableColumnsType<Asset>[number] }[] = [
@@ -937,6 +950,14 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     {
       key: 'owner', label: '负责人',
       column: { title: '负责人', dataIndex: 'owner', key: 'owner', width: 120, sorter: (left, right) => left.owner.localeCompare(right.owner, 'zh-CN'), render: value => value || '—' },
+    },
+    {
+      key: 'group', label: '群组',
+      column: {
+        title: '群组', key: 'group', width: 120,
+        sorter: (left, right) => groupName(left.groupId).localeCompare(groupName(right.groupId), 'zh-CN'),
+        render: (_, asset) => groupName(asset.groupId),
+      },
     },
     {
       key: 'environment', label: '环境',
@@ -1202,6 +1223,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           )}
 
           {page === 'tags' && <TagManager editable={editable} onSessionError={e => handleError(e)} onChanged={setAllTags} />}
+          {page === 'groups' && <GroupManager editable={editable} onSessionError={e => handleError(e)} onChanged={setGroups} />}
+          {page === 'services' && <ServiceManager editable={editable} onSessionError={e => handleError(e)} />}
 
           {page === 'users' && user?.role === 'admin' && (
             <UserManager currentUsername={user.username} onSessionError={e => handleError(e)} />
@@ -1597,7 +1620,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       >
         {editor ? (
           <AssetEditor
-            asset={selected} defaultKind={newKind} busy={saving} error={drawerError}
+            asset={selected} defaultKind={newKind} busy={saving} error={drawerError} groups={groups}
             onSave={fields => void saveAsset(fields)}
             onCancel={() => { setEditor(false); if (!selectedId) closeDrawer() }}
           />
