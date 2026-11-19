@@ -103,17 +103,17 @@ func searchAssets(ctx context.Context, db *sql.DB, query, pattern, prefix string
 	rows, err := db.QueryContext(ctx, `
 		SELECT id, name, kind, status, address, owner
 		FROM assets
-		WHERE lower(name) LIKE ? ESCAPE '\'
-		   OR lower(address) LIKE ? ESCAPE '\'
-		   OR lower(owner) LIKE ? ESCAPE '\'
-		   OR lower(notes) LIKE ? ESCAPE '\'
-		   OR lower(attributes) LIKE ? ESCAPE '\'
+		WHERE lower(name) LIKE $1 ESCAPE '\'
+		   OR lower(address) LIKE $2 ESCAPE '\'
+		   OR lower(owner) LIKE $3 ESCAPE '\'
+		   OR lower(notes) LIKE $4 ESCAPE '\'
+		   OR lower(attributes) LIKE $5 ESCAPE '\'
 		ORDER BY CASE
-			WHEN lower(name) = ? THEN 0
-			WHEN lower(name) LIKE ? ESCAPE '\' THEN 1
+			WHEN lower(name) = $6 THEN 0
+			WHEN lower(name) LIKE $7 ESCAPE '\' THEN 1
 			ELSE 2
 		END, lower(name)
-		LIMIT ?`,
+		LIMIT $8`,
 		pattern, pattern, pattern, pattern, pattern,
 		strings.ToLower(query), prefix, searchPerType,
 	)
@@ -150,13 +150,13 @@ func searchTags(ctx context.Context, db *sql.DB, query, pattern, prefix string) 
 		SELECT t.id, t.name, t.color, t.description,
 			(SELECT count(*) FROM asset_tags at WHERE at.tag_id = t.id)
 		FROM tags t
-		WHERE lower(t.name) LIKE ? ESCAPE '\' OR lower(t.description) LIKE ? ESCAPE '\'
+		WHERE lower(t.name) LIKE $1 ESCAPE '\' OR lower(t.description) LIKE $2 ESCAPE '\'
 		ORDER BY CASE
-			WHEN lower(t.name) = ? THEN 0
-			WHEN lower(t.name) LIKE ? ESCAPE '\' THEN 1
+			WHEN lower(t.name) = $3 THEN 0
+			WHEN lower(t.name) LIKE $4 ESCAPE '\' THEN 1
 			ELSE 2
 		END, lower(t.name)
-		LIMIT ?`,
+		LIMIT $5`,
 		pattern, pattern, strings.ToLower(query), prefix, searchPerType,
 	)
 	if err != nil {
@@ -191,13 +191,13 @@ func searchRooms(ctx context.Context, db *sql.DB, query, pattern, prefix string)
 	rows, err := db.QueryContext(ctx, `
 		SELECT id, name
 		FROM rooms
-		WHERE lower(name) LIKE ? ESCAPE '\'
+		WHERE lower(name) LIKE $1 ESCAPE '\'
 		ORDER BY CASE
-			WHEN lower(name) = ? THEN 0
-			WHEN lower(name) LIKE ? ESCAPE '\' THEN 1
+			WHEN lower(name) = $2 THEN 0
+			WHEN lower(name) LIKE $3 ESCAPE '\' THEN 1
 			ELSE 2
 		END, lower(name)
-		LIMIT ?`,
+		LIMIT $4`,
 		pattern, strings.ToLower(query), prefix, searchPerType,
 	)
 	if err != nil {
@@ -224,9 +224,9 @@ func searchRacks(ctx context.Context, db *sql.DB, pattern, prefix string) ([]Sea
 		SELECT r.id, r.name, r.room_id, rm.name, r.height_u
 		FROM racks r
 		JOIN rooms rm ON rm.id = r.room_id
-		WHERE lower(r.name) LIKE ? ESCAPE '\' OR lower(rm.name) LIKE ? ESCAPE '\'
-		ORDER BY CASE WHEN lower(r.name) LIKE ? ESCAPE '\' THEN 0 ELSE 1 END, lower(r.name)
-		LIMIT ?`,
+		WHERE lower(r.name) LIKE $1 ESCAPE '\' OR lower(rm.name) LIKE $2 ESCAPE '\'
+		ORDER BY CASE WHEN lower(r.name) LIKE $3 ESCAPE '\' THEN 0 ELSE 1 END, lower(r.name)
+		LIMIT $4`,
 		pattern, pattern, prefix, searchPerType,
 	)
 	if err != nil {
@@ -254,9 +254,9 @@ func searchSubnets(ctx context.Context, db *sql.DB, pattern, prefix string) ([]S
 	rows, err := db.QueryContext(ctx, `
 		SELECT id, name, cidr, vlan
 		FROM subnets
-		WHERE lower(name) LIKE ? ESCAPE '\' OR lower(cidr) LIKE ? ESCAPE '\' OR lower(vlan) LIKE ? ESCAPE '\'
-		ORDER BY CASE WHEN lower(cidr) LIKE ? ESCAPE '\' THEN 0 ELSE 1 END, lower(name)
-		LIMIT ?`,
+		WHERE lower(name) LIKE $1 ESCAPE '\' OR lower(cidr) LIKE $2 ESCAPE '\' OR lower(vlan) LIKE $3 ESCAPE '\'
+		ORDER BY CASE WHEN lower(cidr) LIKE $4 ESCAPE '\' THEN 0 ELSE 1 END, lower(name)
+		LIMIT $5`,
 		pattern, pattern, pattern, prefix, searchPerType,
 	)
 	if err != nil {
@@ -286,11 +286,11 @@ func searchVLANs(ctx context.Context, db *sql.DB, pattern, prefix string) ([]Sea
 	rows, err := db.QueryContext(ctx, `
 		SELECT id, vid, name, status, description
 		FROM vlans
-		WHERE CAST(vid AS TEXT) LIKE ? ESCAPE '\'
-		   OR lower(name) LIKE ? ESCAPE '\'
-		   OR lower(description) LIKE ? ESCAPE '\'
-		ORDER BY CASE WHEN CAST(vid AS TEXT) LIKE ? ESCAPE '\' THEN 0 ELSE 1 END, vid
-		LIMIT ?`,
+		WHERE CAST(vid AS TEXT) LIKE $1 ESCAPE '\'
+		   OR lower(name) LIKE $2 ESCAPE '\'
+		   OR lower(description) LIKE $3 ESCAPE '\'
+		ORDER BY CASE WHEN CAST(vid AS TEXT) LIKE $4 ESCAPE '\' THEN 0 ELSE 1 END, vid
+		LIMIT $5`,
 		pattern, pattern, pattern, prefix, searchPerType,
 	)
 	if err != nil {
@@ -327,12 +327,12 @@ func searchIPs(ctx context.Context, db *sql.DB, query, pattern string) ([]Search
 		FROM ip_allocations a
 		JOIN subnets s ON s.id = a.subnet_id
 		LEFT JOIN assets asset ON asset.id = a.asset_id
-		WHERE a.ip LIKE ? ESCAPE '\'
-		   OR lower(a.label) LIKE ? ESCAPE '\'
-		   OR lower(a.dns_name) LIKE ? ESCAPE '\'
-		   OR lower(asset.name) LIKE ? ESCAPE '\'
-		ORDER BY CASE WHEN a.ip = ? THEN 0 ELSE 1 END, a.ip
-		LIMIT ?`,
+		WHERE a.ip LIKE $1 ESCAPE '\'
+		   OR lower(a.label) LIKE $2 ESCAPE '\'
+		   OR lower(a.dns_name) LIKE $3 ESCAPE '\'
+		   OR lower(asset.name) LIKE $4 ESCAPE '\'
+		ORDER BY CASE WHEN a.ip = $5 THEN 0 ELSE 1 END, a.ip
+		LIMIT $6`,
 		pattern, pattern, pattern, pattern, strings.TrimSpace(query), searchPerType,
 	)
 	if err != nil {

@@ -23,32 +23,7 @@ type Tag struct {
 	AssetCount int64 `json:"assetCount"`
 }
 
-const tagSchema = `
-CREATE TABLE IF NOT EXISTS tags (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL CHECK (length(name) BETWEEN 1 AND 80),
-    color TEXT NOT NULL DEFAULT '#1677ff',
-    description TEXT NOT NULL DEFAULT '',
-    created_at TIMESTAMP NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS tags_name_idx ON tags (lower(name));
-
-CREATE TABLE IF NOT EXISTS asset_tags (
-    asset_id INTEGER NOT NULL REFERENCES assets ON DELETE CASCADE,
-    tag_id INTEGER NOT NULL REFERENCES tags ON DELETE CASCADE,
-    PRIMARY KEY (asset_id, tag_id)
-);
-
-CREATE INDEX IF NOT EXISTS asset_tags_tag_idx ON asset_tags (tag_id);
-`
-
 const tagColumns = "id,name,color,description"
-
-func ensureTagSchema(ctx context.Context, tx *sql.Tx) error {
-	_, err := tx.ExecContext(ctx, tagSchema)
-	return err
-}
 
 func readTag(row scanner) (Tag, error) {
 	var tag Tag
@@ -208,13 +183,13 @@ func SetAssetTags(ctx context.Context, db *sql.DB, assetID int64, tagIDs []int64
 	}
 	valid := 0
 	if len(ids) > 0 {
-		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
+		inList := placeholders(1, len(ids))
 		args := make([]any, len(ids))
 		for i, id := range ids {
 			args[i] = id
 		}
 		if err := tx.QueryRowContext(ctx,
-			"SELECT count(*) FROM tags WHERE id IN ("+placeholders+")", args...).Scan(&valid); err != nil {
+			"SELECT count(*) FROM tags WHERE id IN ("+inList+")", args...).Scan(&valid); err != nil {
 			return nil, err
 		}
 	}
@@ -276,12 +251,12 @@ func BulkUpdateAssetTags(ctx context.Context, db *sql.DB, ids, tagIDs []int64, m
 	defer tx.Rollback()
 
 	if len(tagIDs) > 0 {
-		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(tagIDs)), ",")
+		inList := placeholders(1, len(tagIDs))
 		args := make([]any, len(tagIDs))
 		for i, id := range tagIDs {
 			args[i] = id
 		}
-		rows, err := tx.QueryContext(ctx, "SELECT id FROM tags WHERE id IN ("+placeholders+")", args...)
+		rows, err := tx.QueryContext(ctx, "SELECT id FROM tags WHERE id IN ("+inList+")", args...)
 		if err != nil {
 			return 0, err
 		}

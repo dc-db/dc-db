@@ -1,0 +1,26 @@
+# Configuration used by docker-compose.yaml. Secrets are not stored here:
+# the database connection is supplied by the DC_DB_DSN environment variable.
+listen: 0.0.0.0:8080
+
+database:
+  host: db
+  port: 5432
+  name: dc_db
+  user: dc_db
+  password: ""
+  sslmode: disable
+
+web_dir: web/dist
+cookie_secure: false
+
+admin:
+  username: admin
+  password: ""
+
+operator:
+  username: ""
+  password: ""
+
+viewer:
+  username: ""
+  password: ""

@@ -1,0 +1,11 @@
+# ignore build inputs that are large or environment specific
+.git
+tmp
+.data
+bin
+web/node_modules
+web/dist
+*.db
+*.db-wal
+*.db-shm
+config.yaml

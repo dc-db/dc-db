@@ -7,9 +7,9 @@
 
 [简体中文](README.md)
 
-dc-db is a simple, easy-to-use configuration management database for IT assets, infrastructure configuration, and asset relationships. It targets small, single-node operations: around 3,000 virtual machines with a total footprint under 5,000 hosts, maintained by a small operations team. The design goal is simple, sufficient, and easy to maintain: no extra middleware and no large-cluster ambitions. It tracks physical hosts, virtual machines, and switches, with a home dashboard, asset search, relationship views, CSV import and export, IPAM subnet, VLAN, and address management, access controls, change history, and data center/rack views.
+dc-db is a simple, easy-to-use configuration management database for IT assets, infrastructure configuration, and asset relationships. It targets small, single-node operations: around 3,000 virtual machines with a total footprint under 5,000 hosts, maintained by a small operations team. The design goal is simple, sufficient, and easy to maintain: a single PostgreSQL instance and no Redis or message queue. It tracks physical hosts, virtual machines, and switches, with a home dashboard, asset search, relationship views, CSV import and export, IPAM subnet, VLAN, and address management, access controls, change history, and data center/rack views.
 
-dc-db uses Go, React 19 with TypeScript, shadcn/ui, TanStack Table, React Flow, ECharts, and SQLite. One Go binary, the built `web/dist` assets, and one SQLite file are all it needs; there is no separate database service to deploy. The current release uses SQLite, and a MySQL or PostgreSQL backend can be added later if needed.
+dc-db uses Go, React 19 with TypeScript, shadcn/ui, TanStack Table, React Flow, ECharts, and PostgreSQL. One Go binary with the built `web/dist` assets plus one PostgreSQL instance is all it needs; `docker compose up -d` starts both.
 
 The interface supports light and dark themes. It follows the system preference on first visit, can be switched from the login page or header, and remembers the choice in the browser.
 
@@ -19,24 +19,49 @@ See [Brand assets](docs/brand.md) for the SVG logo masters, GitHub PNG exports, 
 
 - Around 3,000 virtual machines with a total footprint under 5,000 hosts on a single node.
 - A small operations team with read-heavy usage.
-- No database service to operate; a backup is a single database file.
+- One PostgreSQL instance deployed with `docker compose up -d`.
 - Manual maintenance and spreadsheet import as the primary workflow, with asset relationships, data center/rack views, and change history.
 
-It is not designed for multi-node concurrent writes, large multi-tenant deployments, or high-frequency concurrent editing.
+It is not designed for large multi-node clusters, multi-tenant deployments, or high-frequency concurrent editing.
 
-## Run locally
+## Quick start (Docker Compose)
 
-Use Go 1.26 or later. The first run also needs Node.js 22 LTS or another version supported by Vite 7 to build the frontend.
+You need Docker and Docker Compose v2. The repository ships `docker-compose.yaml`, which starts PostgreSQL and the application:
+
+```bash
+docker compose up -d
+```
+
+Open [http://127.0.0.1:8080](http://127.0.0.1:8080). The default initial sign-in is `admin` with password `admin`; change it in the configuration below before exposing the service. Login requires a graphical captcha, valid for five minutes and usable only once. The first start creates the schema; the inventory is empty, so add assets in the web interface or use CSV import.
+
+The default database password is `dc_db` and is only meant for local trials. Override it through the environment:
+
+```bash
+POSTGRES_PASSWORD='a-longer-password' APP_PORT=80 docker compose up -d
+```
+
+The image build uses the official Go and npm registries; point it at a mirror when needed:
+
+```bash
+GOPROXY=https://proxy.golang.org,direct NPM_REGISTRY=https://registry.npmjs.org docker compose build
+```
+
+## Run locally (without containers)
+
+Use Go 1.26 or later, Node.js 22 LTS (or another version supported by Vite 7), and a PostgreSQL 16+ instance. Create the database first:
+
+```bash
+sudo -u postgres psql -c "CREATE ROLE dc_db LOGIN PASSWORD 'dc_db'"
+sudo -u postgres createdb -O dc_db dc_db
+```
+
+Then build and start:
 
 ```bash
 npm --prefix web ci
 npm --prefix web run build
 go build -trimpath -o bin/dc-db ./cmd/dc-db
-```
-
-The SQLite database defaults to `dc-db.db` in the working directory. The first start creates the database file and schema automatically; there is no manual setup step. Start the web service:
-
-```bash
+cp config.example.yaml config.yaml   # adjust the database block if needed
 ./bin/dc-db serve
 ```
 
@@ -46,22 +71,23 @@ On Windows PowerShell:
 npm --prefix web ci
 npm --prefix web run build
 go build -trimpath -o bin/dc-db.exe ./cmd/dc-db
+Copy-Item config.example.yaml config.yaml
 .\bin\dc-db.exe serve
 ```
 
-Open [http://127.0.0.1:8080](http://127.0.0.1:8080). The default initial sign-in is `admin` with password `admin`; change it in the configuration below. Login requires a graphical captcha, valid for five minutes and usable only once. A new installation starts with an empty inventory. Add assets in the web interface or use CSV import as described below.
+The first start creates the schema automatically. Without configuration the program connects to the `dc_db` database on `127.0.0.1:5432` as user `dc_db`.
 
-The service binds to `127.0.0.1:8080` by default. Before the first start of a network-accessible installation, copy `config.example.yaml` to `config.yaml` and set `admin.password` to a unique password of at least 12 bytes. Set `cookie_secure: true` when serving the application through an HTTPS reverse proxy. The SQLite database file contains password hashes and asset data, so restrict access to the database file, backups, and asset exports. Accounts are created from the configuration on first start; existing accounts use their stored passwords.
+The service binds to `127.0.0.1:8080` by default. Before the first start of a network-accessible installation, copy `config.example.yaml` to `config.yaml` and set `admin.password` to a unique password of at least 12 bytes. Set `cookie_secure: true` when serving the application through an HTTPS reverse proxy. The database holds password hashes and all asset data, so restrict the connection string, backups, and asset exports, and enable disk encryption where appropriate. Accounts are created from the configuration on first start; existing accounts use their stored passwords.
 
 ### Example data
 
-The repository's `demo-data.sql` contains fictional assets and related records for an isolated development environment. It is not imported automatically. Start the application once to create the database, stop it, and run the following against an empty development inventory (the SQLite command-line tool is required):
+The repository's `demo-data.sql` contains fictional assets and related records for an isolated development environment. It is not imported automatically. Run it against an empty inventory:
 
 ```bash
-sqlite3 -bail dc-db.db ".read demo-data.sql"
+psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -U dc_db -d dc_db -f demo-data.sql
 ```
 
-If `config.yaml` specifies another database path, use the corresponding development database instead. Restart the service after importing. Do not run this script against a database containing real assets. The example data follows the current schema; use a newly created development database after schema changes.
+The script guards against a non-empty inventory and rolls back as a whole. Do not run it against a database containing real assets. The example data follows the current schema; use a newly created development database after schema changes.
 
 ## Configuration
 
@@ -75,7 +101,15 @@ cp config.example.yaml config.yaml
 
 ```yaml
 listen: 127.0.0.1:8080
-database: dc-db.db
+
+database:
+  host: 127.0.0.1
+  port: 5432
+  name: dc_db
+  user: dc_db
+  password: ""
+  sslmode: disable
+
 web_dir: web/dist
 cookie_secure: false
 
@@ -93,6 +127,7 @@ viewer:
 ```
 
 - Leaving `admin.password` empty uses the default password `admin`; change it to at least 12 bytes before exposing the service.
+- `database` holds the PostgreSQL connection; container deployments override it with the `DC_DB_DSN` environment variable.
 - Leaving both `operator` / `viewer` fields empty disables that account.
 - Accounts are created only on first start; changing `config.yaml` later does not change an existing account's password.
 
@@ -118,37 +153,17 @@ Changing the password requires the current password and a new password of at lea
 
 ## Deploy to a Linux server
 
-The server-side installer is `scripts/install.sh`. It installs a prebuilt `dc-db` binary and frontend `dist/`; it does not build them. A fresh clone cannot be installed directly on a server without Go/Node. A one-command release installer will be added when release packages are available.
+The recommended path is the bundled `docker-compose.yaml`: clone the repository on the server and run `docker compose up -d`. The application and PostgreSQL start together and data lives in the `pgdata` volume. `config.docker.yaml` provides the container listener and database host, so no manual configuration file is required.
 
-Build the Linux artifacts first:
-
-```bash
-npm --prefix web ci
-npm --prefix web run build
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dc-db ./cmd/dc-db
-```
-
-Place these files together:
-
-```text
-install.sh
-dc-db
-dist/
-```
-
-Then run as root:
+To change the port or password:
 
 ```bash
-sudo APP_PORT=80 bash install.sh
+APP_PORT=80 POSTGRES_PASSWORD='a-longer-password' docker compose up -d
 ```
 
-The installer creates the `dc-db` system account, installs under `/opt/dc-db`, writes `config.yaml`, installs the embedded systemd unit, and starts the service. Port 80 is granted through `CAP_NET_BIND_SERVICE` while the service runs as a normal user. The first install prints the administrator password; repeat deployments preserve the existing configuration and database.
+For production, put Nginx in front with HTTPS and set `cookie_secure: true` in `config.docker.yaml`.
 
-To force a listen-port change on an existing installation:
-
-```bash
-sudo APP_PORT=80 UPDATE_LISTEN=1 bash install.sh
-```
+Without Docker you can run the compiled binary, but you have to provide PostgreSQL, fill in the `database` block of `config.yaml`, and place `web/dist` where `web_dir` points (default `web/dist`). The binary itself is a static single file and does not contain the frontend assets; the server does not need Node.
 
 ## Asset management
 
@@ -211,23 +226,33 @@ The rack drawer switches between front and rear elevations and reports occupied 
 
 ## Back up and restore
 
-Stop the web service before copying the SQLite file. The database uses WAL mode, and the last connection checkpoints the WAL into the main file on a clean exit. If `dc-db.db-wal` or `dc-db.db-shm` is still present, the process did not stop cleanly; start it again and stop it normally before taking the backup.
+Use `pg_dump` for a consistent backup; the service can keep running:
 
 ```bash
-cp dc-db.db dc-db-backup.db
+docker compose exec -T db pg_dump -U dc_db -Fc dc_db > dc-db-$(date +%F).dump
 ```
 
-Verify a backup before relying on it. To restore, stop the service, replace the database file, remove any leftover `dc-db.db-wal` and `dc-db.db-shm`, and start the service again.
+To restore into an empty database:
+
+```bash
+docker compose exec -T db dropdb -U dc_db --if-exists dc_db
+docker compose exec -T db createdb -U dc_db dc_db
+docker compose exec -T db pg_restore -U dc_db -d dc_db < dc-db-2026-01-01.dump
+```
+
+The dump contains all asset data and password hashes, so keep it in a controlled location and enable disk or volume encryption (for example LUKS); PostgreSQL does not encrypt its data files by itself.
 
 ## Development
 
 See the [interface design guidelines](docs/design-system.md) for theme, component, and interaction conventions (in Chinese).
 
-After each code change passes the relevant checks, build a release bundle using the Linux deployment steps above and update the user-designated remote development server through the configured SSH target `<dev-ssh-target>`. Stop the service before replacing artifacts, preserve the remote `config.yaml` and SQLite database, then install and start the service. Check `http://<dev-host>/healthz` and the main flow affected by the change. Keep real connection details and credentials in controlled, Git-ignored local configuration.
+After each code change passes the relevant checks, run `docker compose up -d --build` on the remote development server; data lives in the `pgdata` volume and survives container rebuilds. Check `http://<dev-host>/healthz` and the main flow affected by the change. Keep real connection details and credentials in controlled, Git-ignored local configuration.
 
-Do not start local or localhost services by default. Only when the user explicitly requests local debugging, after the first frontend build, use `npm --prefix web run dev` to start the frontend development server, which proxies `/api` to the Go service on port 8080. Start the Go service with `go run ./cmd/dc-db` and stop both services when debugging is complete. Run `go test ./...` for Go package checks and `npm --prefix web run check` for TypeScript type checking.
+Do not start local or localhost services by default. Only when the user explicitly requests local debugging, after the first frontend build, use `npm --prefix web run dev` to start the frontend development server, which proxies `/api` to the Go service on port 8080. Start the Go service with `go run ./cmd/dc-db` and stop both services when debugging is complete. Run `go test ./...` for Go package checks (it needs a reachable PostgreSQL, see below) and `npm --prefix web run check` for TypeScript type checking.
 
-The schema lives in `internal/cmdb/schema.sql` and is applied when an empty database starts for the first time. This project is still in development: after changing the schema, delete the local `dc-db.db` and restart to recreate it; there are no migration files.
+The schema lives in `internal/cmdb/schema.sql` and is applied when an empty database starts for the first time. This project is still in development: after changing the schema, run `docker compose down -v` to drop the data volume and start again; there are no migration files.
+
+Tests connect to `postgres://dc_db:dc_db@127.0.0.1:5432/dc_db_test` by default and honour `DC_DB_TEST_DSN`; they are skipped when no PostgreSQL is reachable. Each test rebuilds the `public` schema first, so do not point it at a database with data.
 
 ## License
 

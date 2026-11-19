@@ -8,7 +8,7 @@
 
 ## 项目概览
 
-dc-db 用于集中管理企业 IT 资产、配置和资产关系，面向约 3000 台虚拟机、5000 台主机以内的单机场景。技术栈为 Go 1.26+、React 19 + TypeScript、shadcn/ui、TanStack Table、ECharts 和 SQLite。开发和部署步骤见 [README.md](README.md)。
+dc-db 用于集中管理企业 IT 资产、配置和资产关系，面向约 3000 台虚拟机、5000 台主机以内的单机场景。技术栈为 Go 1.26+、React 19 + TypeScript、shadcn/ui、TanStack Table、ECharts 和 PostgreSQL。开发和部署步骤见 [README.md](README.md)。
 
 ## 代码位置与改动范围
 
@@ -18,8 +18,8 @@ dc-db 用于集中管理企业 IT 资产、配置和资产关系，面向约 300
 
 ## 数据库与资产维护
 
-- `internal/cmdb/schema.sql` 是唯一的建表脚本，首次打开空数据库时执行一次。项目仍在开发阶段，改表直接修改该文件；本地删除 `dc-db.db` 后重启即可重建，不维护迁移文件。
-- SQLite 数据库默认是工作目录下的 `dc-db.db`，可在 `config.yaml` 的 `database` 指定。连接启用 WAL、外键约束和忙等待，应用内使用单写连接；备份前先停止服务，避免遗漏 WAL 中尚未合并的事务。
+- `internal/cmdb/schema.sql` 是唯一的建表脚本，首次连接空库时执行一次。项目仍在开发阶段，改表直接修改该文件；执行 `docker compose down -v` 清空数据卷后重启即可重建，不维护迁移文件。
+- 数据库是 PostgreSQL，连接信息在 `config.yaml` 的 `database` 段（host/port/name/user/password/sslmode），容器部署时由环境变量 `DC_DB_DSN` 覆盖。程序是唯一写入方，事务内完成跨表校验；备份用 `pg_dump`，恢复用 `pg_restore`。
 - 新库从空台账开始。手工演示数据保存在 Git 忽略的 `demo-data/` 中，按需导入隔离的开发库。
 - 资产以手工维护和 CSV 导入为主。导入一次最多 5000 行、16 MiB，整批事务写入；任一行校验失败、名称重复或与已有资产重名时都不写入任何数据。导入只新增，不覆盖已有资产。
 
@@ -34,14 +34,14 @@ dc-db 用于集中管理企业 IT 资产、配置和资产关系，面向约 300
 
 ## 本地配置与验证
 
-- 构建产物和本地数据库留在本地，不提交。`config.example.yaml` 使用占位值，`config.yaml` 被 Git 忽略；程序不读取环境变量配置。
+- 构建产物和本地数据留在本地，不提交。`config.example.yaml` 使用占位值，`config.yaml` 被 Git 忽略；配置以文件为主，仅容器部署用 `DC_DB_DSN` 覆盖数据库连接。
 - Go 改动先运行 `gofmt`，再运行 `go test ./...`。前端依赖使用 `npm --prefix web ci` 安装，前端改动运行 `npm --prefix web run check`，涉及打包时运行 `npm --prefix web run build`。
-- 涉及数据库或部署时，用独立的 SQLite 数据库文件验证。修改 `schema.sql` 后检查空库重建，确认已有资产可读；开发阶段不维护旧库升级。CSV 导入验证使用临时的虚构 CSV，覆盖成功、重复名称和错误行。
+- 涉及数据库或部署时，用独立的 PostgreSQL 测试库验证（`DC_DB_TEST_DSN`，默认 `dc_db_test`）。修改 `schema.sql` 后检查空库重建，确认已有资产可读；开发阶段不维护旧库升级。CSV 导入验证使用临时的虚构 CSV，覆盖成功、重复名称和错误行。
 
 ## 开发环境交付
 
-- 每次代码改动完成并通过相关检查后，交付前构建 `web/dist` 和目标架构的 Linux Go 二进制，按 README 的 Linux 部署流程，将 `dc-db`、`dist/` 和 `scripts/install.sh` 组成发布包，部署到用户指定且已配置的远程开发主机。
-- 更新沿用远程开发环境已有的 `config.yaml` 和 SQLite 数据库，不用本地配置或数据库覆盖；替换产物前先停止服务，再安装并启动。
+- 每次代码改动完成并通过相关检查后，交付前用 `docker compose up -d --build` 在远程开发主机上重建并启动应用与 PostgreSQL；不再组装 `install.sh` + `dist/` 发布包。
+- 更新沿用远程环境的 `pgdata` 数据卷和 `config.docker.yaml`，不用本地数据覆盖；数据库连接信息只走环境变量或受控配置。
 - 部署后使用已配置的远程访问地址检查 `/healthz`，验证本次改动的入口或主要流程，并在交付时说明远程开发环境验证结果。
 - 默认不再启动本机或 localhost Web 服务；仅在用户明确要求本地调试时临时启用，调试结束后停止。
 - 部署目标从本机 Git 忽略的 `.tools/deploy/config.yaml` 读取（`ssh_target`、`base_url`），沿用已有的 SSH 免密配置。目标地址、SSH 连接信息和凭据只保存在受控的本机配置中；仓库文档和示例只使用占位符。

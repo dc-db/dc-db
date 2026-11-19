@@ -18,7 +18,7 @@ import (
 const (
 	subnetColumns = `s.id,s.name,s.cidr,s.gateway,s.vlan,s.notes,s.status,s.role,s.version,
 		COALESCE(v.name,''),COALESCE(v.status,'')`
-	subnetFrom  = `subnets s LEFT JOIN vlans v ON v.vid = CAST(s.vlan AS INTEGER)`
+	subnetFrom  = `subnets s LEFT JOIN vlans v ON v.vid::text = s.vlan`
 	freeIPLimit = 50
 )
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -107,13 +108,10 @@ func SaveVLAN(ctx context.Context, db *sql.DB, id int64, fields VLANFields, vers
 	}
 
 	if id == 0 {
-		result, execErr := tx.ExecContext(ctx, `
+		err = tx.QueryRowContext(ctx, `
 			INSERT INTO vlans (vid,name,status,description,room_id)
-			VALUES ($1,$2,$3,$4,$5)`, fields.VID, fields.Name, fields.Status, fields.Description, nullID(fields.RoomID))
-		err = execErr
-		if err == nil {
-			vlanID, err = result.LastInsertId()
-		}
+			VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+			fields.VID, fields.Name, fields.Status, fields.Description, nullID(fields.RoomID)).Scan(&vlanID)
 	} else {
 		before, err = readVLAN(tx.QueryRowContext(ctx, vlanSelect+" WHERE v.id=$1", id))
 		if err != nil {
@@ -166,7 +164,7 @@ func DeleteVLAN(ctx context.Context, db *sql.DB, id int64, version int, actor st
 		return ErrConflict
 	}
 	var prefixes int64
-	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM subnets WHERE vlan=CAST($1 AS TEXT)", vlan.VID).Scan(&prefixes); err != nil {
+	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM subnets WHERE vlan=$1", strconv.Itoa(vlan.VID)).Scan(&prefixes); err != nil {
 		return err
 	}
 	if prefixes > 0 {

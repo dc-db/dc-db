@@ -7,23 +7,32 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"errors"
-	"path/filepath"
+	"os"
 	"strings"
 	"testing"
 )
 
 func testDB(t *testing.T) *sql.DB {
 	t.Helper()
-	db, err := Open(filepath.Join(t.TempDir(), "dc-db.db"))
+	dsn := strings.TrimSpace(os.Getenv("DC_DB_TEST_DSN"))
+	if dsn == "" {
+		dsn = "postgres://dc_db:dc_db@127.0.0.1:5432/dc_db_test?sslmode=disable"
+	}
+	db, err := Open(dsn)
 	if err != nil {
-		t.Fatalf("open database: %v", err)
+		t.Skipf("PostgreSQL 不可用，跳过本次测试：%v", err)
 	}
 	t.Cleanup(func() { db.Close() })
 	ctx := context.Background()
+	// Every test starts from the schema in schema.sql; there are no migration
+	// files while the project is in development.
+	if _, err := db.ExecContext(ctx, "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"); err != nil {
+		t.Fatalf("reset schema: %v", err)
+	}
 	if err := Initialize(ctx, db); err != nil {
 		t.Fatalf("initialize database: %v", err)
 	}
-	// Applying migrations again must be a no-op.
+	// Applying the schema again must be a no-op.
 	if err := Initialize(ctx, db); err != nil {
 		t.Fatalf("re-initialize database: %v", err)
 	}

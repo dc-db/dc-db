@@ -34,7 +34,7 @@ func run(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("读取配置: %w", err)
 	}
-	db, err := cmdb.Open(cfg.Database)
+	db, err := cmdb.Open(cfg.Database.DSN())
 	if err != nil {
 		return fmt.Errorf("打开数据库: %w", err)
 	}

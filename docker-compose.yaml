@@ -1,0 +1,46 @@
+# dc-db: application + PostgreSQL.
+#
+#   docker compose up -d
+#   open http://<host>:8080
+#
+# The database password defaults to dc_db for local use only; set
+# POSTGRES_PASSWORD (and optionally DC_DB_DSN) in a .env file to change it.
+# Mirrors can be selected with GOPROXY / NPM_REGISTRY / POSTGRES_VERSION.
+
+services:
+  db:
+    image: postgres:${POSTGRES_VERSION:-16}-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dc_db}
+      POSTGRES_USER: ${POSTGRES_USER:-dc_db}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dc_db}
+      TZ: Asia/Shanghai
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dc_db} -d ${POSTGRES_DB:-dc_db}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build:
+      context: .
+      args:
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+      DC_DB_DSN: postgres://${POSTGRES_USER:-dc_db}:${POSTGRES_PASSWORD:-dc_db}@db:5432/${POSTGRES_DB:-dc_db}?sslmode=disable
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    volumes:
+      - ./config.docker.yaml:/app/config.yaml:ro
+
+volumes:
+  pgdata:
