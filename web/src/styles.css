@@ -196,16 +196,20 @@ a { color: var(--info); }
 
 /* Rack table view. */
 .rack-board { display: flex; gap: 14px; align-items: flex-start; overflow-x: auto; padding: 6px 0 10px; }
-.rack-board-item { display: flex; flex-direction: column; gap: 8px; flex: 0 0 196px; width: 196px; }
-.rack-board-head { display: flex; align-items: center; gap: 6px; font-size: 13px; }
-.rack-board-zone { padding: 1px 6px; border-radius: 4px; background: var(--subtle); color: var(--muted); font-size: 11px; }
-.rack-board-u { margin-left: auto; color: var(--muted); font-size: 11px; }
+.rack-board-item { display: flex; flex-direction: column; gap: 8px; flex: 0 0 200px; width: 200px; }
+.rack-board-head { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.rack-board-role { padding: 1px 8px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); font-size: 11px; }
 .rack-board-figure { overflow: hidden; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; }
 .rack-board-figure:hover { border-color: var(--muted); }
 .rack-board-figure svg { display: block; width: 100%; height: auto; }
-.rack-board-figure .rack-frame-bg { fill: var(--subtle); stroke: var(--line); }
-.rack-board-figure .rack-unit-line { stroke: var(--line); }
-.rack-board-figure .rack-unit-label { fill: var(--muted); }
+.rack-board-figure svg .rack-bg { fill: var(--surface); }
+.rack-board-figure svg .slot { fill: var(--subtle); stroke: var(--line); }
+.rack-board-figure svg .frame { stroke: var(--line); }
+.rack-board-figure svg .unit { fill: var(--muted); }
+html[data-theme="dark"] .rack-board-figure svg .rack-bg { fill: #141414; }
+html[data-theme="dark"] .rack-board-figure svg .slot { fill: #232323; stroke: #303030; }
+html[data-theme="dark"] .rack-board-figure svg .frame { stroke: #6e6e6e; }
+html[data-theme="dark"] .rack-board-figure svg .unit { fill: #adb5bd; }
 .facility-table-wrap { overflow-x: auto; }
 .facility-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .facility-table th { padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; font-weight: 500; text-align: left; white-space: nowrap; }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Boxes, Columns3, List, MoreHorizontal, Pencil, Plus } from 'lucide-react'
+import { Boxes, Columns3, Download, List, MoreHorizontal, Pencil, Plus } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
@@ -540,20 +540,19 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                     <div className="rack-board">
                       {rackRows.map(item => {
                         const placements = roomPlacements.filter(entry => entry.rackId === item.id)
-                        const preview = rackElevationSvg(item, placements, byId, 'front', { minimal: true })
+                        const preview = rackElevationSvg(item, placements, byId, 'front')
                         return (
                           <div key={item.id} className="rack-board-item">
                             <div className="rack-board-head">
                               <strong>{item.name}</strong>
-                              {item.zone && <span className="rack-board-zone">{item.zone}</span>}
-                              <span className="rack-board-u">{item.heightU}U</span>
+                              {item.zone && <span className="rack-board-role">{item.zone}</span>}
                             </div>
                             <button
                               type="button" className="rack-board-figure" aria-label={`打开 ${item.name}`}
                               onClick={() => openRack(item.id)}
                               dangerouslySetInnerHTML={{ __html: preview.svg }}
                             />
-                            <Button size="sm" variant="outline" onClick={() => downloadRackSvg(rackElevationSvg(item, placements, byId, 'front'))}>下载 SVG</Button>
+                            <Button size="sm" variant="outline" onClick={() => downloadRackSvg(rackElevationSvg(item, placements, byId, 'front'))}><Download />下载 SVG 文件</Button>
                           </div>
                         )
                       })}

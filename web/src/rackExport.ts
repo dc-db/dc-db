@@ -1,44 +1,47 @@
 import type { Asset } from './api'
-import { occupiedUnits, placementFaceLabel, uRange } from './facilities'
+import { uRange } from './facilities'
 import type { Placement, Rack, RackFace } from './facilities'
 
 /**
- * Build a standalone SVG of a rack elevation, close to what NetBox exports:
- * a U scale, coloured device blocks with their name and unit range, and a
- * legend. The output carries inline styles only, so it can be opened or
- * embedded anywhere.
+ * Rack elevation drawing, modelled on NetBox's server-side SVG renderer:
+ *
+ *   width  = legend(30) + border(2) + unit_width(220) + margin(15) + border(2)
+ *   height = unit_height(22) * u_height + border(2) * 2
+ *
+ * Every rack unit is drawn as a slot rectangle, so the elevation gets the same
+ * striped body as NetBox; devices are coloured bars laid over the slots.
+ * Colours come from CSS variables that the SVG declares itself (so a downloaded
+ * file still renders) and that the app overrides per theme when inline.
  */
 
-const UNIT = 22
-const FRAME_X = 56
-const FRAME_W = 420
-const PAD_TOP = 68
-const PAD_BOTTOM = 60
-const RIGHT = 18
+const UNIT_WIDTH = 220
+const UNIT_HEIGHT = 22
+const LEGEND_WIDTH = 30
+const MARGIN_WIDTH = 15
+const BORDER = 2
 
-type KindStyle = { fill: string; stroke: string; text: string; label: string }
+type StatusStyle = { fill: string }
 
-const KIND: Record<string, KindStyle> = {
-  host: { fill: '#3b82f6', stroke: '#1d4ed8', text: '#ffffff', label: '物理机' },
-  vm: { fill: '#8b5cf6', stroke: '#6d28d9', text: '#ffffff', label: '虚拟机' },
-  switch: { fill: '#14b8a6', stroke: '#0f766e', text: '#ffffff', label: '交换机' },
+const STATUS: Record<string, StatusStyle> = {
+  online: { fill: '#2ea043' },
+  running: { fill: '#2ea043' },
+  offline: { fill: '#cf222e' },
+  stopped: { fill: '#cf222e' },
+  paused: { fill: '#bf8700' },
+  unknown: { fill: '#6e7781' },
 }
 
-function kindStyle(kind: string): KindStyle {
-  return KIND[kind] ?? KIND.host
+function statusStyle(status?: string): StatusStyle {
+  return STATUS[status ?? ''] ?? STATUS.unknown
 }
 
 function esc(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
-function clip(value: string, max: number): string {
-  return value.length > max ? `${value.slice(0, Math.max(1, max - 1))}…` : value
-}
-
-/** Rough character budget for a given pixel width at the given font size. */
 function fit(value: string, width: number, fontSize: number): string {
-  return clip(value, Math.max(4, Math.floor(width / (fontSize * 0.62))))
+  const max = Math.max(4, Math.floor(width / (fontSize * 0.6)))
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value
 }
 
 export interface RackSvg {
@@ -48,101 +51,69 @@ export interface RackSvg {
   filename: string
 }
 
+// Light defaults are written as attributes so a downloaded file renders on its
+// own; the app overrides them per theme through the classes.
+const LIGHT = {
+  bg: '#f6f8fb',
+  slot: '#e9ecef',
+  slotBorder: '#adb5bd',
+  frame: '#000000',
+  unit: '#6c757d',
+}
+
 export function rackElevationSvg(
   rack: Rack,
   devices: Placement[],
   assets: Map<number, Asset>,
   face: RackFace,
-  options: { minimal?: boolean } = {},
 ): RackSvg {
-  const minimal = options.minimal === true
-  const padTop = minimal ? 10 : PAD_TOP
-  const padBottom = minimal ? 10 : PAD_BOTTOM
   const visible = devices.filter(device => device.depth === 'full' || device.face === face)
-  const unit = minimal ? 16 : UNIT
-  const height = padTop + rack.heightU * unit + padBottom
-  const frameX = minimal ? 30 : FRAME_X
-  const frameW = minimal ? 210 : FRAME_W
-  const width = frameX + frameW + (minimal ? 6 : RIGHT)
+  const width = LEGEND_WIDTH + BORDER + UNIT_WIDTH + MARGIN_WIDTH + BORDER
+  const height = UNIT_HEIGHT * rack.heightU + BORDER * 2
+  const rackX = LEGEND_WIDTH + BORDER
   const body: string[] = []
 
-  const frameFill = minimal ? 'rgba(127,127,127,0.12)' : '#f5f5f5'
-  const frameStroke = minimal ? 'var(--line)' : '#d4d4d4'
-  const lineStroke = minimal ? 'var(--line)' : '#e5e5e5'
-  const labelFill = minimal ? 'var(--muted)' : '#9ca3af'
+  body.push(`<rect class="rack-bg" x="0" y="0" width="${width}" height="${height}" fill="${LIGHT.bg}"/>`)
 
-  if (!minimal) {
-    body.push(`<rect x="0" y="0" width="${width}" height="${height}" fill="#ffffff"/>`)
-    body.push(`<text x="${frameX}" y="30" font-size="17" font-weight="600" fill="#111827">${esc(rack.name)}</text>`)
-    body.push(
-      `<text x="${frameX}" y="48" font-size="11" fill="#6b7280">${face === 'rear' ? '后视图' : '前视图'}` +
-      ` · ${rack.heightU}U · ${visible.length} 台设备 · 已占用 ${occupiedUnits(visible).size}U</text>`,
-    )
-  }
-
-  // U scale and unit separators.
-  const frameTop = padTop
-  const frameHeight = rack.heightU * unit
-  body.push(minimal
-    ? `<rect class="rack-frame-bg" x="${frameX}" y="${frameTop}" width="${frameW}" height="${frameHeight}"/>`
-    : `<rect x="${frameX}" y="${frameTop}" width="${frameW}" height="${frameHeight}" fill="${frameFill}" stroke="${frameStroke}"/>`)
+  // One slot per U, top to bottom, plus the unit legend on the left.
   for (let index = 0; index < rack.heightU; index++) {
-    const y = frameTop + index * unit
-    body.push(minimal
-      ? `<line class="rack-unit-line" x1="${frameX}" y1="${y}" x2="${frameX + frameW}" y2="${y}"/>`
-      : `<line x1="${frameX}" y1="${y}" x2="${frameX + frameW}" y2="${y}" stroke="${lineStroke}"/>`)
-    const unitNumber = rack.heightU - index
+    const unit = rack.heightU - index
+    const y = BORDER + index * UNIT_HEIGHT
     body.push(
-      `<text class="${minimal ? 'rack-unit-label' : ''}" x="${frameX - 8}" y="${y + unit / 2 + 4}" font-size="9" fill="${labelFill}" text-anchor="end">U${unitNumber}</text>`,
+      `<rect class="slot" x="${rackX}" y="${y}" width="${UNIT_WIDTH}" height="${UNIT_HEIGHT}" ` +
+      `fill="${LIGHT.slot}" stroke="${LIGHT.slotBorder}" stroke-width="1"/>`,
+    )
+    body.push(
+      `<text class="unit" x="${LEGEND_WIDTH / 2}" y="${y + UNIT_HEIGHT / 2}" font-size="14" ` +
+      `fill="${LIGHT.unit}" text-anchor="middle" dominant-baseline="middle">${unit}</text>`,
     )
   }
 
+  // Devices sit on top of the slots.
   for (const device of visible) {
     const asset = assets.get(device.assetId)
-    const style = kindStyle(asset?.kind ?? 'host')
-    const top = frameTop + (rack.heightU - (device.startU + device.units - 1)) * unit
-    const blockHeight = Math.max(unit - 3, device.units * unit - 3)
     const label = asset?.name ?? `资产 #${device.assetId}`
-    const fontSize = blockHeight >= 34 ? 12 : 10
-    const textY = top + blockHeight / 2 + fontSize / 3
-
+    const style = statusStyle(asset?.status)
+    const top = BORDER + (rack.heightU - (device.startU + device.units - 1)) * UNIT_HEIGHT
+    const blockHeight = device.units * UNIT_HEIGHT
     body.push(
-      `<g><title>${esc(`${label} · ${uRange(device)} · ${placementFaceLabel(device)}`)}</title>` +
-      `<rect x="${frameX + 4}" y="${top}" width="${frameW - 8}" height="${blockHeight}" rx="2"` +
-      ` fill="${style.fill}" stroke="${style.stroke}"/>` +
-      `<text x="${frameX + 12}" y="${textY}" font-size="${fontSize}" fill="${style.text}">` +
-      `${esc(fit(label, frameW - 90, fontSize))}</text>` +
-      `<text x="${frameX + frameW - 12}" y="${textY}" font-size="9" fill="${style.text}" text-anchor="end" opacity="0.9">` +
-      `${esc(uRange(device))}</text></g>`,
+      `<g><title>${esc(`${label} · ${uRange(device)}`)}</title>` +
+      `<rect x="${rackX}" y="${top}" width="${UNIT_WIDTH}" height="${blockHeight}" fill="${style.fill}"/>` +
+      `<text class="device" x="${rackX + UNIT_WIDTH / 2}" y="${top + blockHeight / 2}" font-size="14" ` +
+      `text-anchor="middle" dominant-baseline="middle" fill="#ffffff">` +
+      `${esc(fit(label, UNIT_WIDTH - 10, 14))}</text></g>`,
     )
-    if (asset?.status === 'offline' || asset?.status === 'stopped') {
-      body.push(`<circle cx="${frameX + 12}" cy="${top + 8}" r="3" fill="#ffffff" opacity="0.75"/>`)
-    }
   }
 
-  if (minimal) {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="-apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif">${body.join('')}</svg>`
-    return { svg, width, height, filename: `${rack.name}-${face === 'rear' ? '后视图' : '前视图'}` }
-  }
+  // Frame last so its border sits above the slots.
+  body.push(
+    `<rect class="frame" x="${rackX}" y="${BORDER}" width="${UNIT_WIDTH}" height="${UNIT_HEIGHT * rack.heightU}" ` +
+    `fill="none" stroke="${LIGHT.frame}" stroke-width="2"/>`,
+  )
 
-  // Legend.
-  const legendY = height - 34
-  let legendX = frameX
-  for (const style of Object.values(KIND)) {
-    body.push(`<rect x="${legendX}" y="${legendY}" width="12" height="12" rx="2" fill="${style.fill}" stroke="${style.stroke}"/>`)
-    body.push(`<text x="${legendX + 18}" y="${legendY + 10}" font-size="11" fill="#6b7280">${style.label}</text>`)
-    legendX += 84
-  }
-  body.push(`<text x="${width - RIGHT}" y="${legendY + 10}" font-size="10" fill="#9ca3af" text-anchor="end">dc-db</text>`)
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="-apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif">${body.join('')}</svg>`
-
-  return {
-    svg,
-    width,
-    height,
-    filename: `${rack.name}-${face === 'rear' ? '后视图' : '前视图'}`,
-  }
+  const font = 'system-ui,-apple-system,Segoe UI,Roboto,Noto Sans SC,sans-serif'
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${font}">${body.join('')}</svg>`
+  return { svg, width, height, filename: `${rack.name}-${face === 'rear' ? '后视图' : '前视图'}` }
 }
 
 function saveBlob(blob: Blob, filename: string) {
