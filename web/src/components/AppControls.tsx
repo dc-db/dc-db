@@ -140,13 +140,43 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, p
   React.useEffect(() => { setSorting(current => current.filter(item => defs.some(col => col.id === item.id))) }, [columns.map(c => c.key ?? String(c.dataIndex)).join('|')])
   const table = useReactTable({ data: dataSource, columns: defs, state: { sorting }, onSortingChange: setSorting, enableSortingRemoval: false, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel() })
   const sorted = table.getRowModel().rows; const pageSize = pagination ? pagination.pageSize : sorted.length; const totalPages = pagination ? Math.max(1, Math.ceil(pagination.total / pageSize)) : 1; const current = pagination ? Math.min(Math.max(1, pagination.current), totalPages) : 1; const rows = pagination ? sorted.slice((current - 1) * pageSize, current * pageSize) : sorted; const keys = rows.map(row => row.original[rowKey] as string | number); const selected = rowSelection?.selectedRowKeys ?? []; const all = keys.length > 0 && keys.every(key => selected.includes(key));
+  // Shared header-cell rendering; the first cell can also carry the
+  // select-all checkbox so the header row starts at the table edge.
+  const headContent = (header: any) => {
+    const sorted = header.column.getIsSorted()
+    if (!header.column.getCanSort()) return flexRender(header.column.columnDef.header, header.getContext())
+    return (
+      <button type="button" onClick={header.column.getToggleSortingHandler()}>
+        {flexRender(header.column.columnDef.header, header.getContext())}{' '}
+        <span className="control-sort-icon" aria-hidden>{sorted === 'asc' ? <ArrowUp size={12} /> : sorted === 'desc' ? <ArrowDown size={12} /> : <ChevronsUpDown size={12} />}</span>
+      </button>
+    )
+  }
+  const headCell = (header: any) => {
+    const sorted = header.column.getIsSorted()
+    const width = columns.find(c => (c.key ?? String(c.dataIndex)) === header.column.id)?.width
+    return (
+      <th
+        key={header.id} style={width ? { minWidth: width } : undefined}
+        aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined}
+      >{headContent(header)}</th>
+    )
+  }
+
   React.useEffect(() => { if (pagination && pagination.current !== current) pagination.onChange(current, pageSize) }, [pagination && pagination.current, current, pageSize])
   return <div className="control-table-area" aria-busy={loading}>
     {loading && <div className="control-table-loading" role="status"><LoaderCircle className="animate-spin" size={18} />加载中</div>}
     <div className="control-table-wrap" inert={loading || undefined}>
       <table className="control-table"><thead>{table.getHeaderGroups().map(group => <tr key={group.id}>
-        {rowSelection && <th><UiCheckbox aria-label="选择本页全部" checked={all ? true : keys.some(k => selected.includes(k)) ? 'indeterminate' : false} onCheckedChange={v => rowSelection.onChange(v ? Array.from(new Set([...selected, ...keys])) : selected.filter(k => !keys.includes(k)))} /></th>}
-        {group.headers.map(header => { const sorted = header.column.getIsSorted(); const width = columns.find(c => (c.key ?? String(c.dataIndex)) === header.column.id)?.width; return <th key={header.id} style={width ? { minWidth: width } : undefined} aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined}>{header.column.getCanSort() ? <button type="button" onClick={header.column.getToggleSortingHandler()}>{flexRender(header.column.columnDef.header, header.getContext())} <span className="control-sort-icon" aria-hidden>{sorted === 'asc' ? <ArrowUp size={12} /> : sorted === 'desc' ? <ArrowDown size={12} /> : <ChevronsUpDown size={12} />}</span></button> : flexRender(header.column.columnDef.header, header.getContext())}</th> })}
+        {rowSelection ? (<>
+          <th colSpan={2} className="control-th-select">
+            <span className="control-th-select-inner">
+              <UiCheckbox aria-label="选择本页全部" checked={all ? true : keys.some(k => selected.includes(k)) ? 'indeterminate' : false} onCheckedChange={v => rowSelection.onChange(v ? Array.from(new Set([...selected, ...keys])) : selected.filter(k => !keys.includes(k)))} />
+              {headContent(group.headers[0])}
+            </span>
+          </th>
+          {group.headers.slice(1).map(headCell)}
+        </>) : group.headers.map(headCell)}
       </tr>)}</thead><tbody>{rows.map(row => <tr key={String(row.original[rowKey])} className={rowClassName?.(row.original) || undefined} onClick={onRowClick ? event => onRowClick(row.original, event) : undefined} style={onRowClick ? { cursor: 'pointer' } : undefined}>{rowSelection && <td><UiCheckbox aria-label="选择该行" checked={selected.includes(row.original[rowKey] as string | number)} onCheckedChange={v => rowSelection.onChange(v ? [...selected, row.original[rowKey] as string | number] : selected.filter(k => k !== row.original[rowKey]))} /></td>}{row.getVisibleCells().map(cell => <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}</tr>)}{!rows.length && <tr><td colSpan={columns.length + (rowSelection ? 1 : 0)}>{locale?.emptyText ?? <Empty />}</td></tr>}</tbody></table>
       {pagination && (
         <div className="control-pagination">
