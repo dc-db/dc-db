@@ -13,7 +13,7 @@ import { api, APIError } from '../api'
 import type { Asset, Link } from '../api'
 import { assetLocations, isMountKind, locationLabel, mountKinds, occupiedUnits, placementsConflict } from '../facilities'
 import type { AssetLocation, Facilities, MountKind, Placement, PlacementDepth, Rack, RackFace, RackFields, Region, Room, RoomFields } from '../facilities'
-import { downloadRackSvg, rackElevationSvg } from '../rackExport'
+import { rackElevationSvg } from '../rackExport'
 import { RackDetailDrawer } from './RackDetailDrawer'
 
 interface Props {
@@ -555,7 +555,15 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                               }}
                               dangerouslySetInnerHTML={{ __html: preview.svg }}
                             />
-                            <Button size="sm" variant="outline" onClick={() => downloadRackSvg(rackElevationSvg(item, placements, byId, 'front'))}><Download />下载 SVG 文件</Button>
+                            <Button size="sm" variant="outline" onClick={() => {
+                              const theme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
+                              const link = document.createElement('a')
+                              link.href = `/api/racks/${item.id}/elevation.svg?face=front&theme=${theme}`
+                              link.download = `${item.name}-前视图.svg`
+                              document.body.appendChild(link)
+                              link.click()
+                              link.remove()
+                            }}><Download />下载 SVG 文件</Button>
                           </div>
                         )
                       })}

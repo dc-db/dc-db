@@ -145,8 +145,19 @@ export function downloadRackSvg(rack: RackSvg) {
   saveBlob(new Blob([rack.svg], { type: 'image/svg+xml;charset=utf-8' }), `${rack.filename}.svg`)
 }
 
+export async function downloadSvgTextPng(svg: string, filename: string, scale = 2) {
+  const width = Number(/width="(\d+)"/.exec(svg)?.[1] ?? 0)
+  const height = Number(/height="(\d+)"/.exec(svg)?.[1] ?? 0)
+  if (!width || !height) throw new Error('机柜图尺寸读取失败')
+  await rasterise(svg, width, height, filename, scale)
+}
+
 export async function downloadRackPng(rack: RackSvg, scale = 2) {
-  const url = URL.createObjectURL(new Blob([rack.svg], { type: 'image/svg+xml;charset=utf-8' }))
+  await rasterise(rack.svg, rack.width, rack.height, rack.filename, scale)
+}
+
+async function rasterise(svg: string, width: number, height: number, filename: string, scale: number) {
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }))
   try {
     const image = await new Promise<HTMLImageElement>((resolve, reject) => {
       const element = new Image()
@@ -155,8 +166,8 @@ export async function downloadRackPng(rack: RackSvg, scale = 2) {
       element.src = url
     })
     const canvas = document.createElement('canvas')
-    canvas.width = rack.width * scale
-    canvas.height = rack.height * scale
+    canvas.width = width * scale
+    canvas.height = height * scale
     const context = canvas.getContext('2d')
     if (!context) throw new Error('当前浏览器不支持导出 PNG')
     context.fillStyle = '#ffffff'
@@ -164,7 +175,7 @@ export async function downloadRackPng(rack: RackSvg, scale = 2) {
     context.drawImage(image, 0, 0, canvas.width, canvas.height)
     const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'))
     if (!blob) throw new Error('当前浏览器不支持导出 PNG')
-    saveBlob(blob, `${rack.filename}.png`)
+    saveBlob(blob, `${filename}.png`)
   } finally {
     URL.revokeObjectURL(url)
   }

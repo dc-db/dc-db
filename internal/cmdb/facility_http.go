@@ -14,6 +14,7 @@ import (
 func (s *Server) registerFacilities(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/facilities", s.requireUser(false, s.listFacilities))
 	mux.HandleFunc("GET /api/racks/{id}/elevation.xlsx", s.requireUser(false, s.exportRackElevation))
+	mux.HandleFunc("GET /api/racks/{id}/elevation.svg", s.requireUser(false, s.exportRackSVG))
 	mux.HandleFunc("POST /api/regions", s.requireUser(true, s.saveRegion))
 	mux.HandleFunc("PUT /api/regions/{id}", s.requireUser(true, s.saveRegion))
 	mux.HandleFunc("DELETE /api/regions/{id}", s.requireUser(true, s.deleteFacility(DeleteRegion)))
@@ -198,6 +199,76 @@ func (s *Server) deleteFacility(remove func(context.Context, *sql.DB, int64, int
 	}
 }
 
+type rackExportData struct {
+	rack       Rack
+	room       Room
+	placements []RackPlacement
+	assets     map[int64]Asset
+}
+
+// loadRackExport gathers the pieces both export endpoints need.
+func (s *Server) loadRackExport(ctx context.Context, id int64) (rackExportData, bool, error) {
+	facilities, err := ListFacilities(ctx, s.db)
+	if err != nil {
+		return rackExportData{}, false, err
+	}
+	var data rackExportData
+	found := false
+	for _, item := range facilities.Racks {
+		if item.ID == id {
+			data.rack = item
+			found = true
+			break
+		}
+	}
+	if !found {
+		return rackExportData{}, false, nil
+	}
+	for _, item := range facilities.Rooms {
+		if item.ID == data.rack.RoomID {
+			data.room = item
+			break
+		}
+	}
+	assets, err := ListAssets(ctx, s.db)
+	if err != nil {
+		return rackExportData{}, false, err
+	}
+	data.assets = make(map[int64]Asset, len(assets))
+	for _, asset := range assets {
+		data.assets[asset.ID] = asset
+	}
+	data.placements = facilities.Placements
+	return data, true, nil
+}
+
+// exportRackSVG serves one face of a rack as a standalone SVG drawing.
+func (s *Server) exportRackSVG(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	data, found, err := s.loadRackExport(r.Context(), id)
+	if err != nil {
+		s.databaseError(w, err)
+		return
+	}
+	if !found {
+		fail(w, http.StatusNotFound, "机柜不存在")
+		return
+	}
+	face := strings.TrimSpace(r.URL.Query().Get("face"))
+	if face != "rear" {
+		face = "front"
+	}
+	theme := strings.TrimSpace(r.URL.Query().Get("theme"))
+	drawing := RackElevationSVG(data.rack, data.placements, data.assets, face, rackSVGOptions{Dark: theme == "dark"})
+
+	w.Header().Set("Content-Type", "image/svg+xml; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"rack-elevation.svg\"; filename*=UTF-8''"+url.PathEscape(fmt.Sprintf("%s-%s.svg", data.rack.Name, faceLabel(face))))
+	_, _ = w.Write([]byte(drawing))
+}
+
 // exportRackElevation serves one face of a rack as an XLSX sheet whose rows and
 // fills mirror the on-screen elevation.
 func (s *Server) exportRackElevation(w http.ResponseWriter, r *http.Request) {
@@ -205,48 +276,22 @@ func (s *Server) exportRackElevation(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	face := strings.TrimSpace(r.URL.Query().Get("face"))
-	if face != "rear" {
-		face = "front"
-	}
-	facilities, err := ListFacilities(r.Context(), s.db)
+	data, found, err := s.loadRackExport(r.Context(), id)
 	if err != nil {
 		s.databaseError(w, err)
 		return
-	}
-	var rack Rack
-	var room Room
-	found := false
-	for _, item := range facilities.Racks {
-		if item.ID != id {
-			continue
-		}
-		rack = item
-		found = true
-		break
 	}
 	if !found {
 		fail(w, http.StatusNotFound, "机柜不存在")
 		return
 	}
-	for _, item := range facilities.Rooms {
-		if item.ID == rack.RoomID {
-			room = item
-			break
-		}
-	}
-	assets, err := ListAssets(r.Context(), s.db)
-	if err != nil {
-		s.databaseError(w, err)
-		return
-	}
-	byID := make(map[int64]Asset, len(assets))
-	for _, asset := range assets {
-		byID[asset.ID] = asset
+	face := strings.TrimSpace(r.URL.Query().Get("face"))
+	if face != "rear" {
+		face = "front"
 	}
 
-	file := RackElevationXLSX(rack, room, facilities.Placements, byID, face)
-	name := fmt.Sprintf("%s-%s.xlsx", rack.Name, faceLabel(face))
+	file := RackElevationXLSX(data.rack, data.room, data.placements, data.assets, face)
+	name := fmt.Sprintf("%s-%s.xlsx", data.rack.Name, faceLabel(face))
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	w.Header().Set("Content-Disposition", "attachment; filename=\"rack-elevation.xlsx\"; filename*=UTF-8''"+url.PathEscape(name))
 	w.Header().Set("Content-Length", strconv.Itoa(len(file)))

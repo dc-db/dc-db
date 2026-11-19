@@ -5,7 +5,7 @@ import type { Asset } from '../api'
 import { occupiedUnits, placementFaceLabel, placementsConflict, uRange } from '../facilities'
 import type { Placement, Rack, RackFace } from '../facilities'
 import { RackDeviceSvg } from './RackDeviceSvg'
-import { downloadRackPng, downloadRackSvg, rackElevationSvg } from '../rackExport'
+import { downloadSvgTextPng, rackElevationSvg } from '../rackExport'
 
 interface Props {
   rack: Rack
@@ -111,12 +111,22 @@ export function RackElevation({ rack, devices, assets, focused, editable, busy, 
   }
 
   function exportSvg() {
-    downloadRackSvg(rackElevationSvg(rack, devices, assets, face))
+    const link = document.createElement('a')
+    link.href = exportURL('svg')
+    link.download = `${rack.name}-${face === 'rear' ? '后视图' : '前视图'}.svg`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+  }
+
+  function exportURL(kind: 'svg' | 'xlsx') {
+    const theme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
+    return `/api/racks/${rack.id}/elevation.${kind}?face=${face}&theme=${theme}`
   }
 
   function exportXlsx() {
     const link = document.createElement('a')
-    link.href = `/api/racks/${rack.id}/elevation.xlsx?face=${face}`
+    link.href = exportURL('xlsx')
     link.download = `${rack.name}-${face === 'rear' ? '后视图' : '前视图'}.xlsx`
     document.body.appendChild(link)
     link.click()
@@ -124,7 +134,10 @@ export function RackElevation({ rack, devices, assets, focused, editable, busy, 
   }
   async function exportPng() {
     try {
-      await downloadRackPng(rackElevationSvg(rack, devices, assets, face))
+      const response = await fetch(exportURL('svg'))
+      if (!response.ok) throw new Error('机柜图导出失败')
+      const svg = await response.text()
+      await downloadSvgTextPng(svg, `${rack.name}-${face === 'rear' ? '后视图' : '前视图'}`)
     } catch {
       // Canvas export can fail if the browser blocks blobs; the SVG button still works.
     }
