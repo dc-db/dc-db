@@ -177,8 +177,8 @@ a { color: var(--info); }
 .login-panel { position: relative; z-index: 1; width: min(400px, 100%); }
 .login-card { width: 100%; padding: 36px 32px 32px; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--surface) 88%, transparent); box-shadow: 0 20px 60px rgba(15, 23, 42, .08); backdrop-filter: blur(12px); }
 .login-card { box-shadow: 0 24px 70px rgba(0, 0, 0, .55); }
-.login-brand { display: flex; align-items: center; justify-content: center; min-height: 80px; margin-bottom: 30px; }
-.login-brand img { width: 260px; height: auto; }
+.login-brand { display: flex; align-items: center; justify-content: center; min-height: 84px; margin-bottom: 30px; }
+.login-brand svg { display: block; width: 320px; height: auto; }
 .wordmark { display: inline-flex; align-items: center; gap: .38em; max-width: 100%; font-family: inherit; font-size: 1em; font-weight: 650; line-height: 1; letter-spacing: -.02em; white-space: nowrap; }
 .wordmark-symbol { display: block; flex: 0 0 auto; width: 1.45em; height: 1.45em; }
 .wordmark-text { color: var(--text); }
