@@ -9,7 +9,7 @@ import type { TableColumnsType } from './components/AppControls'
 const zhCN = {}
 import {
   Building2 as BuildingOutlined, BookOpen as BookOpenOutlined, Cable as ApiOutlined, Server as CloudServerOutlined,
-  Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Filter as FilterOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
+  Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
   House as HomeOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
 } from 'lucide-react'
@@ -61,17 +61,6 @@ const defaultPageSize = 10
 const defaultAssetColumns = ['name', 'kind', 'status', 'tags', 'meta', 'address', 'owner', 'actions']
 const assetColumnKeys = ['name', 'kind', 'status', 'tags', 'meta', 'address', 'owner', 'environment', 'capacity', 'updated', 'actions']
 
-interface AssetFilterPreset {
-  id: string
-  name: string
-  keyword: string
-  platform?: string
-  lifecycle: string
-  status?: string
-  tagIds?: number[]
-  tagMatch?: 'all' | 'any'
-  tagId?: number
-}
 
 function platformLabel(asset: Pick<Asset, 'platform'>) {
   return asset.platform === 'pve' ? 'Proxmox VE' : asset.platform === 'kvm' ? 'KVM' : '—'
@@ -200,9 +189,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const [tagFilter, setTagFilter] = useState<number[]>([])
   const [tagFilterMode, setTagFilterMode] = useState<'all' | 'any'>('all')
-  const [filterPresets, setFilterPresets] = useState<AssetFilterPreset[]>([])
-  const [filterName, setFilterName] = useState('')
-  const [filterOpen, setFilterOpen] = useState(false)
   const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultAssetColumns)
   const [pagination, setPagination] = useState(1)
   const [pageSize, setPageSize] = useState(() => {
@@ -404,19 +390,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   useEffect(() => {
     if (!assetPage) return
-    setFilterOpen(false)
-    setFilterName('')
-    try {
-      const raw = localStorage.getItem('dc-db-filters:' + page)
-      const parsed: unknown = raw ? JSON.parse(raw) : []
-      if (Array.isArray(parsed)) {
-        setFilterPresets(parsed.filter((item): item is AssetFilterPreset => (
-          !!item && typeof item === 'object' && typeof (item as AssetFilterPreset).name === 'string'
-        )))
-      }
-    } catch {
-      setFilterPresets([])
-    }
     try {
       const raw = localStorage.getItem('dc-db-columns:' + page)
       const parsed: unknown = raw ? JSON.parse(raw) : null
@@ -773,50 +746,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     } finally {
       setTagSaving(false)
     }
-  }
-
-  function persistFilterPresets(next: AssetFilterPreset[]) {    setFilterPresets(next)
-    try {
-      localStorage.setItem('dc-db-filters:' + page, JSON.stringify(next))
-    } catch {
-      // Storage can be unavailable in private browsing; the in-memory list still works.
-    }
-  }
-
-  function saveFilterPreset() {
-    const name = filterName.trim()
-    if (!name) {
-      void message.warning('请输入条件名称')
-      return
-    }
-    const preset: AssetFilterPreset = {
-      id: Date.now().toString(36),
-      name,
-      keyword: keyword.trim(),
-      platform: platformFilter,
-      lifecycle: lifecycleFilter,
-      status: statusFilter,
-      tagIds: tagFilter,
-      tagMatch: tagFilterMode,
-    }
-    persistFilterPresets([...filterPresets.filter(item => item.name !== name), preset])
-    setFilterName('')
-    setFilterOpen(false)
-  }
-
-  function applyFilterPreset(preset: AssetFilterPreset) {
-    setKeyword(preset.keyword)
-    setPlatformFilter(preset.platform)
-    setLifecycleFilter(preset.lifecycle)
-    setStatusFilter(preset.status)
-    setTagFilter(preset.tagIds ?? (preset.tagId ? [preset.tagId] : []))
-    setTagFilterMode(preset.tagMatch ?? 'all')
-    setPagination(1)
-    setFilterOpen(false)
-  }
-
-  function removeFilterPreset(id: string) {
-    persistFilterPresets(filterPresets.filter(item => item.id !== id))
   }
 
   function updateVisibleColumns(keys: string[]) {
@@ -1372,32 +1301,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                       options={[{ value: 'all', label: '同时满足' }, { value: 'any', label: '任一匹配' }]}
                     />
                   )}
-                  <Popover
-                    open={filterOpen} onOpenChange={setFilterOpen} trigger="click" placement="bottomRight"
-                    content={(
-                      <div className="filter-popover">
-                        <div className="filter-preset-form">
-                          <Input
-                            size="small" placeholder="条件名称" value={filterName}
-                            onChange={(event: React.ChangeEvent<HTMLInputElement>) => setFilterName(event.target.value)}
-                            onPressEnter={saveFilterPreset}
-                          />
-                          <Button size="small" type="primary" onClick={saveFilterPreset}>保存</Button>
-                        </div>
-                        {filterPresets.length ? filterPresets.map(preset => (
-                          <div key={preset.id} className="filter-preset-row">
-                            <Button type="link" size="small" onClick={() => applyFilterPreset(preset)}>{preset.name}</Button>
-                            <Button
-                              type="text" size="small" danger icon={<DeleteOutlined />}
-                              aria-label={`删除条件 ${preset.name}`} onClick={() => removeFilterPreset(preset.id)}
-                            />
-                          </div>
-                        )) : <p className="muted filter-preset-empty">暂无保存条件</p>}
-                      </div>
-                    )}
-                  >
-                    <Button size="small" icon={<FilterOutlined />}>条件</Button>
-                  </Popover>
                   <Popover
                     trigger="click" placement="bottomRight"
                     content={(
