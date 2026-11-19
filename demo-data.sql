@@ -92,7 +92,7 @@ SELECT v.* FROM (
     SELECT 1::bigint, 1::bigint, 1::int, 2::int, 'front'::text, 'full'::text
     UNION ALL SELECT 2, 1, 4, 2, 'front', 'full'
     UNION ALL SELECT 6, 2, 40, 1, 'front', 'full'
-    UNION ALL SELECT 7, 2, 38, 1, 'front', 'full'
+    UNION ALL SELECT 7, 2, 38, 1, 'rear', 'half'
     UNION ALL SELECT 9, 3, 10, 2, 'front', 'full'
     UNION ALL SELECT 10, 3, 14, 1, 'front', 'full'
     UNION ALL SELECT 11, 4, 20, 1, 'front', 'full'

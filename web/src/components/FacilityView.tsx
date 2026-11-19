@@ -64,6 +64,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   const [rackId, setRackId] = useState<number | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
   const [view, setView] = useState<'table' | 'elevations'>('table')
+  const [face, setFace] = useState<RackFace>('front')
   const [roomDraft, setRoomDraft] = useState<RoomDraft | null>(null)
   const [regionDraft, setRegionDraft] = useState<{ id?: number; version: number; name: string } | null>(null)
   const [rackDraft, setRackDraft] = useState<RackDraft | null>(null)
@@ -475,8 +476,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                   <div className="floor-toolbar">
                     <div className="floor-toolbar-search">
                       <Input type="search" className="w-[320px]" aria-label="搜索机柜名称" placeholder="搜索机柜名称…" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />
-                    </div>
-                    <div className="floor-toolbar-actions">
                       <div className="view-toggle view-switch" role="tablist" aria-label="机柜视图">
                         <button
                           type="button" role="tab" aria-selected={view === 'table'}
@@ -489,6 +488,22 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                           onClick={() => setView('elevations')}
                         >立面图</button>
                       </div>
+                    </div>
+                    <div className="floor-toolbar-actions">
+                      {view === 'elevations' && (
+                        <div className="view-toggle view-switch" role="group" aria-label="安装面">
+                          <button
+                            type="button" aria-pressed={face === 'front'}
+                            className={face === 'front' ? 'is-active' : ''}
+                            onClick={() => setFace('front')}
+                          >前视图</button>
+                          <button
+                            type="button" aria-pressed={face === 'rear'}
+                            className={face === 'rear' ? 'is-active' : ''}
+                            onClick={() => setFace('rear')}
+                          >后视图</button>
+                        </div>
+                      )}
                       {editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
                     </div>
                   </div>
@@ -523,7 +538,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                     <div className="rack-board">
                       {rackRows.map(item => {
                         const placements = roomPlacements.filter(entry => entry.rackId === item.id)
-                        const preview = rackElevationSvg(item, placements, byId, 'front', { interactive: editable })
+                        const preview = rackElevationSvg(item, placements, byId, face, { interactive: editable })
                         return (
                           <div key={item.id} className="rack-board-item">
                             <div className="rack-board-head">
@@ -558,8 +573,8 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                             <Button size="sm" variant="outline" onClick={() => {
                               const theme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
                               const link = document.createElement('a')
-                              link.href = `/api/racks/${item.id}/elevation.svg?face=front&theme=${theme}`
-                              link.download = `${item.name}-前视图.svg`
+                              link.href = `/api/racks/${item.id}/elevation.svg?face=${face}&theme=${theme}`
+                              link.download = `${item.name}-${face === 'rear' ? '后视图' : '前视图'}.svg`
                               document.body.appendChild(link)
                               link.click()
                               link.remove()
