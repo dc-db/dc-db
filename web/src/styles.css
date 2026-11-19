@@ -195,8 +195,8 @@ a { color: var(--info); }
 .facility-tree-region-action:hover { background: var(--subtle); color: var(--text); }
 
 /* Rack table view. */
-.rack-board { display: flex; gap: 14px; align-items: flex-start; overflow-x: auto; padding: 6px 0 10px; }
-.rack-board-item { display: flex; flex-direction: column; gap: 8px; flex: 0 0 200px; width: 200px; }
+.rack-board { display: flex; gap: 14px; align-items: stretch; overflow-x: auto; padding: 6px 0 10px; }
+.rack-board-item { display: flex; flex-direction: column; gap: 8px; flex: 0 0 200px; width: 200px; justify-content: flex-end; }
 .rack-board-head { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .rack-board-role { padding: 1px 8px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); font-size: 11px; }
 .rack-board-figure { overflow: hidden; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; }
