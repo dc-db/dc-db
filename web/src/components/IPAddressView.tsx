@@ -91,10 +91,9 @@ export function IPAddressView({ editable, assets, subnets, onOpenAsset, onOpenSu
     ])
   }
 
-  return <Card className="border-0 bg-transparent shadow-none"><div className="ipam-actions"><div className="flex gap-2"><Button variant="outline" disabled={!visible.length} onClick={exportCSV}><Download />导出 CSV</Button><Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>{editable && <Button onClick={() => showForm(null)}><Plus />分配 IP</Button>}</div></div><CardContent>
+  return <Card className="border-0 bg-transparent shadow-none"><CardContent>
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
     {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
-    <div className="mb-4 grid grid-cols-4 gap-3">{stats.map(([label, value]) => <div key={label} className="rounded-lg border p-4"><div className="text-sm text-muted-foreground">{label}</div><div className="mt-1 text-2xl font-semibold">{value}</div></div>)}</div>
     <div className="mb-4 flex flex-wrap items-center gap-3">
       <Input className="max-w-sm" placeholder="搜索 IP、DNS、资产、用途或网段" value={keyword} onChange={event => setKeyword(event.target.value)} />
       <Select
@@ -113,6 +112,11 @@ export function IPAddressView({ editable, assets, subnets, onOpenAsset, onOpenSu
         options={Object.entries(stateMeta).map(([value, label]) => ({ value, label }))}
       />
       <span className="text-sm text-muted-foreground">共 {visible.length} 条</span>
+      <div className="ipam-toolbar-actions">
+        <Button variant="outline" disabled={!visible.length} onClick={exportCSV}><Download />导出</Button>
+        <Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
+        {editable && <Button onClick={() => showForm(null)}><Plus />分配 IP</Button>}
+      </div>
     </div>
     <div className="overflow-x-auto"><Table><TableHeader>{table.getHeaderGroups().map(group => <TableRow key={group.id}>{group.headers.map(header => <TableHead key={header.id}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{loading ? <TableRow><TableCell colSpan={columns.length}>加载中...</TableCell></TableRow> : table.getRowModel().rows.length ? table.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">暂无匹配的 IP 地址</TableCell></TableRow>}</TableBody></Table></div>
     <div className="mt-4 flex flex-wrap items-center justify-end gap-2 text-sm"><span className="text-muted-foreground">共 {visible.length} 条</span><label className="flex items-center gap-2 whitespace-nowrap text-muted-foreground">每页<select aria-label="每页条数" className={`${selectClass} w-20`} value={table.getState().pagination.pageSize} onChange={event => table.setPageSize(Number(event.target.value))}>{[10, 20, 50].map(size => <option key={size} value={size}>{size}</option>)}</select>条</label><span className="whitespace-nowrap text-muted-foreground">第 {table.getState().pagination.pageIndex + 1} / {Math.max(1, table.getPageCount())} 页</span><div className="flex items-center gap-1"><Button variant="outline" size="icon-sm" aria-label="第一页" disabled={!table.getCanPreviousPage()} onClick={() => table.setPageIndex(0)}><ChevronsLeft /></Button><Button variant="outline" size="icon-sm" aria-label="上一页" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}><ChevronLeft /></Button><Button variant="outline" size="icon-sm" aria-label="下一页" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}><ChevronRight /></Button><Button variant="outline" size="icon-sm" aria-label="最后一页" disabled={!table.getCanNextPage()} onClick={() => table.setPageIndex(Math.max(0, table.getPageCount() - 1))}><ChevronsRight /></Button></div></div>
