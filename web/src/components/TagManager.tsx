@@ -99,7 +99,7 @@ export function TagManager({ editable, onSessionError, onChanged }: Props) {
 
   return <Card>
     <CardHeader className="flex flex-row items-center justify-between gap-4">
-      <CardTitle className="flex items-center gap-2"><Tags className="size-4" />标签管理 <span className="text-sm font-normal text-muted-foreground">{tags.length} 个标签</span></CardTitle>
+      <CardTitle className="flex items-center gap-2"><Tags className="size-4" />标签 <span className="text-sm font-normal text-muted-foreground">{tags.length} 个标签</span></CardTitle>
       {editable && <Button onClick={() => showForm(null)}><Plus />新增标签</Button>}
     </CardHeader>
     <CardContent>
