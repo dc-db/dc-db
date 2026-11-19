@@ -4,7 +4,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Service, ServiceFields } from '../api'
 import { Button } from './ui/button'
-import { Card, CardContent } from './ui/card'
+import { PageHeader } from './PageHeader'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
@@ -106,19 +106,19 @@ export function ServiceManager({ editable, onSessionError }: Props) {
 
   const table = useReactTable({ data: visible, columns, getCoreRowModel: getCoreRowModel() })
 
-  return <Card className="border-0 bg-transparent shadow-none">
-    <div className="ipam-actions">
-      {editable && <Button onClick={() => showForm(null)}><Plus />新增服务</Button>}
-    </div>
-    <CardContent className="px-0">
-      {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-      <div className="mb-4 flex items-center gap-3">
+  return <>
+    <PageHeader
+      title="服务"
+      filters={<>
         <Input className="max-w-sm" placeholder="搜索服务名称、分类或说明" value={keyword} onChange={event => setKeyword(event.target.value)} />
         <select aria-label="筛选分类" className={selectClass} value={category} onChange={event => setCategory(event.target.value)}>
           <option value="">全部分类</option>
           {categories.map(item => <option key={item} value={item}>{item}</option>)}
         </select>
-      </div>
+      </>}
+      actions={editable && <Button onClick={() => showForm(null)}><Plus />新增服务</Button>}
+    />
+    {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
       <Table>
         <TableHeader>{table.getHeaderGroups().map(group => <TableRow key={group.id}>{group.headers.map(header => <TableHead key={header.id}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
         <TableBody>
@@ -128,8 +128,7 @@ export function ServiceManager({ editable, onSessionError }: Props) {
               ? table.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)
               : <TableRow><TableCell colSpan={columns.length} className="py-10 text-center text-muted-foreground">没有匹配的服务</TableCell></TableRow>}
         </TableBody>
-      </Table>
-    </CardContent>
+    </Table>
     <Dialog open={open} onOpenChange={next => { if (!saving) setOpen(next) }}><DialogContent>
       <DialogHeader><DialogTitle>{editing ? '编辑服务' : '新增服务'}</DialogTitle></DialogHeader>
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
@@ -147,5 +146,5 @@ export function ServiceManager({ editable, onSessionError }: Props) {
       <DialogHeader><DialogTitle>删除服务「{deleting?.name}」？</DialogTitle><DialogDescription>只从服务目录里移除，不影响资产。</DialogDescription></DialogHeader>
       <DialogFooter><Button variant="outline" disabled={saving} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={saving} onClick={() => { if (deleting) void remove(deleting) }}>删除</Button></DialogFooter>
     </DialogContent></Dialog>
-  </Card>
+  </>
 }

@@ -4,7 +4,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Group, GroupFields } from '../api'
 import { Button } from './ui/button'
-import { Card, CardContent } from './ui/card'
+import { PageHeader } from './PageHeader'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
@@ -18,6 +18,7 @@ interface Props {
 
 export function GroupManager({ editable, onSessionError, onChanged }: Props) {
   const [groups, setGroups] = useState<Group[]>([])
+  const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [open, setOpen] = useState(false)
@@ -91,14 +92,19 @@ export function GroupManager({ editable, onSessionError, onChanged }: Props) {
     }] : []),
   ], [editable])
 
-  const table = useReactTable({ data: groups, columns, getCoreRowModel: getCoreRowModel() })
+  const visible = useMemo(() => {
+    const query = keyword.trim().toLowerCase()
+    return query ? groups.filter(item => [item.name, item.description].some(value => value.toLowerCase().includes(query))) : groups
+  }, [groups, keyword])
+  const table = useReactTable({ data: visible, columns, getCoreRowModel: getCoreRowModel() })
 
-  return <Card className="border-0 bg-transparent shadow-none">
-    <div className="ipam-actions">
-      {editable && <Button onClick={() => showForm(null)}><Plus />新增群组</Button>}
-    </div>
-    <CardContent className="px-0">
-      {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+  return <>
+    <PageHeader
+      title="群组"
+      filters={<Input className="max-w-sm" placeholder="搜索群组名称或说明" value={keyword} onChange={event => setKeyword(event.target.value)} />}
+      actions={editable && <Button onClick={() => showForm(null)}><Plus />新增群组</Button>}
+    />
+    {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
       <Table>
         <TableHeader>{table.getHeaderGroups().map(group => <TableRow key={group.id}>{group.headers.map(header => <TableHead key={header.id}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
         <TableBody>
@@ -108,8 +114,7 @@ export function GroupManager({ editable, onSessionError, onChanged }: Props) {
               ? table.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)
               : <TableRow><TableCell colSpan={columns.length} className="py-10 text-center text-muted-foreground">还没有群组。按项目建一个，资产就能归类了</TableCell></TableRow>}
         </TableBody>
-      </Table>
-    </CardContent>
+    </Table>
     <Dialog open={open} onOpenChange={next => { if (!saving) setOpen(next) }}><DialogContent>
       <DialogHeader><DialogTitle>{editing ? '编辑群组' : '新增群组'}</DialogTitle></DialogHeader>
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
@@ -123,5 +128,5 @@ export function GroupManager({ editable, onSessionError, onChanged }: Props) {
       <DialogHeader><DialogTitle>删除群组「{deleting?.name}」？</DialogTitle><DialogDescription>组内资产会保留，只是不再归属这个群组。</DialogDescription></DialogHeader>
       <DialogFooter><Button variant="outline" disabled={saving} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={saving} onClick={() => { if (deleting) void remove(deleting) }}>删除</Button></DialogFooter>
     </DialogContent></Dialog>
-  </Card>
+  </>
 }

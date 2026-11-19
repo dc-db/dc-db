@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
 import { Pencil, Plus, Tags, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Tag as TagItem, TagFields } from '../api'
 import { Button } from './ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { PageHeader } from './PageHeader'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
@@ -34,6 +34,7 @@ function readableTextColor(color: string) {
 
 export function TagManager({ editable, onSessionError, onChanged }: Props) {
   const [tags, setTags] = useState<TagItem[]>([])
+  const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [open, setOpen] = useState(false)
@@ -95,19 +96,22 @@ export function TagManager({ editable, onSessionError, onChanged }: Props) {
     { accessorKey: 'assetCount', header: '关联资产', cell: ({ row }) => row.original.assetCount || '0' },
     ...(editable ? [{ id: 'actions', header: '', cell: ({ row }: { row: { original: TagItem } }) => <div className="flex gap-1"><Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button><Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleting(row.original)}><Trash2 />删除</Button></div> }] : []),
   ]
-  const table = useReactTable({ data: tags, columns, getCoreRowModel: getCoreRowModel() })
+  const visible = useMemo(() => {
+    const query = keyword.trim().toLowerCase()
+    return query ? tags.filter(item => [item.name, item.description].some(value => value.toLowerCase().includes(query))) : tags
+  }, [tags, keyword])
+  const table = useReactTable({ data: visible, columns, getCoreRowModel: getCoreRowModel() })
 
-  return <Card>
-    <CardHeader className="flex flex-row items-center justify-between gap-4">
-      <CardTitle className="flex items-center gap-2"><Tags className="size-4" />标签 <span className="text-sm font-normal text-muted-foreground">{tags.length} 个标签</span></CardTitle>
-      {editable && <Button onClick={() => showForm(null)}><Plus />新增标签</Button>}
-    </CardHeader>
-    <CardContent>
-      {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+  return <>
+    <PageHeader
+      title="标签"
+      filters={<Input className="max-w-sm" placeholder="搜索标签名称或说明" value={keyword} onChange={event => setKeyword(event.target.value)} />}
+      actions={editable && <Button onClick={() => showForm(null)}><Plus />新增标签</Button>}
+    />
+    {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
       <Table><TableHeader>{table.getHeaderGroups().map(group => <TableRow key={group.id}>{group.headers.map(header => <TableHead key={header.id}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
         <TableBody>{loading ? <TableRow><TableCell colSpan={columns.length}>加载中...</TableCell></TableRow> : table.getRowModel().rows.length ? table.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">还没有标签，创建一个用于分组和筛选资产</TableCell></TableRow>}</TableBody>
-      </Table>
-    </CardContent>
+    </Table>
     <Dialog open={open} onOpenChange={next => { if (!saving) setOpen(next) }}><DialogContent><DialogHeader><DialogTitle>{editing ? '编辑标签' : '新增标签'}</DialogTitle></DialogHeader>
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
       <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save() }}>
@@ -118,5 +122,5 @@ export function TagManager({ editable, onSessionError, onChanged }: Props) {
       </form>
     </DialogContent></Dialog>
     <Dialog open={!!deleting} onOpenChange={next => { if (!next && !saving) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>删除标签「{deleting?.name}」？</DialogTitle><DialogDescription>关联资产上的该标签会一并移除，资产本身保留。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={saving} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={saving} onClick={() => { if (deleting) void remove(deleting) }}>删除</Button></DialogFooter></DialogContent></Dialog>
-  </Card>
+  </>
 }

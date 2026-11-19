@@ -32,6 +32,7 @@ import { GuidePage } from './components/GuidePage'
 import { IPAddressView } from './components/IPAddressView'
 import { IpamView } from './components/IpamView'
 import { LoginBackdrop } from './components/LoginBackdrop'
+import { PageHeader } from './components/PageHeader'
 import { TagManager } from './components/TagManager'
 import { GroupManager } from './components/GroupManager'
 import { ServiceManager } from './components/ServiceManager'
@@ -1287,9 +1288,9 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
           {(page === 'host' || page === 'vm') && (
             <Card variant="borderless">
-              <h2 className="asset-view-title">{page === 'vm' ? '虚拟机' : '物理机'}</h2>
-              <div className="table-toolbar">
-                <Space wrap>
+              <PageHeader
+                title={page === 'vm' ? '虚拟机' : '物理机'}
+                filters={<Space wrap>
                   <Input
                     type="search" className="w-[200px]"
                     aria-label={`搜索${page === 'vm' ? '虚拟机' : '物理机'}`}
@@ -1349,13 +1350,13 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                   >
                     <Button size="small" icon={<SettingOutlined />}>列</Button>
                   </Popover>
-                </Space>
-                <Space wrap>
+                </Space>}
+                actions={<Space wrap>
                   {editable && <Button onClick={() => { setAssetImportFile(null); setAssetImportOpen(true) }}><DownloadOutlined /> 导入</Button>}
                   <Button disabled={!filtered.length} onClick={exportCSV}><UploadOutlined /> 导出</Button>
                   {editable && <Button type="primary" onClick={startNew}><PlusOutlined /> 新增设备</Button>}
-                </Space>
-              </div>
+                </Space>}
+              />
               {editable && selectedAssetIds.length > 0 && (
                 <div className="bulk-bar">
                   <span>已选择 <strong>{selectedAssetIds.length}</strong> 条资产</span>

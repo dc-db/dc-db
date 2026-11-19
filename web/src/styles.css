@@ -412,6 +412,8 @@ html[data-theme="dark"] .import-error-row strong { color: #ff7875; }
 .bulk-modal-actions { display: flex; justify-content: flex-end; margin-top: 4px; }
 .column-options { display: flex; flex-direction: column; gap: 6px; min-width: 150px; }
 .table-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.page-header-filters { flex: 1 1 auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.page-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
 .asset-link { height: auto; padding: 0 !important; display: inline-flex; gap: 7px; align-items: center; }
 .asset-sub { margin-left: 6px; color: var(--muted); font-size: 12px; font-weight: 400; }
 .mono { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }
