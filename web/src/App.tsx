@@ -12,7 +12,7 @@ import {
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
   House as HomeOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
-  FolderTree as FolderTreeOutlined, Boxes as BoxesOutlined,
+  FolderTree as FolderTreeOutlined, Boxes as BoxesOutlined, FolderKanban as FolderKanbanOutlined,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
 import { downloadCSV } from './csv'
@@ -279,9 +279,9 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     {
       key: 'org', label: '组织结构', icon: <FolderTreeOutlined />,
       children: [
-        { key: 'tags', label: '标签', icon: <TagsOutlined /> },
-        { key: 'groups', label: '群组', icon: <FolderTreeOutlined /> },
+        { key: 'groups', label: '群组', icon: <FolderKanbanOutlined /> },
         { key: 'services', label: '服务', icon: <BoxesOutlined /> },
+        { key: 'tags', label: '标签', icon: <TagsOutlined /> },
       ],
     },
     {
