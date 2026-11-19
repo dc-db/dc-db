@@ -300,7 +300,7 @@ export function RoomScene(props: Props) {
     <div className="room-scene">
       <div ref={mount} className="room-scene-canvas" />
       {unavailable ? (
-        <div className="room-scene-message" role="status">当前浏览器无法显示 3D。可切换到平面布局继续查看和编辑。</div>
+        <div className="room-scene-message" role="status">当前浏览器无法显示 3D。可切换到表格视图查看机柜容量。</div>
       ) : (
         <Button size="sm" variant="outline" className="scene-reset" onClick={resetCamera}>重置视角</Button>
       )}

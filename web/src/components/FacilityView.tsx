@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Building2, Boxes, ChartPie, Download, Grid2X2, LayoutGrid, MoreHorizontal, Pencil, Plus, Server } from 'lucide-react'
+import { Building2, Boxes, ChartPie, Download, LayoutGrid, List, MoreHorizontal, Pencil, Plus, Server } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
@@ -66,7 +66,7 @@ function ConfirmDelete({ title, disabled, onConfirm, children }: { title: string
 export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, layout, assets, links, editable, dark, focus, reload, onOpenAsset, bookmarkedRacks, onToggleRackBookmark, onSessionError }: Props) {
   const [rackId, setRackId] = useState<number | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
-  const [view, setView] = useState<'cards' | 'floor' | '3d'>('cards')
+  const [view, setView] = useState<'cards' | 'table' | '3d'>('cards')
   const [roomDraft, setRoomDraft] = useState<RoomDraft | null>(null)
   const [regionDraft, setRegionDraft] = useState<{ id?: number; version: number; name: string } | null>(null)
   const [rackDraft, setRackDraft] = useState<RackDraft | null>(null)
@@ -77,7 +77,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   const [search, setSearch] = useState('')
   const [roomSearch, setRoomSearch] = useState('')
   const [rackKeyword, setRackKeyword] = useState('')
-  const [dragRack, setDragRack] = useState<number | null>(null)
   const [rackDrawerOpen, setRackDrawerOpen] = useState(false)
 
   const rooms = layout.rooms
@@ -101,6 +100,10 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   const rack = racks.find(item => item.id === rackId)
   const rackIds = useMemo(() => new Set(racks.map(item => item.id)), [racks])
   const roomPlacements = useMemo(() => layout.placements.filter(item => rackIds.has(item.rackId)), [layout.placements, rackIds])
+  const rackRows = useMemo(() => {
+    const needle = rackKeyword.trim().toLowerCase()
+    return needle ? racks.filter(item => item.name.toLowerCase().includes(needle) || item.zone.toLowerCase().includes(needle)) : racks
+  }, [racks, rackKeyword])
   const devices = roomPlacements.filter(item => item.rackId === rackId)
   const totalRoomU = racks.reduce((sum, item) => sum + item.heightU, 0)
   const usedRoomU = racks.reduce((sum, item) =>
@@ -298,34 +301,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
     void mutate(() => api('/racks/' + value.id + '?version=' + value.version, 'DELETE'), resetForms, '机柜已删除')
   }
 
-  function startDrag(event: React.DragEvent, value: Rack) {
-    if (!editable || busy || !event.dataTransfer) {
-      event.preventDefault()
-      return
-    }
-    setDragRack(value.id)
-    event.dataTransfer.setData('text/plain', String(value.id))
-    event.dataTransfer.effectAllowed = 'move'
-  }
-
-  function allowDrop(event: React.DragEvent, occupied: boolean) {
-    if (!dragRack || occupied || !editable || busy) return
-    event.preventDefault()
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
-  }
-
-  function moveRack(event: React.DragEvent, column: number, row: number, occupied: boolean) {
-    const item = racks.find(value => value.id === dragRack)
-    setDragRack(null)
-    if (!editable || busy || occupied || !item || event.dataTransfer?.getData('text/plain') !== String(item.id)) return
-    event.preventDefault()
-    const { name, heightU, rotation, version } = item
-    void mutate(() => api<Rack>('/racks/' + item.id, 'PUT', { name, heightU, column, row, rotation, version }), saved => {
-      setRackId(saved.id)
-      setRackDraft(null)
-    }, '机柜位置已更新')
-  }
-
   function freePosition(units: number, ignore = 0, face: RackFace = 'front', depth: PlacementDepth = 'full') {
     if (!rack) return 1
     for (let start = 1; start + units - 1 <= rack.heightU; start++) {
@@ -505,15 +480,40 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                     <div className="flex gap-2"><Button type="submit" disabled={busy}>保存机柜</Button><Button type="button" variant="outline" onClick={() => setRackDraft(null)}>取消</Button>{rackDraft.id && rack?.id === rackDraft.id && !devices.length && <ConfirmDelete title="删除该空机柜？" disabled={busy} onConfirm={() => removeRack(rack)}>删除空机柜</ConfirmDelete>}</div>
                   </form>}
                   <div className="floor-toolbar">
-                    <div className="flex gap-2"><Button variant={view === 'cards' ? 'default' : 'outline'} size="sm" onClick={() => setView('cards')}><Boxes />机柜视图</Button><Button variant={view === 'floor' ? 'default' : 'outline'} size="sm" onClick={() => setView('floor')}><Grid2X2 />平面布局</Button><Button variant={view === '3d' ? 'default' : 'outline'} size="sm" onClick={() => setView('3d')}><LayoutGrid />3D 总览</Button></div>
+                    <div className="flex gap-2"><Button variant={view === 'cards' ? 'default' : 'outline'} size="sm" onClick={() => setView('cards')}><Boxes />机柜视图</Button><Button variant={view === 'table' ? 'default' : 'outline'} size="sm" onClick={() => setView('table')}><List />表格</Button><Button variant={view === '3d' ? 'default' : 'outline'} size="sm" onClick={() => setView('3d')}><LayoutGrid />3D 总览</Button></div>
                     <div className="flex flex-wrap items-center gap-2">
-                      {view === 'cards' ? <Input type="search" className="w-[300px]" aria-label="搜索机柜名称" placeholder="搜索机柜名称…" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} /> : <Input type="search" className="w-[300px]" aria-label="搜索已上架资产、数据中心或机柜" placeholder="搜索已上架资产、数据中心或机柜…" value={search} onChange={event => setSearch(event.target.value)} />}
-                      {view !== 'cards' && racks.length > 0 && <><span className="muted">机柜</span><Choice label="机柜" className="w-[140px]" value={rackId ?? undefined} disabled={busy} onChange={openRack} options={racks.map(item => ({ value: item.id, label: item.name }))} /></>}
+                      {view === '3d' ? <Input type="search" className="w-[300px]" aria-label="搜索已上架资产、数据中心或机柜" placeholder="搜索已上架资产、数据中心或机柜…" value={search} onChange={event => setSearch(event.target.value)} /> : <Input type="search" className="w-[300px]" aria-label="搜索机柜名称" placeholder="搜索机柜名称…" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />}
+                      {view === '3d' && racks.length > 0 && <><span className="muted">机柜</span><Choice label="机柜" className="w-[140px]" value={rackId ?? undefined} disabled={busy} onChange={openRack} options={racks.map(item => ({ value: item.id, label: item.name }))} /></>}
                     </div>
                   </div>
-                  {view !== 'cards' && search.trim() && <div className="location-results">{searchResults.length ? searchResults.map(({ asset, location }) => <div key={asset.id} className="border-b py-1"><Button variant="link" className="location-result" onClick={() => showLocation(location)}><strong>{asset.name}</strong><span className="muted">{locationLabel(location)}</span></Button></div>) : <div className="p-3 text-sm text-muted-foreground">暂无匹配的上架位置</div>}</div>}
-                  {view === 'cards' ? <RackCardGrid racks={racks} placements={roomPlacements} assets={byId} keyword={rackKeyword} onOpen={openRack} /> : view === 'floor' ? (
-                    <div className="floor-scroll"><div className="floor-grid" style={{ gridTemplateColumns: `repeat(${room.columns}, minmax(54px, 1fr))` }}>{cells.map(cell => <div key={cell.key} className={`floor-cell${dragRack && !cell.rack ? ' drop-cell' : ''}`} title={`第 ${cell.row} 行，第 ${cell.column} 列`} onDragOver={event => allowDrop(event, !!cell.rack)} onDrop={event => moveRack(event, cell.column, cell.row, !!cell.rack)}>{cell.rack ? <button className="rack-tile" type="button" aria-pressed={cell.rack.id === rackId} draggable={editable && !busy} onClick={() => openRack(cell.rack!.id)} onDragStart={event => startDrag(event, cell.rack!)} onDragEnd={() => setDragRack(null)}><Server size="1em" aria-hidden="true" /><strong>{cell.rack.name}</strong><span className="rack-direction" aria-hidden="true" style={{ transform: `rotate(${cell.rack.rotation}deg)` }}>↓</span></button> : <span className="muted cell-dot" aria-hidden="true">·</span>}</div>)}</div>{editable && racks.length > 0 && <p className="floor-hint muted">拖动机柜到空格；点击机柜打开机柜视图，拖动设备调整 U 位。</p>}</div>
+                  {view === '3d' && search.trim() && <div className="location-results">{searchResults.length ? searchResults.map(({ asset, location }) => <div key={asset.id} className="border-b py-1"><Button variant="link" className="location-result" onClick={() => showLocation(location)}><strong>{asset.name}</strong><span className="muted">{locationLabel(location)}</span></Button></div>) : <div className="p-3 text-sm text-muted-foreground">暂无匹配的上架位置</div>}</div>}
+                  {view === 'cards' ? <RackCardGrid racks={racks} placements={roomPlacements} assets={byId} keyword={rackKeyword} onOpen={openRack} /> : view === 'table' ? (
+                    <div className="facility-table-wrap">
+                      <table className="facility-table">
+                        <thead><tr><th>机柜</th><th>区域 / 排</th><th>U 位总数</th><th>已用</th><th>空闲</th><th>占用率</th><th>设备数</th><th aria-label="操作" /></tr></thead>
+                        <tbody>
+                          {rackRows.map(item => {
+                            const placements = roomPlacements.filter(entry => entry.rackId === item.id)
+                            const used = occupiedUnits(placements).size
+                            const free = Math.max(0, item.heightU - used)
+                            const rate = item.heightU > 0 ? Math.round((used / item.heightU) * 100) : 0
+                            return (
+                              <tr key={item.id} onClick={() => openRack(item.id)}>
+                                <td><strong>{item.name}</strong></td>
+                                <td>{item.zone || '—'}</td>
+                                <td>{item.heightU}U</td>
+                                <td>{used}U</td>
+                                <td>{free}U</td>
+                                <td>{rate}%</td>
+                                <td>{placements.length}</td>
+                                <td className="text-right"><Button size="sm" variant="outline" onClick={event => { event.stopPropagation(); editRack(item) }}>编辑</Button></td>
+                              </tr>
+                            )
+                          })}
+                          {!rackRows.length && <tr><td colSpan={8} className="facility-table-empty">{rackKeyword ? '没有匹配的机柜' : '还没有机柜，点右上角「新增机柜」开始'}</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
                   ) : <RoomScene room={room} racks={racks} placements={roomPlacements} assets={byId} selectedRack={rackId} selectedAsset={focused} dark={dark} onRack={openRack} onDevice={openSceneDevice} />}
                 </CardContent>
               </Card>
