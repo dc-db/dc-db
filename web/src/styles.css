@@ -292,6 +292,7 @@ html[data-theme="dark"] .rack-board-figure svg .slot-add { fill: #adb5bd; }
 .ipam-subnet-table tbody tr:hover { background: var(--hover); }
 .ipam-subnet-table tbody tr.is-selected { background: var(--selected); }
 .ipam-subnet-name { display: inline-flex; align-items: center; gap: 8px; }
+.ipam-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
 .ipam-util { display: inline-flex; align-items: center; gap: 8px; min-width: 130px; }
 .ipam-util [data-slot="progress"] { width: 84px; }
 .ipam-util span { color: var(--muted); font-size: 12px; }
