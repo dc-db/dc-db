@@ -1,5 +1,6 @@
 .control-card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
 .control-card-borderless { border: 0; border-radius: 0; background: transparent; }
+.control-card-borderless .control-card-body { padding: 0; }
 .control-card-header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 20px; border-bottom:1px solid var(--line); }
 .control-card-body { padding:20px; }
 .login-card.control-card { border:0; }
