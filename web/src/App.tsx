@@ -1265,8 +1265,15 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
           {(page === 'host' || page === 'vm') && (
             <Card variant="borderless">
+              <h2 className="asset-view-title">{page === 'vm' ? '虚拟机' : '物理机'}</h2>
               <div className="table-toolbar">
                 <Space wrap>
+                  <Input
+                    type="search" className="w-[200px]"
+                    aria-label={`搜索${page === 'vm' ? '虚拟机' : '物理机'}`}
+                    placeholder={`搜索${page === 'vm' ? '虚拟机' : '物理机'}…`}
+                    value={keyword} onChange={(event: React.ChangeEvent<HTMLInputElement>) => setKeyword(event.target.value)}
+                  />
                   {page === 'host' && (
                     <Select
                       style={{ width: 120 }} allowClear searchable={false} placeholder="全部类型" value={kindFilter}
