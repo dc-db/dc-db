@@ -185,7 +185,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   const [keyword, setKeyword] = useState('')
   const [platformFilter, setPlatformFilter] = useState<string | undefined>()
-  const [lifecycleFilter, setLifecycleFilter] = useState('active')
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const [tagFilter, setTagFilter] = useState<number[]>([])
   const [tagFilterMode, setTagFilterMode] = useState<'all' | 'any'>('all')
@@ -307,7 +306,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
     const query = keyword.trim().toLowerCase()
     return scoped.filter(asset => {
-      if (lifecycleFilter && asset.lifecycle !== lifecycleFilter) return false
       if (platformFilter && asset.platform !== platformFilter) return false
       if (statusFilter && asset.status !== statusFilter) return false
       if (tagFilter.length) {
@@ -320,7 +318,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       return !query || [asset.name, asset.address, asset.owner, asset.environment, ...(asset.tags?.map(tag => tag.name) ?? []), ...(vmRelations.get(asset.id) ?? [])]
         .some(value => value?.toLowerCase().includes(query))
     })
-  }, [scoped, lifecycleFilter, platformFilter, statusFilter, tagFilter, tagFilterMode, keyword, vmRelations])
+  }, [scoped, platformFilter, statusFilter, tagFilter, tagFilterMode, keyword, vmRelations])
 
   const relationOptions = useMemo(() => {
     if (!selected) return []
@@ -357,7 +355,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   useEffect(() => {
     setPagination(1)
-  }, [keyword, platformFilter, lifecycleFilter, page])
+  }, [keyword, platformFilter, page])
 
   useEffect(() => {
     try {
@@ -386,7 +384,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   useEffect(() => {
     setSelectedAssetIds([])
-  }, [page, keyword, platformFilter, lifecycleFilter, statusFilter, tagFilter, tagFilterMode])
+  }, [page, keyword, platformFilter, statusFilter, tagFilter, tagFilterMode])
 
   useEffect(() => {
     if (!assetPage) return
@@ -539,7 +537,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     if (window.innerWidth < 992) setCollapsed(true)
     setKeyword('')
     setPlatformFilter(undefined)
-    setLifecycleFilter('active')
     setStatusFilter(undefined)
     setTagFilter([])
     setTagFilterMode('all')
@@ -550,7 +547,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   function clearFilters() {
     setKeyword('')
     setPlatformFilter(undefined)
-    setLifecycleFilter('active')
     setStatusFilter(undefined)
     setTagFilter([])
     setTagFilterMode('all')
@@ -1271,12 +1267,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                     style={{ width: 145 }} allowClear placeholder="全部平台" value={platformFilter}
                     onChange={setPlatformFilter}
                     options={[{ value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM' }]}
-                  />
-                  <Select
-                    style={{ width: 135 }} value={lifecycleFilter} onChange={setLifecycleFilter}
-                    options={[
-                      { value: 'active', label: '在册' }, { value: 'retired', label: '已退役' }, { value: '', label: '全部生命周期' },
-                    ]}
                   />
                   <Select
                     style={{ width: 120 }} allowClear placeholder="全部状态" value={statusFilter}
