@@ -530,7 +530,9 @@ html[data-theme="dark"] .import-error-row strong { color: #ff7875; }
 .dc-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .dc-heading { display: flex; flex-direction: column; gap: 3px; margin-right: auto; min-width: 0; }
 .dc-title { margin: 0; color: var(--text); font-size: 24px; font-weight: 600; line-height: 1.2; }
-.dc-stat { display: flex; align-items: center; gap: 10px; padding: 4px 0 4px 18px; border-left: 1px solid var(--line); background: transparent; flex: 0 0 auto; }
+.dc-stat { display: flex; flex-direction: column; gap: 2px; flex: 0 0 140px; padding: 2px 0 2px 22px; border-left: 1px solid var(--line); }
+.dc-stat-label { color: var(--muted); font-size: 12px; }
+.dc-stat-value { color: var(--text); font-size: 26px; font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .dc-stat-icon { display: grid; place-items: center; flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; background: var(--selected); color: var(--primary); font-size: 19px; }
 .dc-stat-icon.racks { background: var(--info-soft); color: var(--info); }
 .dc-stat-icon.devices { background: var(--teal-soft); color: var(--teal); }

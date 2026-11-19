@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Boxes, ChartPie, LayoutGrid, List, MoreHorizontal, Pencil, Plus, Server } from 'lucide-react'
+import { Boxes, LayoutGrid, List, MoreHorizontal, Pencil, Plus } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
@@ -479,9 +479,9 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                 <div className="dc-heading">
                   <h2 className="dc-title">{room.name}</h2>
                 </div>
-                <div className="dc-stat"><div className="dc-stat-icon racks"><Boxes size="1em" aria-hidden="true" /></div><div className="dc-stat-copy"><span>机柜数</span><strong>{racks.length}</strong><small>台机柜</small></div></div>
-                <div className="dc-stat"><div className="dc-stat-icon devices"><Server size="1em" aria-hidden="true" /></div><div className="dc-stat-copy"><span>设备数</span><strong>{roomPlacements.length}</strong><small>台设备</small></div></div>
-                <div className="dc-stat dc-stat-usage"><div className="dc-stat-icon usage"><ChartPie size="1em" aria-hidden="true" /></div><div className="dc-stat-copy"><span>利用率</span><strong>{roomUtilization}%</strong><small>已用 {usedRoomU}U · 空闲 {Math.max(0, totalRoomU - usedRoomU)}U</small><Progress value={roomUtilization} aria-label="数据中心利用率" /></div></div>
+                <div className="dc-stat"><span className="dc-stat-label">机柜</span><strong className="dc-stat-value">{racks.length}</strong></div>
+                <div className="dc-stat"><span className="dc-stat-label">设备</span><strong className="dc-stat-value">{roomPlacements.length}</strong></div>
+                <div className="dc-stat"><span className="dc-stat-label">利用率</span><strong className="dc-stat-value">{roomUtilization}%</strong></div>
               </div>
               <Card className="floor-panel">
                 <CardContent>
