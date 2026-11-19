@@ -83,13 +83,17 @@ export function rackElevationSvg(
   // U scale and unit separators.
   const frameTop = padTop
   const frameHeight = rack.heightU * unit
-  body.push(`<rect x="${frameX}" y="${frameTop}" width="${frameW}" height="${frameHeight}" fill="${frameFill}" stroke="${frameStroke}"/>`)
+  body.push(minimal
+    ? `<rect class="rack-frame-bg" x="${frameX}" y="${frameTop}" width="${frameW}" height="${frameHeight}"/>`
+    : `<rect x="${frameX}" y="${frameTop}" width="${frameW}" height="${frameHeight}" fill="${frameFill}" stroke="${frameStroke}"/>`)
   for (let index = 0; index < rack.heightU; index++) {
     const y = frameTop + index * unit
-    body.push(`<line x1="${frameX}" y1="${y}" x2="${frameX + frameW}" y2="${y}" stroke="${lineStroke}"/>`)
+    body.push(minimal
+      ? `<line class="rack-unit-line" x1="${frameX}" y1="${y}" x2="${frameX + frameW}" y2="${y}"/>`
+      : `<line x1="${frameX}" y1="${y}" x2="${frameX + frameW}" y2="${y}" stroke="${lineStroke}"/>`)
     const unitNumber = rack.heightU - index
     body.push(
-      `<text x="${frameX - 8}" y="${y + unit / 2 + 4}" font-size="9" fill="${labelFill}" text-anchor="end">U${unitNumber}</text>`,
+      `<text class="${minimal ? 'rack-unit-label' : ''}" x="${frameX - 8}" y="${y + unit / 2 + 4}" font-size="9" fill="${labelFill}" text-anchor="end">U${unitNumber}</text>`,
     )
   }
 

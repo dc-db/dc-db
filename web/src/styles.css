@@ -203,6 +203,9 @@ a { color: var(--info); }
 .rack-board-figure { overflow: hidden; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; }
 .rack-board-figure:hover { border-color: var(--muted); }
 .rack-board-figure svg { display: block; width: 100%; height: auto; }
+.rack-board-figure .rack-frame-bg { fill: var(--subtle); stroke: var(--line); }
+.rack-board-figure .rack-unit-line { stroke: var(--line); }
+.rack-board-figure .rack-unit-label { fill: var(--muted); }
 .facility-table-wrap { overflow-x: auto; }
 .facility-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .facility-table th { padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; font-weight: 500; text-align: left; white-space: nowrap; }
