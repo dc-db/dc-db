@@ -486,19 +486,21 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
           <div className="facility-tree">
             {groupedRooms.map(group => (
               <div key={group.key} className="facility-tree-group">
-                {group.region && (
-                  <div className="facility-tree-region">
-                    <span className="facility-tree-region-name">{group.region.name}</span>
-                    {editable && (
-                      <button type="button" className="facility-tree-region-action" aria-label={`编辑区域 ${group.region.name}`} onClick={() => editRegion(group.region)}>
-                        <Pencil size={12} aria-hidden="true" />
-                      </button>
-                    )}
+                <div className="facility-tree-region">
+                  <span className="facility-tree-region-name">{group.region ? group.region.name : '未分组'}</span>
+                  {editable && group.region && (
+                    <button type="button" className="facility-tree-region-action" aria-label={`编辑区域 ${group.region.name}`} onClick={() => editRegion(group.region)}>
+                      <Pencil size={12} aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+                {group.rooms.length > 0 && (
+                  <div className="facility-tree-children">
+                    {group.rooms.map(item => (
+                      <button key={item.id} type="button" className={`facility-tree-item${item.id === activeRoomId ? ' active' : ''}`} title={item.name} onClick={() => selectRoom(item.id)}><span className="facility-tree-name">{item.name}</span></button>
+                    ))}
                   </div>
                 )}
-                {group.rooms.map(item => (
-                  <button key={item.id} type="button" className={`facility-tree-item${item.id === activeRoomId ? ' active' : ''}`} title={item.name} onClick={() => selectRoom(item.id)}><span className="facility-tree-name">{item.name}</span></button>
-                ))}
               </div>
             ))}
             {!filteredRooms.length && <div className="facility-tree-empty">暂无匹配的数据中心</div>}

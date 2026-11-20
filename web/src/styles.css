@@ -542,6 +542,9 @@ html[data-theme="dark"] .import-error-row strong { color: #ff7875; }
 .facility-tree-item.active > svg { background: var(--selected); color: var(--primary); }
 .facility-tree-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .facility-tree-count { flex: 0 0 auto; margin-left: auto; color: var(--muted); font-size: 10px; }
+.facility-tree-children { position: relative; display: flex; flex-direction: column; gap: 2px; margin-left: 9px; padding-left: 13px; }
+.facility-tree-children::before { content: ''; position: absolute; left: 0; top: -2px; bottom: 8px; border-left: 1px dashed var(--line); }
+.facility-tree-children .facility-tree-item::before { content: ''; position: absolute; left: -13px; top: 50%; width: 11px; border-top: 1px dashed var(--line); }
 .facility-tree-empty { padding: 10px 8px 8px; color: var(--muted); font-size: 11px; }
 .facility-main { min-width: 0; padding: 0 24px 20px; border-radius: 12px; background: var(--surface); }
 .floor-panel { border: 0 !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; gap: 0 !important; }

@@ -37,7 +37,19 @@ SELECT v.* FROM (
     UNION ALL SELECT 13, 'switch', 'demo-switch-04', '', 'online', 'active', '示例网络组', '演示', '192.0.2.5', 0, 0, '虚构接入交换机', '{}'
     UNION ALL SELECT 14, 'host', 'demo-host-06', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.16', 12, 49152, '虚构宿主机', '{}'
     UNION ALL SELECT 15, 'host', 'demo-host-07', 'pve', 'online', 'active', '示例运维组', '演示', '192.0.2.17', 8, 32768, '虚构宿主机', '{}'
-    UNION ALL SELECT 16, 'switch', 'demo-switch-05', '', 'online', 'active', '示例网络组', '演示', '192.0.2.6', 0, 0, '虚构接入交换机', '{}') AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+    UNION ALL SELECT 16, 'switch', 'demo-switch-05', '', 'online', 'active', '示例网络组', '演示', '192.0.2.6', 0, 0, '虚构接入交换机', '{}'
+    UNION ALL SELECT 17, 'host', 'demo-sz-host-01', 'pve', 'online', 'active', '示例运维组', '演示', '203.0.113.11', 24, 98304, '虚构深圳宿主机', '{}'
+    UNION ALL SELECT 18, 'host', 'demo-sz-host-02', 'kvm', 'online', 'active', '示例运维组', '演示', '203.0.113.12', 16, 65536, '虚构深圳宿主机', '{}'
+    UNION ALL SELECT 19, 'vm', 'demo-sz-app-01', 'pve', 'running', 'active', '示例应用组', '演示', '203.0.113.21', 4, 8192, '虚构深圳应用虚拟机', '{}'
+    UNION ALL SELECT 20, 'host', 'demo-gz-store-01', 'kvm', 'online', 'active', '示例运维组', '演示', '203.0.113.13', 16, 65536, '虚构广州存储节点', '{}'
+    UNION ALL SELECT 21, 'vm', 'demo-gz-app-01', 'kvm', 'running', 'active', '示例应用组', '演示', '203.0.113.22', 4, 8192, '虚构广州应用虚拟机', '{}'
+    UNION ALL SELECT 22, 'switch', 'demo-hz-switch-01', '', 'online', 'active', '示例网络组', '演示', '203.0.113.2', 0, 0, '虚构杭州接入交换机', '{}'
+    UNION ALL SELECT 23, 'host', 'demo-hz-host-01', 'pve', 'online', 'active', '示例运维组', '演示', '203.0.113.14', 32, 131072, '虚构杭州宿主机', '{}'
+    UNION ALL SELECT 24, 'vm', 'demo-hz-app-01', 'pve', 'running', 'active', '示例应用组', '演示', '203.0.113.23', 8, 16384, '虚构杭州应用虚拟机', '{}'
+    UNION ALL SELECT 25, 'host', 'demo-cd-host-01', 'kvm', 'online', 'active', '示例运维组', '演示', '203.0.113.15', 12, 49152, '虚构成都宿主机', '{}'
+    UNION ALL SELECT 26, 'switch', 'demo-cd-switch-01', '', 'online', 'active', '示例网络组', '演示', '203.0.113.3', 0, 0, '虚构成都汇聚交换机', '{}'
+    UNION ALL SELECT 27, 'host', 'demo-test-host-03', 'pve', 'offline', 'active', '示例运维组', '演示', '203.0.113.16', 8, 32768, '虚构测试宿主机', '{}'
+    UNION ALL SELECT 28, 'vm', 'demo-test-app-01', 'kvm', 'stopped', 'active', '示例应用组', '演示', '203.0.113.24', 2, 4096, '虚构测试虚拟机', '{}') AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
 INSERT INTO asset_links (from_id, to_id, kind)
 SELECT v.* FROM (
@@ -72,12 +84,18 @@ SELECT v.* FROM (
     SELECT 1::bigint, 1::bigint UNION ALL SELECT 2, 1 UNION ALL SELECT 3, 1 UNION ALL SELECT 4, 1 UNION ALL SELECT 5, 1 UNION ALL SELECT 6, 1
     UNION ALL SELECT 1, 2 UNION ALL SELECT 2, 2 UNION ALL SELECT 3, 2 UNION ALL SELECT 4, 2 UNION ALL SELECT 5, 2 UNION ALL SELECT 6, 3
     UNION ALL SELECT 7, 3 UNION ALL SELECT 8, 3
+    UNION ALL SELECT 17, 1 UNION ALL SELECT 18, 1 UNION ALL SELECT 19, 1 UNION ALL SELECT 20, 1
+    UNION ALL SELECT 21, 1 UNION ALL SELECT 23, 1 UNION ALL SELECT 24, 1 UNION ALL SELECT 25, 1
+    UNION ALL SELECT 22, 3 UNION ALL SELECT 26, 3
+    UNION ALL SELECT 17, 2 UNION ALL SELECT 18, 2 UNION ALL SELECT 23, 2 UNION ALL SELECT 25, 2
 ) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
 INSERT INTO regions (id, name)
 SELECT v.* FROM (
     SELECT 1::bigint, '华北'::text
     UNION ALL SELECT 2, '华东'
+    UNION ALL SELECT 3, '华南'
+    UNION ALL SELECT 4, '西南'
 ) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
 INSERT INTO rooms (id, name, region_id)
@@ -85,6 +103,10 @@ SELECT v.* FROM (
     SELECT 1::bigint, '北京亦庄数据中心'::text, 1::bigint
     UNION ALL SELECT 2, '上海数据中心', 2
     UNION ALL SELECT 3, '测试机房', NULL
+    UNION ALL SELECT 4, '深圳数据中心', 3
+    UNION ALL SELECT 5, '广州数据中心', 3
+    UNION ALL SELECT 6, '杭州数据中心', 2
+    UNION ALL SELECT 7, '成都数据中心', 4
 ) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 INSERT INTO racks (id, room_id, name, zone, height_u)
 SELECT v.* FROM (
@@ -99,6 +121,18 @@ SELECT v.* FROM (
     UNION ALL SELECT 9, 2, 'SH-S03', 'S 区', 24
     UNION ALL SELECT 10, 3, 'TEST-T01', 'T 区', 42
     UNION ALL SELECT 11, 3, 'TEST-T02', 'T 区', 42
+    UNION ALL SELECT 12, 4, 'SZ-A01', 'A 区', 42
+    UNION ALL SELECT 13, 4, 'SZ-A02', 'A 区', 42
+    UNION ALL SELECT 14, 4, 'SZ-B01', 'B 区', 24
+    UNION ALL SELECT 15, 5, 'GZ-A01', 'A 区', 42
+    UNION ALL SELECT 16, 5, 'GZ-A02', 'A 区', 42
+    UNION ALL SELECT 17, 6, 'HZ-C01', 'C 区', 42
+    UNION ALL SELECT 18, 6, 'HZ-C02', 'C 区', 42
+    UNION ALL SELECT 19, 6, 'HZ-C03', 'C 区', 24
+    UNION ALL SELECT 20, 7, 'CD-D01', 'D 区', 42
+    UNION ALL SELECT 21, 7, 'CD-D02', 'D 区', 42
+    UNION ALL SELECT 22, 3, 'TEST-T03', 'T 区', 42
+    UNION ALL SELECT 23, 3, 'TEST-T04', 'T 区', 24
 ) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 INSERT INTO rack_placements (asset_id, rack_id, start_u, units, face, depth)
 SELECT v.* FROM (
@@ -115,6 +149,18 @@ SELECT v.* FROM (
     UNION ALL SELECT 14, 7, 5, 2, 'front', 'full'
     UNION ALL SELECT 15, 8, 8, 1, 'front', 'full'
     UNION ALL SELECT 16, 9, 3, 1, 'front', 'full'
+    UNION ALL SELECT 17, 12, 10, 2, 'front', 'full'
+    UNION ALL SELECT 18, 12, 16, 2, 'front', 'full'
+    UNION ALL SELECT 19, 13, 6, 1, 'front', 'full'
+    UNION ALL SELECT 20, 15, 20, 2, 'front', 'full'
+    UNION ALL SELECT 21, 16, 8, 1, 'front', 'full'
+    UNION ALL SELECT 22, 17, 40, 1, 'front', 'full'
+    UNION ALL SELECT 23, 17, 20, 2, 'front', 'full'
+    UNION ALL SELECT 24, 18, 10, 1, 'front', 'full'
+    UNION ALL SELECT 25, 20, 12, 2, 'front', 'full'
+    UNION ALL SELECT 26, 20, 38, 1, 'front', 'full'
+    UNION ALL SELECT 27, 22, 10, 2, 'front', 'full'
+    UNION ALL SELECT 28, 22, 16, 1, 'front', 'full'
 ) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
 INSERT INTO vlans (id, vid, name, status, description, room_id)
