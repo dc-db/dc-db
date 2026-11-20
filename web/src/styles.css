@@ -333,7 +333,7 @@ html[data-theme="dark"] .app-menu button:not(.selected):hover { box-shadow: 0 0 
 .sider-handle:focus-visible { outline: 2px solid var(--info); outline-offset: 1px; }
 .sider-handle svg { display: block; width: 10px; height: 16px; }
 .sider-handle.is-collapsed { left: 0; }
-.global-search { position: relative; flex: 0 1 320px; width: min(320px, 32vw); min-width: 200px; }
+.global-search { position: relative; flex: 0 0 auto; width: min(320px, 32vw); min-width: 200px; }
 .global-search-panel { position: absolute; top: calc(100% + 8px); left: 0; z-index: 1100; width: min(520px, 72vw); max-height: min(70vh, 560px); overflow: auto; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: 0 12px 32px rgba(0, 0, 0, .18); }
 .global-search-state { display: flex; align-items: center; gap: 8px; padding: 14px 12px; color: var(--muted); font-size: 12px; }
 .global-search-group + .global-search-group { margin-top: 4px; }
