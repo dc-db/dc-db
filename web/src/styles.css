@@ -791,9 +791,9 @@ html[data-theme="dark"] [data-slot="button"][data-variant="ghost"]:hover { backg
   .rack-detail-body { grid-template-columns: minmax(0, 1fr); }
 }
 
-.metadata-layout { display: grid; grid-template-columns: 240px 2px minmax(0, 1fr); gap: 20px; align-items: stretch; }
-.metadata-divider { width: 2px; border-radius: 2px; background: var(--line); }
-.metadata-side { position: sticky; top: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.metadata-layout { display: grid; grid-template-columns: 240px 2px minmax(0, 1fr); gap: 20px; align-items: start; }
+.metadata-divider { align-self: stretch; width: 2px; border-radius: 2px; background: var(--line); }
+.metadata-side { position: sticky; top: 0; align-self: start; display: flex; flex-direction: column; gap: 10px; min-width: 0; padding-bottom: 12px; background: var(--bg); }
 .metadata-side .asset-view-title { margin-bottom: 4px; }
 .metadata-nav { display: flex; flex-direction: column; gap: 2px; }
 .metadata-nav-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 8px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font-size: var(--fs-body); text-align: left; cursor: pointer; }
@@ -809,3 +809,6 @@ html[data-theme="dark"] [data-slot="button"][data-variant="ghost"]:hover { backg
 .table-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 14px; margin-top: 12px; color: var(--muted); font-size: var(--fs-label); }
 .table-pager-size { display: inline-flex; align-items: center; gap: 6px; }
 .table-pager-buttons { display: flex; align-items: center; gap: 4px; }
+
+.metadata-main [data-slot="table-container"] { overflow: visible; }
+.metadata-main thead th { position: sticky; top: 0; z-index: 2; background: var(--bg); }
