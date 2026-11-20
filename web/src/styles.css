@@ -806,7 +806,7 @@ html[data-theme="dark"] [data-slot="button"][data-variant="ghost"]:hover { backg
   .metadata-layout { grid-template-columns: minmax(0, 1fr); }
 }
 
-.table-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 14px; margin-top: 12px; color: var(--muted); font-size: var(--fs-label); }
+.table-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 14px; margin-top: 12px; color: var(--muted); font-size: var(--fs-label); user-select: none; }
 .table-pager-size { display: inline-flex; align-items: center; gap: 6px; }
 .table-pager-buttons { display: flex; align-items: center; gap: 4px; }
 
