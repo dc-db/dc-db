@@ -211,11 +211,55 @@ FROM interfaces b
 WHERE a.asset_id = 7 AND a.name = 'Gi0/1' AND b.asset_id = 2 AND b.name = 'eth0'
   AND EXISTS (SELECT 1 FROM demo_empty_guard);
 
+-- 参考数据：几百条，方便看分类列表和分页效果。
+INSERT INTO asset_groups (id, name, description)
+SELECT 1000 + i, '演示项目-' || lpad(i::text, 2, '0'),
+       CASE WHEN i % 3 = 0 THEN '虚构项目，用于演示分组' ELSE '' END
+FROM generate_series(1, 37) AS i
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO tags (id, name, color, description)
+SELECT 1000 + i, '演示标签-' || lpad(i::text, 2, '0'),
+       (ARRAY['#1677ff', '#52c41a', '#faad14', '#f5222d', '#eb2f96', '#722ed1', '#13c2c2', '#8c8c8c'])[1 + (i % 8)],
+       CASE WHEN i % 4 = 0 THEN '虚构标签' ELSE '' END
+FROM generate_series(1, 77) AS i
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO services (id, name, category, default_port, description, builtin)
+SELECT 1000 + i, '内部系统-' || lpad(i::text, 3, '0'),
+       (ARRAY['内部系统', '研发工具', '监控', '存储', '消息队列'])[1 + (i % 5)],
+       8000 + i,
+       '虚构内部服务',
+       false
+FROM generate_series(1, 122) AS i
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO metadata_entries (id, kind, name, description)
+SELECT 1000 + i, 'owner',
+       (ARRAY['张', '李', '王', '赵', '刘', '陈', '杨', '黄', '周', '吴'])[1 + (i % 10)] || '示例' || lpad(i::text, 2, '0'),
+       CASE WHEN i % 3 = 0 THEN '虚构负责人' ELSE '' END
+FROM generate_series(1, 60) AS i
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO metadata_entries (id, kind, name, description)
+SELECT 2000 + i, 'operator',
+       (ARRAY['中国移动', '中国联通', '中国电信', '中国广电', '教育网', '科技网', '国际专线', '云专线'])[i],
+       '虚构线路运营商'
+FROM generate_series(1, 8) AS i
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
+ON CONFLICT DO NOTHING;
+
 -- 显式写入主键后推进序列，避免后续新增记录主键冲突。
 SELECT setval(pg_get_serial_sequence('assets', 'id'), (SELECT max(id) FROM assets));
 SELECT setval(pg_get_serial_sequence('regions', 'id'), (SELECT max(id) FROM regions));
 SELECT setval(pg_get_serial_sequence('tags', 'id'), (SELECT max(id) FROM tags));
 SELECT setval(pg_get_serial_sequence('asset_groups', 'id'), (SELECT max(id) FROM asset_groups));
+SELECT setval(pg_get_serial_sequence('services', 'id'), (SELECT max(id) FROM services));
+SELECT setval(pg_get_serial_sequence('metadata_entries', 'id'), (SELECT max(id) FROM metadata_entries));
 SELECT setval(pg_get_serial_sequence('rooms', 'id'), (SELECT max(id) FROM rooms));
 SELECT setval(pg_get_serial_sequence('racks', 'id'), (SELECT max(id) FROM racks));
 SELECT setval(pg_get_serial_sequence('vlans', 'id'), (SELECT max(id) FROM vlans));

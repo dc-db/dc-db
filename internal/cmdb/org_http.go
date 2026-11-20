@@ -97,3 +97,50 @@ func (s *Server) deleteService(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (s *Server) listMetadata(w http.ResponseWriter, r *http.Request) {
+	entries, err := ListMetadata(r.Context(), s.db, r.URL.Query().Get("kind"))
+	if err != nil {
+		s.databaseError(w, err)
+		return
+	}
+	respond(w, http.StatusOK, entries)
+}
+
+func (s *Server) saveMetadata(w http.ResponseWriter, r *http.Request) {
+	var id int64
+	if r.Method == http.MethodPut {
+		var ok bool
+		id, ok = pathID(w, r)
+		if !ok {
+			return
+		}
+	}
+	var fields MetadataFields
+	if err := decode(w, r, &fields); err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	entry, err := SaveMetadata(r.Context(), s.db, id, fields)
+	if err != nil {
+		s.databaseError(w, err)
+		return
+	}
+	status := http.StatusOK
+	if id == 0 {
+		status = http.StatusCreated
+	}
+	respond(w, status, entry)
+}
+
+func (s *Server) deleteMetadata(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	if err := DeleteMetadata(r.Context(), s.db, id); err != nil {
+		s.databaseError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
