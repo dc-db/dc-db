@@ -70,6 +70,7 @@ export function rackElevationSvg(
 ): RackSvg {
   const interactive = options.interactive === true
   const visible = devices.filter(device => device.depth === 'full' || device.face === face)
+  const isOpposite = (device: Placement) => device.depth === 'half' && device.face !== face
   const taken = new Set<number>()
   for (const device of visible) {
     for (let offset = 0; offset < device.units; offset++) taken.add(device.startU + offset)
@@ -112,10 +113,10 @@ export function rackElevationSvg(
     const top = BORDER + (rack.heightU - (device.startU + device.units - 1)) * UNIT_HEIGHT
     const blockHeight = device.units * UNIT_HEIGHT
     body.push(
-      `<g class="device-bar${device.face !== face ? ' opposite' : ''}"${interactive ? ` data-asset="${device.assetId}"` : ''}><title>${esc(`${label} · ${uRange(device)}`)}</title>` +
-      `<rect x="${rackX}" y="${top}" width="${UNIT_WIDTH}" height="${blockHeight}" fill="${device.face !== face ? 'url(#rack-hatch)' : style.fill}"/>` +
+      `<g class="device-bar${isOpposite(device) ? ' opposite' : ''}"${interactive ? ` data-asset="${device.assetId}"` : ''}><title>${esc(`${label} · ${uRange(device)}`)}</title>` +
+      `<rect x="${rackX}" y="${top}" width="${UNIT_WIDTH}" height="${blockHeight}" fill="${isOpposite(device) ? 'url(#rack-hatch)' : style.fill}"/>` +
       `<text class="device" x="${rackX + UNIT_WIDTH / 2}" y="${top + blockHeight / 2}" font-size="14" ` +
-      `text-anchor="middle" dominant-baseline="middle" fill="${device.face !== face ? 'var(--hatch-text, #5c1a1a)' : '#ffffff'}">` +
+      `text-anchor="middle" dominant-baseline="middle" fill="${isOpposite(device) ? 'var(--hatch-text, #5c1a1a)' : '#ffffff'}">` +
       `${esc(fit(label, UNIT_WIDTH - 10, 14))}</text></g>`,
     )
   }

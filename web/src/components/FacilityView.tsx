@@ -592,7 +592,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                     <div className="rack-board">
                       {rackRows.map(item => {
                         const placements = roomPlacements.filter(entry => entry.rackId === item.id)
-                        const preview = rackElevationSvg(item, placements, byId, face, { interactive: editable })
+                        const preview = rackElevationSvg(item, placements, byId, face)
                         return (
                           <div key={item.id} className="rack-board-item">
                             <div className="rack-board-head">
