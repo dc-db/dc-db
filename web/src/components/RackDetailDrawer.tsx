@@ -50,7 +50,6 @@ export function RackDetailDrawer({
   onClose, onOpenAsset, onEditRack, onMount, onEditPlacement, onUnmount, onMove, onMountAt,
   bookmarked, onToggleBookmark,
 }: Props) {
-  const [tab, setTab] = useState('rack')
   if (!rack) return null
 
   const occupied = occupiedUnits(devices)
@@ -74,40 +73,77 @@ export function RackDetailDrawer({
 
   return (
     <div className="rack-detail-page">
-        <div className="rack-drawer-shell">
-          <header className="rack-drawer-head">
-            <div className="rack-drawer-title">
-              <Button variant="outline" onClick={onClose}><ArrowLeft /> 返回</Button>
-              <div><strong>{rack.name}</strong><span>{room?.name ?? '未绑定数据中心'} · {rack.heightU}U 机柜</span></div>
-            </div>
-            <div className="rack-drawer-actions">
-              <Button variant="outline" onClick={onToggleBookmark}><Star fill={bookmarked ? 'currentColor' : 'none'} />{bookmarked ? '已收藏' : '收藏'}</Button>
-              {editable && <><Button variant="outline" disabled={busy} onClick={() => onEditRack(rack)}><Settings />编辑机柜</Button><Button disabled={busy} onClick={onMount}><Plus />上架设备</Button></>}
-            </div>
-          </header>
-          {(error || feedback) && <div className="rack-drawer-alert"><div role={error ? 'alert' : 'status'} className={error ? 'rounded-md border border-destructive p-3 text-destructive' : 'rounded-md border border-border p-3'}>{error || feedback}</div></div>}
-          <div className="rack-drawer-stats">
-            <div><span>设备数</span><strong>{devices.length}</strong><small>台设备</small></div>
-            <div><span>U 位总数</span><strong>{rack.heightU}</strong><small>U</small></div>
-            <div><span>已使用</span><strong>{used}</strong><small>U</small></div>
-            <div className="rack-drawer-usage"><div><span>利用率</span><strong>{percent}%</strong></div><Progress value={percent} aria-label="机柜利用率" /><small>物理机 {hostCount} · 交换机 {switchCount} · 全深 {fullDepthCount}</small></div>
-          </div>
-          <Tabs className="rack-drawer-tabs" value={tab} onValueChange={setTab}>
-            <TabsList><TabsTrigger value="rack">机柜视图</TabsTrigger><TabsTrigger value="devices">设备列表{devices.length ? ` (${devices.length})` : ''}</TabsTrigger><TabsTrigger value="detail">机柜详情</TabsTrigger></TabsList>
-            <TabsContent value="rack" className="min-h-0 flex-1 overflow-auto"><div className="rack-drawer-tab">{mountForm}<RackElevation rack={rack} devices={devices} assets={assets} focused={focused} editable={editable} busy={busy} onOpen={onOpenAsset} onMove={onMove} onMountAt={editable ? onMountAt : undefined} /></div></TabsContent>
-            <TabsContent value="devices" className="min-h-0 flex-1 overflow-auto">
-              {devices.length ? <ul className="rack-drawer-devices m-0 list-none p-0">{devices.map(item => {
-                const asset = assets.get(item.assetId)
-                return <li key={item.assetId} className="flex items-center justify-between gap-3 border-b py-3">
-                  <div className="rack-drawer-device"><span className={`rack-drawer-device-dot ${asset?.status ?? ''}`} /><div><Button variant="link" onClick={() => onOpenAsset(item.assetId)}>{nameOf(assets, item.assetId)}</Button><span className="muted">{asset ? mountKinds[asset.kind as MountKind] : '设备'} · {uRange(item)} · {placementFaceLabel(item)}</span></div><Badge variant="secondary">{statusLabel(asset?.status)}</Badge></div>
-                  {editable && <div className="flex gap-2"><Button variant="outline" size="sm" disabled={busy} onClick={() => onEditPlacement(item)}>调整</Button><AlertDialog><AlertDialogTrigger asChild><Button variant="destructive" size="sm" disabled={busy}><Trash2 />下架</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>下架该设备？</AlertDialogTitle><AlertDialogDescription>资产台账会保留。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={() => onUnmount(item)}>下架</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></div>}
-                </li>
-              })}</ul> : <div className="p-6 text-center text-sm text-muted-foreground">机柜内还没有设备</div>}
-            </TabsContent>
-            <TabsContent value="detail" className="min-h-0 flex-1 overflow-auto"><dl className="rack-drawer-detail grid grid-cols-2 gap-0 overflow-hidden rounded-md border">{details.map(([label, value]) => <div key={label} className="grid grid-cols-2 border-b last:border-b-0"><dt className="bg-muted p-2 text-muted-foreground">{label}</dt><dd className="m-0 p-2">{value}</dd></div>)}</dl></TabsContent>
-          </Tabs>
-          <footer className="rack-drawer-foot"><span><i className="rack-legend-dot host" />物理机</span><span><i className="rack-legend-dot switch" />交换机</span><span><i className="rack-legend-dot" />空 U 位</span><span className="rack-drawer-foot-hint">拖动设备可调整 U 位，松开后保存</span></footer>
+      <header className="rack-detail-head">
+        <div className="rack-detail-title">
+          <Button variant="outline" onClick={onClose}><ArrowLeft /> 返回</Button>
+          <div><strong>{rack.name}</strong><span>{room?.name ?? '未绑定数据中心'} · {rack.heightU}U 机柜</span></div>
         </div>
+        <div className="rack-detail-actions">
+          <Button variant="outline" onClick={onToggleBookmark}><Star fill={bookmarked ? 'currentColor' : 'none'} />{bookmarked ? '已收藏' : '收藏'}</Button>
+          {editable && <><Button variant="outline" disabled={busy} onClick={() => onEditRack(rack)}><Settings />编辑机柜</Button><Button disabled={busy} onClick={onMount}><Plus />上架设备</Button></>}
+        </div>
+      </header>
+
+      {(error || feedback) && <div className="rack-detail-alert"><div role={error ? 'alert' : 'status'} className={error ? 'rounded-md border border-destructive p-3 text-destructive' : 'rounded-md border border-border p-3'}>{error || feedback}</div></div>}
+
+      <div className="rack-detail-stats">
+        <div><span>设备</span><strong>{devices.length}</strong><small>台</small></div>
+        <div><span>U 位</span><strong>{rack.heightU}</strong><small>U</small></div>
+        <div><span>已用</span><strong>{used}</strong><small>U</small></div>
+        <div><span>空闲</span><strong>{rack.heightU - used}</strong><small>U</small></div>
+        <div className="rack-detail-stat-usage"><span>利用率</span><strong>{percent}%</strong><Progress value={percent} aria-label="机柜利用率" /></div>
+      </div>
+
+      <div className="rack-detail-body">
+        <div className="rack-detail-canvas">
+          {mountForm}
+          <RackElevation
+            rack={rack} devices={devices} assets={assets} focused={focused}
+            editable={editable} busy={busy} onOpen={onOpenAsset} onMove={onMove}
+            onMountAt={editable ? onMountAt : undefined}
+          />
+        </div>
+        <aside className="rack-detail-side">
+          <section className="rack-side-section">
+            <h3>机柜内设备 <span>{devices.length}</span></h3>
+            {devices.length ? (
+              <ul className="rack-side-devices">
+                {devices.map(item => {
+                  const asset = assets.get(item.assetId)
+                  return (
+                    <li key={item.assetId}>
+                      <span className={`rack-drawer-device-dot ${asset?.status ?? ''}`} />
+                      <div className="rack-side-device-main">
+                        <Button variant="link" onClick={() => onOpenAsset(item.assetId)}>{nameOf(assets, item.assetId)}</Button>
+                        <span className="rack-side-device-meta">
+                          {asset ? mountKinds[asset.kind as MountKind] : '设备'} · {uRange(item)} · {placementFaceLabel(item)}
+                        </span>
+                      </div>
+                      {editable && (
+                        <div className="rack-side-device-actions">
+                          <Button variant="outline" size="sm" disabled={busy} onClick={() => onEditPlacement(item)}>调整</Button>
+                          <AlertDialog><AlertDialogTrigger asChild><Button variant="destructive" size="sm" disabled={busy}><Trash2 />下架</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>下架该设备？</AlertDialogTitle><AlertDialogDescription>资产台账会保留。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={() => onUnmount(item)}>下架</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+                        </div>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : <p className="rack-side-empty">机柜内还没有设备</p>}
+          </section>
+          <details className="rack-side-more">
+            <summary>机柜详情</summary>
+            <dl className="rack-side-detail">
+              {details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+            </dl>
+          </details>
+          <div className="rack-side-legend">
+            <span><i className="rack-legend-dot host" />物理机</span>
+            <span><i className="rack-legend-dot switch" />交换机</span>
+            <span><i className="rack-legend-dot" />空 U 位</span>
+          </div>
+        </aside>
+      </div>
     </div>
   )
 }

@@ -31,28 +31,11 @@ export function RackElevation({ rack, devices, assets, focused, editable, busy, 
   const suppressClick = useRef(false)
   const dragRef = useRef<{ placement: Placement; startU: number; valid: boolean } | null>(null)
   const [drag, setDrag] = useState<{ placement: Placement; startU: number; valid: boolean } | null>(null)
-  const [unitHeight, setUnitHeight] = useState(defaultUnitHeight)
+  const unitHeight = defaultUnitHeight
   const [face, setFace] = useState<RackFace>('front')
   const units = Array.from({ length: rack.heightU }, (_, index) => rack.heightU - index)
   const visibleDevices = devices.filter(device => device.depth === 'full' || device.face === face)
   const occupied = occupiedUnits(visibleDevices)
-
-  useEffect(() => {
-    const container = scrollRef.current
-    if (!container) return
-    const fit = () => {
-      const available = container.clientHeight - 28
-      setUnitHeight(Math.max(8, Math.min(defaultUnitHeight, Math.floor(available / rack.heightU))))
-    }
-    fit()
-    const observer = new ResizeObserver(fit)
-    observer.observe(container)
-    window.addEventListener('resize', fit)
-    return () => {
-      observer.disconnect()
-      window.removeEventListener('resize', fit)
-    }
-  }, [rack.heightU])
 
   function startDrag(event: React.DragEvent, placement: Placement) {
     if (!editable || busy) {
