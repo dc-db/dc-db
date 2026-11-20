@@ -810,8 +810,6 @@ html[data-theme="dark"] [data-slot="button"][data-variant="ghost"]:hover { backg
 .table-pager-size { display: inline-flex; align-items: center; gap: 6px; }
 .table-pager-buttons { display: flex; align-items: center; gap: 4px; }
 
-.metadata-main [data-slot="table-container"] { overflow: visible; }
-.metadata-main thead th { position: sticky; top: 0; z-index: 2; background: var(--bg); }
 
 .metadata-main table th:last-child, .metadata-main table td:last-child { width: 88px; }
 .metadata-main table th:nth-child(1) { width: 25%; white-space: nowrap; }
