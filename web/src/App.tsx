@@ -555,6 +555,14 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   }
 
   function goTo(next: Page) {
+    // Leaving the current page also leaves an open detail page behind.
+    if (drawerOpen) {
+      setDrawerOpen(false)
+      setSelectedId(null)
+      setEditor(false)
+      setDrawerError('')
+      syncAssetParam(null)
+    }
     setPage(next)
     if (next !== 'facilities') setFacilityRackId(null)
     if (window.innerWidth < 992) setCollapsed(true)
