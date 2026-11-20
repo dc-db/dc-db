@@ -70,7 +70,8 @@ export function rackElevationSvg(
 ): RackSvg {
   const interactive = options.interactive === true
   const visible = devices.filter(device => device.depth === 'full' || device.face === face)
-  const isOpposite = (device: Placement) => device.depth === 'half' && device.face !== face
+  // A device mounted on the other face is drawn hatched, whatever its depth.
+  const isOpposite = (device: Placement) => device.face !== face
   const taken = new Set<number>()
   for (const device of visible) {
     for (let offset = 0; offset < device.units; offset++) taken.add(device.startU + offset)
