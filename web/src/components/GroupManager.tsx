@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
+import { flexRender, getCoreRowModel, getPaginationRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Group, GroupFields } from '../api'
 import { Button } from './ui/button'
 import { PageHeader } from './PageHeader'
+import { TablePager } from './TablePager'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
@@ -96,7 +97,7 @@ export function GroupManager({ editable, onSessionError, onChanged }: Props) {
     const query = keyword.trim().toLowerCase()
     return query ? groups.filter(item => [item.name, item.description].some(value => value.toLowerCase().includes(query))) : groups
   }, [groups, keyword])
-  const table = useReactTable({ data: visible, columns, getCoreRowModel: getCoreRowModel() })
+  const table = useReactTable({ data: visible, columns, initialState: { pagination: { pageIndex: 0, pageSize: 20 } }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel() })
 
   return <>
     <PageHeader
@@ -115,6 +116,7 @@ export function GroupManager({ editable, onSessionError, onChanged }: Props) {
               : <TableRow><TableCell colSpan={columns.length} className="py-10 text-center text-muted-foreground">还没有群组。按项目建一个，资产就能归类了</TableCell></TableRow>}
         </TableBody>
     </Table>
+      <TablePager table={table} />
     <Dialog open={open} onOpenChange={next => { if (!saving) setOpen(next) }}><DialogContent>
       <DialogHeader><DialogTitle>{editing ? '编辑群组' : '新增群组'}</DialogTitle></DialogHeader>
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}

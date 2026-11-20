@@ -216,6 +216,16 @@ export interface Service extends ServiceFields {
   builtin: boolean
 }
 
+export interface MetadataFields {
+  kind: string
+  name: string
+  description: string
+}
+
+export interface MetadataEntry extends MetadataFields {
+  id: number
+}
+
 export interface Tag {
   id: number
   name: string

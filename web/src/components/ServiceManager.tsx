@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
+import { flexRender, getCoreRowModel, getPaginationRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Service, ServiceFields } from '../api'
 import { Select } from './AppControls'
 import { Button } from './ui/button'
 import { PageHeader } from './PageHeader'
+import { TablePager } from './TablePager'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
@@ -104,7 +105,7 @@ export function ServiceManager({ editable, onSessionError }: Props) {
     }] : []),
   ], [editable])
 
-  const table = useReactTable({ data: visible, columns, getCoreRowModel: getCoreRowModel() })
+  const table = useReactTable({ data: visible, columns, initialState: { pagination: { pageIndex: 0, pageSize: 20 } }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel() })
 
   return <>
     <PageHeader
@@ -131,6 +132,7 @@ export function ServiceManager({ editable, onSessionError }: Props) {
               : <TableRow><TableCell colSpan={columns.length} className="py-10 text-center text-muted-foreground">没有匹配的服务</TableCell></TableRow>}
         </TableBody>
     </Table>
+      <TablePager table={table} />
     <Dialog open={open} onOpenChange={next => { if (!saving) setOpen(next) }}><DialogContent>
       <DialogHeader><DialogTitle>{editing ? '编辑服务' : '新增服务'}</DialogTitle></DialogHeader>
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}

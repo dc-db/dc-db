@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
+import { flexRender, getCoreRowModel, getPaginationRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
 import { Pencil, Plus, Tags, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Tag as TagItem, TagFields } from '../api'
 import { Button } from './ui/button'
 import { PageHeader } from './PageHeader'
+import { TablePager } from './TablePager'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog'
 import { Select } from './AppControls'
 import { Input } from './ui/input'
@@ -101,7 +102,7 @@ export function TagManager({ editable, onSessionError, onChanged }: Props) {
     const query = keyword.trim().toLowerCase()
     return query ? tags.filter(item => [item.name, item.description].some(value => value.toLowerCase().includes(query))) : tags
   }, [tags, keyword])
-  const table = useReactTable({ data: visible, columns, getCoreRowModel: getCoreRowModel() })
+  const table = useReactTable({ data: visible, columns, initialState: { pagination: { pageIndex: 0, pageSize: 20 } }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel() })
 
   return <>
     <PageHeader
@@ -113,6 +114,7 @@ export function TagManager({ editable, onSessionError, onChanged }: Props) {
       <Table><TableHeader>{table.getHeaderGroups().map(group => <TableRow key={group.id}>{group.headers.map(header => <TableHead key={header.id}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
         <TableBody>{loading ? <TableRow><TableCell colSpan={columns.length}>加载中...</TableCell></TableRow> : table.getRowModel().rows.length ? table.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">还没有标签，创建一个用于分组和筛选资产</TableCell></TableRow>}</TableBody>
     </Table>
+      <TablePager table={table} />
     <Dialog open={open} onOpenChange={next => { if (!saving) setOpen(next) }}><DialogContent><DialogHeader><DialogTitle>{editing ? '编辑标签' : '新增标签'}</DialogTitle></DialogHeader>
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
       <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save() }}>

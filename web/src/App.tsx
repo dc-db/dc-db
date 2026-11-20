@@ -34,9 +34,7 @@ import { IPAddressView } from './components/IPAddressView'
 import { IpamView } from './components/IpamView'
 import { LoginBackdrop } from './components/LoginBackdrop'
 import { PageHeader } from './components/PageHeader'
-import { TagManager } from './components/TagManager'
-import { GroupManager } from './components/GroupManager'
-import { ServiceManager } from './components/ServiceManager'
+import { MetadataView } from './components/MetadataView'
 import { UserManager } from './components/UserManager'
 import { VLANView } from './components/VLANView'
 import { Wordmark } from './components/Wordmark'
@@ -78,7 +76,7 @@ function messageText(error: unknown) {
   return error instanceof Error ? error.message : '操作失败'
 }
 
-const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'facilities', 'subnets', 'vlans', 'ips', 'changes', 'password', 'tags', 'groups', 'services', 'users', 'guide']
+const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'facilities', 'subnets', 'vlans', 'ips', 'changes', 'password', 'tags', 'groups', 'services', 'metadata', 'users', 'guide']
 
 function readPageParam(): Page {
   const value = new URLSearchParams(window.location.search).get('page')
@@ -285,14 +283,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         { key: 'ips', label: 'IP', icon: <LocateFixedOutlined /> },
       ],
     },
-    {
-      key: 'org', label: '组织结构', icon: <FolderTreeOutlined />,
-      children: [
-        { key: 'groups', label: '群组', icon: <BoxesOutlined /> },
-        { key: 'services', label: '服务', icon: <BlocksOutlined /> },
-        { key: 'tags', label: '标签', icon: <TagsOutlined /> },
-      ],
-    },
+    { key: 'metadata', label: '基础数据', icon: <FolderTreeOutlined /> },
     {
       key: 'system', label: '系统管理', icon: <SettingOutlined />,
       children: systemChildren,
@@ -319,7 +310,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   const scoped = useMemo(() => {
     if (page === 'home' || page === 'changes' || page === 'password' || page === 'facilities' ||
-      page === 'subnets' || page === 'vlans' || page === 'ips' || page === 'users' || page === 'guide') return []
+      page === 'subnets' || page === 'vlans' || page === 'ips' || page === 'users' || page === 'guide' || page === 'metadata') return []
     if (page === 'vm') return assets.filter(asset => asset.kind === 'vm')
     return assets.filter(asset => asset.kind !== 'vm')
   }, [assets, page])
@@ -1336,9 +1327,13 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             <Card variant="borderless" title="变更记录"><ChangeList changes={changes} filterable onOpen={id => void openAsset(id)} /></Card>
           )}
 
-          {page === 'tags' && <TagManager editable={editable} onSessionError={e => handleError(e)} onChanged={setAllTags} />}
-          {page === 'groups' && <GroupManager editable={editable} onSessionError={e => handleError(e)} onChanged={setGroups} />}
-          {page === 'services' && <ServiceManager editable={editable} onSessionError={e => handleError(e)} />}
+          {(page === 'metadata' || page === 'tags' || page === 'groups' || page === 'services') && (
+            <MetadataView
+              page={page} editable={editable}
+              onSessionError={e => handleError(e)}
+              onGroupsChanged={setGroups} onTagsChanged={setAllTags}
+            />
+          )}
 
           {page === 'users' && user?.role === 'admin' && (
             <UserManager currentUsername={user.username} onSessionError={e => handleError(e)} />
