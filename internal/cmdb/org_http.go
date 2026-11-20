@@ -144,3 +144,12 @@ func (s *Server) deleteMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (s *Server) referenceCounts(w http.ResponseWriter, r *http.Request) {
+	counts, err := ReferenceCounts(r.Context(), s.db)
+	if err != nil {
+		s.databaseError(w, err)
+		return
+	}
+	respond(w, http.StatusOK, counts)
+}

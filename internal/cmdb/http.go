@@ -61,6 +61,7 @@ func NewServer(db *sql.DB, secureCookie bool, frontend http.Handler) http.Handle
 	mux.HandleFunc("PUT /api/services/{id}", s.requireUser(true, s.saveService))
 	mux.HandleFunc("DELETE /api/services/{id}", s.requireUser(true, s.deleteService))
 	mux.HandleFunc("GET /api/metadata", s.requireUser(false, s.listMetadata))
+	mux.HandleFunc("GET /api/reference/counts", s.requireUser(false, s.referenceCounts))
 	mux.HandleFunc("POST /api/metadata", s.requireUser(true, s.saveMetadata))
 	mux.HandleFunc("PUT /api/metadata/{id}", s.requireUser(true, s.saveMetadata))
 	mux.HandleFunc("DELETE /api/metadata/{id}", s.requireUser(true, s.deleteMetadata))
