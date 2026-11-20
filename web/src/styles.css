@@ -812,3 +812,8 @@ html[data-theme="dark"] [data-slot="button"][data-variant="ghost"]:hover { backg
 
 .metadata-main [data-slot="table-container"] { overflow: visible; }
 .metadata-main thead th { position: sticky; top: 0; z-index: 2; background: var(--bg); }
+
+.metadata-main table th:last-child, .metadata-main table td:last-child { width: 88px; }
+.metadata-main table th:nth-child(1) { width: 25%; white-space: nowrap; }
+.metadata-main table th:nth-child(2) { width: 12%; }
+.metadata-main table td:nth-child(1), .metadata-main table td:nth-child(2) { white-space: nowrap; }

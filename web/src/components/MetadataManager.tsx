@@ -96,7 +96,6 @@ export function MetadataManager({ kind, title, hideTitle, editable, onSessionErr
       id: 'actions', header: () => <div className="text-right">操作</div>,
       cell: ({ row }: { row: { original: MetadataEntry } }) => <div className="flex justify-end gap-1">
         <Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button>
-        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleting(row.original)}><Trash2 />删除</Button>
       </div>,
     }] : []),
   ], [editable])
@@ -127,7 +126,11 @@ export function MetadataManager({ kind, title, hideTitle, editable, onSessionErr
       <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save() }}>
         <div className="space-y-2"><label htmlFor="metadata-name" className="text-sm font-medium">名称</label><Input id="metadata-name" required maxLength={80} value={fields.name} onChange={event => setFields({ ...fields, name: event.target.value })} /></div>
         <div className="space-y-2"><label htmlFor="metadata-description" className="text-sm font-medium">备注</label><Textarea id="metadata-description" maxLength={200} rows={3} placeholder="可选" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /></div>
-        <DialogFooter><Button type="button" variant="outline" disabled={saving} onClick={() => setOpen(false)}>取消</Button><Button type="submit" disabled={saving}>{saving ? '保存中…' : '保存'}</Button></DialogFooter>
+        <DialogFooter>
+          {editing && <Button type="button" variant="destructive" className="mr-auto" disabled={saving} onClick={() => { setOpen(false); setDeleting(editing) }}><Trash2 />删除</Button>}
+          <Button type="button" variant="outline" disabled={saving} onClick={() => setOpen(false)}>取消</Button>
+          <Button type="submit" disabled={saving}>{saving ? '保存中…' : '保存'}</Button>
+        </DialogFooter>
       </form>
     </DialogContent></Dialog>
     <Dialog open={!!deleting} onOpenChange={next => { if (!next && !saving) setDeleting(null) }}><DialogContent>

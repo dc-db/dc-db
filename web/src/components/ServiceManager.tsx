@@ -101,7 +101,6 @@ export function ServiceManager({ editable, hideTitle, onSessionError }: Props) {
       id: 'actions', header: () => <div className="text-right">操作</div>,
       cell: ({ row }: { row: { original: Service } }) => <div className="flex justify-end gap-1">
         <Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button>
-        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleting(row.original)}><Trash2 />删除</Button>
       </div>,
     }] : []),
   ], [editable])
@@ -144,7 +143,11 @@ export function ServiceManager({ editable, hideTitle, onSessionError }: Props) {
           <div className="space-y-2"><label htmlFor="service-port" className="text-sm font-medium">默认端口</label><Input id="service-port" type="number" min={0} max={65535} placeholder="可选" value={fields.defaultPort || ''} onChange={event => setFields({ ...fields, defaultPort: Number(event.target.value) || 0 })} /></div>
         </div>
         <div className="space-y-2"><label htmlFor="service-description" className="text-sm font-medium">备注</label><Textarea id="service-description" maxLength={200} rows={3} placeholder="可选，一句话备注用途" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /></div>
-        <DialogFooter><Button type="button" variant="outline" disabled={saving} onClick={() => setOpen(false)}>取消</Button><Button type="submit" disabled={saving}>{saving ? '保存中…' : '保存'}</Button></DialogFooter>
+        <DialogFooter>
+          {editing && <Button type="button" variant="destructive" className="mr-auto" disabled={saving} onClick={() => { setOpen(false); setDeleting(editing) }}><Trash2 />删除</Button>}
+          <Button type="button" variant="outline" disabled={saving} onClick={() => setOpen(false)}>取消</Button>
+          <Button type="submit" disabled={saving}>{saving ? '保存中…' : '保存'}</Button>
+        </DialogFooter>
       </form>
     </DialogContent></Dialog>
     <Dialog open={!!deleting} onOpenChange={next => { if (!next && !saving) setDeleting(null) }}><DialogContent>

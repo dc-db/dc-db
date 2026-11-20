@@ -97,7 +97,7 @@ export function TagManager({ editable, hideTitle, onSessionError, onChanged }: P
     { accessorKey: 'name', header: '标签', cell: ({ row }) => <span className="inline-flex rounded-md px-2 py-1 text-xs font-medium" style={{ backgroundColor: row.original.color, color: readableTextColor(row.original.color) }}>{row.original.name}</span> },
     { accessorKey: 'assetCount', header: '关联资产', cell: ({ row }) => row.original.assetCount || '0' },
     { accessorKey: 'description', header: '备注', cell: ({ row }) => row.original.description || '—' },
-    ...(editable ? [{ id: 'actions', header: () => <div className="text-right">操作</div>, cell: ({ row }: { row: { original: TagItem } }) => <div className="flex gap-1"><Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button><Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleting(row.original)}><Trash2 />删除</Button></div> }] : []),
+    ...(editable ? [{ id: 'actions', header: () => <div className="text-right">操作</div>, cell: ({ row }: { row: { original: TagItem } }) => <div className="flex gap-1"><Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button></div> }] : []),
   ]
   const visible = useMemo(() => {
     const query = keyword.trim().toLowerCase()
@@ -131,7 +131,11 @@ export function TagManager({ editable, hideTitle, onSessionError, onChanged }: P
           ]}
         /></div>
         <div className="space-y-2"><label htmlFor="tag-description" className="text-sm font-medium">备注</label><Textarea id="tag-description" maxLength={200} rows={3} placeholder="可选，备注这个标签的用途" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /></div>
-        <DialogFooter><Button type="button" variant="outline" disabled={saving} onClick={() => setOpen(false)}>取消</Button><Button type="submit" disabled={saving}>{saving ? '保存中...' : '保存'}</Button></DialogFooter>
+        <DialogFooter>
+        {editing && <Button type="button" variant="destructive" className="mr-auto" disabled={saving} onClick={() => { setOpen(false); setDeleting(editing) }}><Trash2 />删除</Button>}
+        <Button type="button" variant="outline" disabled={saving} onClick={() => setOpen(false)}>取消</Button>
+        <Button type="submit" disabled={saving}>{saving ? '保存中...' : '保存'}</Button>
+      </DialogFooter>
       </form>
     </DialogContent></Dialog>
     <Dialog open={!!deleting} onOpenChange={next => { if (!next && !saving) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>删除标签「{deleting?.name}」？</DialogTitle><DialogDescription>关联资产上的该标签会一并移除，资产本身保留。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={saving} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={saving} onClick={() => { if (deleting) void remove(deleting) }}>删除</Button></DialogFooter></DialogContent></Dialog>
