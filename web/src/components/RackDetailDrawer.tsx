@@ -1,10 +1,9 @@
 import { useState, type ReactNode } from 'react'
-import { List, Plus, Settings, Star, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Plus, Settings, Star, Trash2 } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Progress } from './ui/progress'
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from './ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import type { Asset } from '../api'
 import { mountKinds, occupiedUnits, placementFaceLabel, uRange } from '../facilities'
@@ -12,7 +11,6 @@ import type { MountKind, Placement, Rack, RackFace, Room } from '../facilities'
 import { RackElevation } from './RackElevation'
 
 interface Props {
-  open: boolean
   rack: Rack | null
   room: Room | null
   devices: Placement[]
@@ -48,7 +46,7 @@ function statusLabel(status?: string) {
 }
 
 export function RackDetailDrawer({
-  open, rack, room, devices, assets, editable, busy, focused, feedback, error, mountForm,
+  rack, room, devices, assets, editable, busy, focused, feedback, error, mountForm,
   onClose, onOpenAsset, onEditRack, onMount, onEditPlacement, onUnmount, onMove, onMountAt,
   bookmarked, onToggleBookmark,
 }: Props) {
@@ -75,20 +73,16 @@ export function RackDetailDrawer({
   ]
 
   return (
-    <Sheet open={open} onOpenChange={next => { if (!next && !busy) onClose() }}>
-      <SheetContent side="right" showCloseButton={false} className="rack-detail-drawer w-[min(1020px,calc(100vw-32px))] max-w-none gap-0 p-0 sm:max-w-none">
-        <SheetTitle className="sr-only">{rack.name}</SheetTitle>
-        <SheetDescription className="sr-only">机柜视图、设备列表与机柜详情</SheetDescription>
+    <div className="rack-detail-page">
         <div className="rack-drawer-shell">
           <header className="rack-drawer-head">
             <div className="rack-drawer-title">
-              <span className="rack-drawer-icon"><List size="1em" aria-hidden="true" /></span>
+              <Button variant="outline" onClick={onClose}><ArrowLeft /> 返回</Button>
               <div><strong>{rack.name}</strong><span>{room?.name ?? '未绑定数据中心'} · {rack.heightU}U 机柜</span></div>
             </div>
             <div className="rack-drawer-actions">
               <Button variant="outline" onClick={onToggleBookmark}><Star fill={bookmarked ? 'currentColor' : 'none'} />{bookmarked ? '已收藏' : '收藏'}</Button>
               {editable && <><Button variant="outline" disabled={busy} onClick={() => onEditRack(rack)}><Settings />编辑机柜</Button><Button disabled={busy} onClick={onMount}><Plus />上架设备</Button></>}
-              <Button variant="ghost" size="icon" onClick={onClose} aria-label="关闭"><X /></Button>
             </div>
           </header>
           {(error || feedback) && <div className="rack-drawer-alert"><div role={error ? 'alert' : 'status'} className={error ? 'rounded-md border border-destructive p-3 text-destructive' : 'rounded-md border border-border p-3'}>{error || feedback}</div></div>}
@@ -114,7 +108,6 @@ export function RackDetailDrawer({
           </Tabs>
           <footer className="rack-drawer-foot"><span><i className="rack-legend-dot host" />物理机</span><span><i className="rack-legend-dot switch" />交换机</span><span><i className="rack-legend-dot" />空 U 位</span><span className="rack-drawer-foot-hint">拖动设备可调整 U 位，松开后保存</span></footer>
         </div>
-      </SheetContent>
-    </Sheet>
+    </div>
   )
 }

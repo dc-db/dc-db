@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   Alert, App as UIApp, Button, Card, Checkbox, ConfigProvider, Descriptions,
-  Drawer, Dropdown, Empty, Form, Input, Layout, List, Menu, Modal, Popover, Radio, Select,
+  Dropdown, Empty, Form, Input, Layout, List, Menu, Modal, Popover, Radio, Select,
   Space, Spin, Table, Tabs, Tag, Tooltip, Upload, theme,
 } from './components/AppControls'
 import type { TableColumnsType } from './components/AppControls'
@@ -10,7 +10,7 @@ const zhCN = {}
 import {
   Building2 as BuildingOutlined, BookOpen as BookOpenOutlined, Cable as ApiOutlined, Server as CloudServerOutlined,
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
-  House as HomeOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
+  House as HomeOutlined, ArrowLeft as ArrowLeftOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
   FolderTree as FolderTreeOutlined, Boxes as BoxesOutlined, Blocks as BlocksOutlined,
   Network as NetworkOutlined, Split as SplitOutlined, LocateFixed as LocateFixedOutlined,
@@ -588,9 +588,14 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     window.history.replaceState(null, '', query ? `${window.location.pathname}?${query}` : window.location.pathname)
   }
 
+  function scrollContentViewTop() {
+    requestAnimationFrame(() => document.querySelector('.app-content')?.scrollTo({ top: 0 }))
+  }
+
   function closeDrawer(force = false) {
     if (saving && !force) return
     setDrawerOpen(false)
+    scrollContentViewTop()
     setSelectedId(null)
     setEditor(false)
     setDrawerError('')
@@ -607,6 +612,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setDrawerError('')
     setShowRelationForm(false)
     setDrawerOpen(true)
+    scrollContentViewTop()
     syncAssetParam(id)
     try {
       const [changes, tags] = await Promise.all([
@@ -1165,6 +1171,127 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         </Header>
 
         <Content className="app-content">
+          {drawerOpen ? (<>
+          <div className="asset-detail-page">
+            <div className="detail-page-bar">
+              <Button onClick={() => closeDrawer(true)}><ArrowLeftOutlined /> 返回</Button>
+              <div className="asset-drawer-title">
+                <span>{editor ? (selected ? '编辑资产' : '新增资产') : (selected ? selected.name : '资产详情')}</span>
+                {!editor && selected && <Tag>{kinds[selected.kind].label}</Tag>}
+              </div>
+            </div>
+        {editor ? (
+          <AssetEditor
+            asset={selected} defaultKind={newKind} busy={saving} error={drawerError} groups={groups}
+            onSave={fields => void saveAsset(fields)}
+            onCancel={() => { setEditor(false); if (!selectedId) closeDrawer() }}
+          />
+        ) : selected ? (
+          <>
+            <div className="asset-drawer-toolbar">
+              <Space wrap>
+                <Tag color={statusOf(selected).color}>{statusOf(selected).label}</Tag>
+                {assetTags.map(tag => <Tag key={tag.id} color={tag.color}>{tag.name}</Tag>)}
+              </Space>
+              <Space>
+                <Button
+                  icon={bookmarks.includes(selected.id) ? <StarFilled /> : <StarOutlined />}
+                  onClick={() => toggleBookmark(selected.id)}
+                >{bookmarks.includes(selected.id) ? '已收藏' : '收藏'}</Button>
+                {editable && <Button icon={<TagsOutlined />} onClick={() => void openTagEditor()}>标签</Button>}
+                {editable && <Button type="primary" onClick={() => setEditor(true)}><EditOutlined /> 编辑</Button>}
+              </Space>
+            </div>
+            {drawerError && <Alert type="error" showIcon message={drawerError} className="drawer-alert" />}
+            <Tabs
+              className="asset-drawer-tabs" activeKey={assetTab} onChange={setAssetTab}
+              items={[
+                {
+                  key: 'overview', label: '概览',
+                  children: (
+                    <>
+                      <Descriptions bordered size="small" column={1} items={descriptions} />
+                      {selected.notes && <p className="detail-notes">{selected.notes}</p>}
+                    </>
+                  ),
+                },
+                {
+                  key: 'relations', label: `资源关系 (${related.length})`,
+                  children: (
+                    <>
+                      {related.length > 0 && (
+                        <AssetRelationGraph
+                          key={`${selected.id}:${related.map(link => link.id).join('-')}`}
+                          asset={selected} links={related} assets={assets} dark={dark}
+                          onOpenAsset={id => void openAsset(id)}
+                        />
+                      )}
+                      {editable && relationOptions.length > 0 && <Button size="small" onClick={startRelation}><PlusOutlined /> 添加关系</Button>}
+                      {showRelationForm && (
+                        <Form layout="inline" className="relation-form" onFinish={() => void updateLink()}>
+                          <Form.Item>
+                            <Select
+                              style={{ width: 150 }} value={relationChoice} placeholder="关系类型"
+                              onChange={value => { setRelationChoice(value); setRelationTarget(0) }}
+                              options={relationOptions.map(option => ({ value: option.id, label: option.label }))}
+                            />
+                          </Form.Item>
+                          <Form.Item>
+                            <Select
+                              style={{ width: 170 }} value={relationTarget || undefined} placeholder="选择资源"
+                              onChange={setRelationTarget}
+                              options={targets.map(target => ({ value: target.id, label: target.name }))}
+                            />
+                          </Form.Item>
+                          <Space>
+                            <Button type="primary" htmlType="submit" size="small" disabled={saving || !relationTarget}>保存</Button>
+                            <Button size="small" onClick={() => setShowRelationForm(false)}>取消</Button>
+                          </Space>
+                        </Form>
+                      )}
+                      {related.length === 0 ? <Empty description="暂无关联资源" /> : (
+                        <List
+                          size="small" dataSource={related}
+                          renderItem={link => (
+                            <List.Item
+                              actions={editable ? [<Button key="remove" type="link" danger onClick={() => void updateLink(link.id)}>解除</Button>] : []}
+                            >
+                              <Space>
+                                <Tag>{relationLabel(link)}</Tag>
+                                <Button type="link" onClick={() => void openAsset(relatedId(link))}>{byId.get(relatedId(link))?.name}</Button>
+                              </Space>
+                            </List.Item>
+                          )}
+                        />
+                      )}
+                    </>
+                  ),
+                },
+                {
+                  key: 'interfaces', label: '接口',
+                  children: <AssetInterfaces assetId={selected.id} assets={assets} editable={editable} />,
+                },
+                {
+                  key: 'attributes', label: `扩展信息 (${Object.keys(selected.attributes).length})`,
+                  children: Object.keys(selected.attributes).length > 0 ? (
+                    <Descriptions
+                      bordered size="small" column={1}
+                      items={Object.entries(selected.attributes).map(([key, value]) => ({
+                        key, label: key, children: typeof value === 'object' ? JSON.stringify(value) : String(value),
+                      }))}
+                    />
+                  ) : <Empty description="暂无扩展信息" />,
+                },
+                {
+                  key: 'changes', label: '变更记录',
+                  children: <ChangeList changes={assetChanges} hideAsset />,
+                },
+              ]}
+            />
+          </>
+        ) : null}
+          </div>
+          </>) : (<>
           {error && <Alert type="error" showIcon closable message={error} className="page-alert" onClose={() => setError('')} />}
 
           {page === 'guide' && (
@@ -1357,6 +1484,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               />
             </Card>
           )}
+          </>)}
         </Content>
       </Layout>
 
@@ -1569,127 +1697,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         </div>
       </Modal>
 
-      <Drawer
-        open={drawerOpen} width={560}
-        title={editor ? (selected ? '编辑资产' : '新增资产') : selected ? (
-          <div className="asset-drawer-title">
-            <span>{selected.name}</span>
-            <Tag>{kinds[selected.kind].label}</Tag>
-          </div>
-        ) : '资产详情'}
-        onClose={closeDrawer} destroyOnHidden
-      >
-        {editor ? (
-          <AssetEditor
-            asset={selected} defaultKind={newKind} busy={saving} error={drawerError} groups={groups}
-            onSave={fields => void saveAsset(fields)}
-            onCancel={() => { setEditor(false); if (!selectedId) closeDrawer() }}
-          />
-        ) : selected ? (
-          <>
-            <div className="asset-drawer-toolbar">
-              <Space wrap>
-                <Tag color={statusOf(selected).color}>{statusOf(selected).label}</Tag>
-                {assetTags.map(tag => <Tag key={tag.id} color={tag.color}>{tag.name}</Tag>)}
-              </Space>
-              <Space>
-                <Button
-                  icon={bookmarks.includes(selected.id) ? <StarFilled /> : <StarOutlined />}
-                  onClick={() => toggleBookmark(selected.id)}
-                >{bookmarks.includes(selected.id) ? '已收藏' : '收藏'}</Button>
-                {editable && <Button icon={<TagsOutlined />} onClick={() => void openTagEditor()}>标签</Button>}
-                {editable && <Button type="primary" onClick={() => setEditor(true)}><EditOutlined /> 编辑</Button>}
-              </Space>
-            </div>
-            {drawerError && <Alert type="error" showIcon message={drawerError} className="drawer-alert" />}
-            <Tabs
-              className="asset-drawer-tabs" activeKey={assetTab} onChange={setAssetTab}
-              items={[
-                {
-                  key: 'overview', label: '概览',
-                  children: (
-                    <>
-                      <Descriptions bordered size="small" column={1} items={descriptions} />
-                      {selected.notes && <p className="detail-notes">{selected.notes}</p>}
-                    </>
-                  ),
-                },
-                {
-                  key: 'relations', label: `资源关系 (${related.length})`,
-                  children: (
-                    <>
-                      {related.length > 0 && (
-                        <AssetRelationGraph
-                          key={`${selected.id}:${related.map(link => link.id).join('-')}`}
-                          asset={selected} links={related} assets={assets} dark={dark}
-                          onOpenAsset={id => void openAsset(id)}
-                        />
-                      )}
-                      {editable && relationOptions.length > 0 && <Button size="small" onClick={startRelation}><PlusOutlined /> 添加关系</Button>}
-                      {showRelationForm && (
-                        <Form layout="inline" className="relation-form" onFinish={() => void updateLink()}>
-                          <Form.Item>
-                            <Select
-                              style={{ width: 150 }} value={relationChoice} placeholder="关系类型"
-                              onChange={value => { setRelationChoice(value); setRelationTarget(0) }}
-                              options={relationOptions.map(option => ({ value: option.id, label: option.label }))}
-                            />
-                          </Form.Item>
-                          <Form.Item>
-                            <Select
-                              style={{ width: 170 }} value={relationTarget || undefined} placeholder="选择资源"
-                              onChange={setRelationTarget}
-                              options={targets.map(target => ({ value: target.id, label: target.name }))}
-                            />
-                          </Form.Item>
-                          <Space>
-                            <Button type="primary" htmlType="submit" size="small" disabled={saving || !relationTarget}>保存</Button>
-                            <Button size="small" onClick={() => setShowRelationForm(false)}>取消</Button>
-                          </Space>
-                        </Form>
-                      )}
-                      {related.length === 0 ? <Empty description="暂无关联资源" /> : (
-                        <List
-                          size="small" dataSource={related}
-                          renderItem={link => (
-                            <List.Item
-                              actions={editable ? [<Button key="remove" type="link" danger onClick={() => void updateLink(link.id)}>解除</Button>] : []}
-                            >
-                              <Space>
-                                <Tag>{relationLabel(link)}</Tag>
-                                <Button type="link" onClick={() => void openAsset(relatedId(link))}>{byId.get(relatedId(link))?.name}</Button>
-                              </Space>
-                            </List.Item>
-                          )}
-                        />
-                      )}
-                    </>
-                  ),
-                },
-                {
-                  key: 'interfaces', label: '接口',
-                  children: <AssetInterfaces assetId={selected.id} assets={assets} editable={editable} />,
-                },
-                {
-                  key: 'attributes', label: `扩展信息 (${Object.keys(selected.attributes).length})`,
-                  children: Object.keys(selected.attributes).length > 0 ? (
-                    <Descriptions
-                      bordered size="small" column={1}
-                      items={Object.entries(selected.attributes).map(([key, value]) => ({
-                        key, label: key, children: typeof value === 'object' ? JSON.stringify(value) : String(value),
-                      }))}
-                    />
-                  ) : <Empty description="暂无扩展信息" />,
-                },
-                {
-                  key: 'changes', label: '变更记录',
-                  children: <ChangeList changes={assetChanges} hideAsset />,
-                },
-              ]}
-            />
-          </>
-        ) : null}
-      </Drawer>
 </Layout>
   )
 }

@@ -508,6 +508,9 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
         </aside>
         <div className="facility-resizer" role="separator" aria-orientation="vertical" aria-label="拖动调整导航宽度" onMouseDown={startResize} />
         <div className="facility-main">
+          {rackDrawerOpen && rack ? (
+      <RackDetailDrawer rack={rack ?? null} room={room ?? null} devices={devices} assets={byId} editable={editable} busy={busy} bookmarked={!!rack && bookmarkedRacks.includes(rack.id)} onToggleBookmark={() => { if (rack) onToggleRackBookmark(rack.id) }} focused={focused} feedback={feedback} error={error} mountForm={mountForm} onClose={closeRackDrawer} onOpenAsset={onOpenAsset} onEditRack={value => { setRackDrawerOpen(false); editRack(value) }} onMount={() => editMount()} onEditPlacement={value => editMount(value)} onUnmount={unmountDevice} onMove={moveDevice} onMountAt={editMountAt} />
+          ) : (<>
           {error && <div role="alert" className="mb-3 rounded-md border border-destructive p-3 text-destructive">{error}</div>}
           {feedback && <div role="status" className="mb-3 rounded-md border border-border p-3">{feedback}</div>}
           {!room ? <Card><CardContent className="p-6 text-center text-muted-foreground"><p>暂无数据中心</p>{editable && <Button onClick={() => editRoom()}>新增数据中心</Button>}</CardContent></Card> : (
@@ -640,6 +643,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
               </Card>
             </div>
           )}
+          </>)}
         </div>
       </div>
       <Dialog open={!!roomDraft} onOpenChange={open => { if (!open) setRoomDraft(null) }}>
@@ -705,7 +709,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
           )}
         </DialogContent>
       </Dialog>
-      <RackDetailDrawer open={rackDrawerOpen} rack={rack ?? null} room={room ?? null} devices={devices} assets={byId} editable={editable} busy={busy} bookmarked={!!rack && bookmarkedRacks.includes(rack.id)} onToggleBookmark={() => { if (rack) onToggleRackBookmark(rack.id) }} focused={focused} feedback={feedback} error={error} mountForm={mountForm} onClose={closeRackDrawer} onOpenAsset={onOpenAsset} onEditRack={value => { setRackDrawerOpen(false); editRack(value) }} onMount={() => editMount()} onEditPlacement={value => editMount(value)} onUnmount={unmountDevice} onMove={moveDevice} onMountAt={editMountAt} />
     </div>
   )
 }
