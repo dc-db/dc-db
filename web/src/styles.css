@@ -217,16 +217,16 @@ a { color: var(--info); }
 .rack-board-figure svg .device-bar { cursor: pointer; }
 .rack-board-figure svg .device-bar:hover rect { opacity: .82; }
 .rack-board-figure svg { display: block; width: 100%; height: auto; }
-.rack-board-figure svg .rack-bg { fill: var(--surface); }
-.rack-board-figure svg .slot { fill: var(--subtle); stroke: var(--line); }
-.rack-board-figure svg .frame { stroke: var(--line); }
-.rack-board-figure svg .unit { fill: var(--muted); }
-html[data-theme="dark"] .rack-board-figure svg .rack-bg { fill: #141414; }
-html[data-theme="dark"] .rack-board-figure svg .slot { fill: #232323; stroke: #303030; }
-html[data-theme="dark"] .rack-board-figure svg .frame { stroke: #6e6e6e; }
-html[data-theme="dark"] .rack-board-figure svg .unit { fill: #adb5bd; }
-html[data-theme="dark"] .rack-board-figure svg .slot-add { fill: #adb5bd; }
-.rack-board-figure svg { --hatch-bg: #f7f7f7; --hatch-line: #ffc0c0; --hatch-text: #1a1a1a; }
+.rack-board-figure svg .rack-bg, .rack-detail-face-figure svg .rack-bg { fill: var(--surface); }
+.rack-board-figure svg .slot, .rack-detail-face-figure svg .slot { fill: var(--subtle); stroke: var(--line); }
+.rack-board-figure svg .frame, .rack-detail-face-figure svg .frame { stroke: var(--line); }
+.rack-board-figure svg .unit, .rack-detail-face-figure svg .unit { fill: var(--muted); }
+html[data-theme="dark"] .rack-board-figure svg .rack-bg, html[data-theme="dark"] .rack-detail-face-figure svg .rack-bg { fill: #141414; }
+html[data-theme="dark"] .rack-board-figure svg .slot, html[data-theme="dark"] .rack-detail-face-figure svg .slot { fill: #232323; stroke: #303030; }
+html[data-theme="dark"] .rack-board-figure svg .frame, html[data-theme="dark"] .rack-detail-face-figure svg .frame { stroke: #6e6e6e; }
+html[data-theme="dark"] .rack-board-figure svg .unit, html[data-theme="dark"] .rack-detail-face-figure svg .unit { fill: #adb5bd; }
+html[data-theme="dark"] .rack-board-figure svg .slot-add, html[data-theme="dark"] .rack-detail-face-figure svg .slot-add { fill: #adb5bd; }
+.rack-board-figure svg, .rack-detail-face-figure svg { --hatch-bg: #f7f7f7; --hatch-line: #ffc0c0; --hatch-text: #1a1a1a; }
 .facility-table-wrap { overflow-x: auto; }
 .facility-table { width: 100%; border-collapse: collapse; font-size: var(--fs-body); }
 .facility-table th { padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: var(--fs-label); font-weight: 500; text-align: left; white-space: nowrap; }
