@@ -90,7 +90,7 @@ export function MetadataManager({ kind, title, editable, onSessionError, onChang
 
   const columns = useMemo<ColumnDef<MetadataEntry>[]>(() => [
     { accessorKey: 'name', header: '名称', cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
-    { accessorKey: 'description', header: '说明', cell: ({ row }) => row.original.description || <span className="text-muted-foreground">—</span> },
+    { accessorKey: 'description', header: '备注', cell: ({ row }) => row.original.description || <span className="text-muted-foreground">—</span> },
     ...(editable ? [{
       id: 'actions', header: () => <div className="text-right">操作</div>,
       cell: ({ row }: { row: { original: MetadataEntry } }) => <div className="flex justify-end gap-1">
@@ -105,7 +105,7 @@ export function MetadataManager({ kind, title, editable, onSessionError, onChang
   return <>
     <PageHeader
       title={title}
-      filters={<Input className="max-w-sm" placeholder={`搜索${title}名称或说明`} value={keyword} onChange={event => setKeyword(event.target.value)} />}
+      filters={<Input className="max-w-sm" placeholder={`搜索${title}名称或备注`} value={keyword} onChange={event => setKeyword(event.target.value)} />}
       actions={editable && <Button onClick={() => showForm(null)}><Plus />新增{title}</Button>}
     />
     {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
@@ -125,7 +125,7 @@ export function MetadataManager({ kind, title, editable, onSessionError, onChang
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
       <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save() }}>
         <div className="space-y-2"><label htmlFor="metadata-name" className="text-sm font-medium">名称</label><Input id="metadata-name" required maxLength={80} value={fields.name} onChange={event => setFields({ ...fields, name: event.target.value })} /></div>
-        <div className="space-y-2"><label htmlFor="metadata-description" className="text-sm font-medium">说明</label><Textarea id="metadata-description" maxLength={200} rows={3} placeholder="可选" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /></div>
+        <div className="space-y-2"><label htmlFor="metadata-description" className="text-sm font-medium">备注</label><Textarea id="metadata-description" maxLength={200} rows={3} placeholder="可选" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /></div>
         <DialogFooter><Button type="button" variant="outline" disabled={saving} onClick={() => setOpen(false)}>取消</Button><Button type="submit" disabled={saving}>{saving ? '保存中…' : '保存'}</Button></DialogFooter>
       </form>
     </DialogContent></Dialog>

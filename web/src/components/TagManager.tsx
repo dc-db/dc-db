@@ -94,8 +94,8 @@ export function TagManager({ editable, onSessionError, onChanged }: Props) {
 
   const columns: ColumnDef<TagItem>[] = [
     { accessorKey: 'name', header: '标签', cell: ({ row }) => <span className="inline-flex rounded-md px-2 py-1 text-xs font-medium" style={{ backgroundColor: row.original.color, color: readableTextColor(row.original.color) }}>{row.original.name}</span> },
-    { accessorKey: 'description', header: '说明', cell: ({ row }) => row.original.description || '—' },
     { accessorKey: 'assetCount', header: '关联资产', cell: ({ row }) => row.original.assetCount || '0' },
+    { accessorKey: 'description', header: '备注', cell: ({ row }) => row.original.description || '—' },
     ...(editable ? [{ id: 'actions', header: () => <div className="text-right">操作</div>, cell: ({ row }: { row: { original: TagItem } }) => <div className="flex gap-1"><Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button><Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleting(row.original)}><Trash2 />删除</Button></div> }] : []),
   ]
   const visible = useMemo(() => {
@@ -107,7 +107,7 @@ export function TagManager({ editable, onSessionError, onChanged }: Props) {
   return <>
     <PageHeader
       title="标签"
-      filters={<Input className="max-w-sm" placeholder="搜索标签名称或说明" value={keyword} onChange={event => setKeyword(event.target.value)} />}
+      filters={<Input className="max-w-sm" placeholder="搜索标签名称或备注" value={keyword} onChange={event => setKeyword(event.target.value)} />}
       actions={editable && <Button onClick={() => showForm(null)}><Plus />新增标签</Button>}
     />
     {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
@@ -129,7 +129,7 @@ export function TagManager({ editable, onSessionError, onChanged }: Props) {
             ...colorPresets.map(item => ({ value: item.value, label: <span className="tag-color-option"><i style={{ background: item.value }} />{item.label}</span> })),
           ]}
         /></div>
-        <div className="space-y-2"><label htmlFor="tag-description" className="text-sm font-medium">说明</label><Textarea id="tag-description" maxLength={200} rows={3} placeholder="可选，说明这个标签的用途" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /></div>
+        <div className="space-y-2"><label htmlFor="tag-description" className="text-sm font-medium">备注</label><Textarea id="tag-description" maxLength={200} rows={3} placeholder="可选，备注这个标签的用途" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /></div>
         <DialogFooter><Button type="button" variant="outline" disabled={saving} onClick={() => setOpen(false)}>取消</Button><Button type="submit" disabled={saving}>{saving ? '保存中...' : '保存'}</Button></DialogFooter>
       </form>
     </DialogContent></Dialog>

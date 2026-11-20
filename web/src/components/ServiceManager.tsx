@@ -94,8 +94,8 @@ export function ServiceManager({ editable, onSessionError }: Props) {
     { accessorKey: 'name', header: '服务名称', cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
     { accessorKey: 'category', header: '分类', cell: ({ row }) => row.original.category || <span className="text-muted-foreground">—</span> },
     { accessorKey: 'defaultPort', header: '默认端口', cell: ({ row }) => row.original.defaultPort ? <span className="font-mono">{row.original.defaultPort}</span> : <span className="text-muted-foreground">—</span> },
-    { accessorKey: 'description', header: '说明', cell: ({ row }) => row.original.description || <span className="text-muted-foreground">—</span> },
     { id: 'builtin', header: '来源', cell: ({ row }) => <span className="text-muted-foreground">{row.original.builtin ? '内置' : '自定义'}</span> },
+    { accessorKey: 'description', header: '备注', cell: ({ row }) => row.original.description || <span className="text-muted-foreground">—</span> },
     ...(editable ? [{
       id: 'actions', header: () => <div className="text-right">操作</div>,
       cell: ({ row }: { row: { original: Service } }) => <div className="flex justify-end gap-1">
@@ -111,7 +111,7 @@ export function ServiceManager({ editable, onSessionError }: Props) {
     <PageHeader
       title="服务"
       filters={<>
-        <Input className="max-w-sm" placeholder="搜索服务名称、分类或说明" value={keyword} onChange={event => setKeyword(event.target.value)} />
+        <Input className="max-w-sm" placeholder="搜索服务名称、分类或备注" value={keyword} onChange={event => setKeyword(event.target.value)} />
         <Select
           style={{ width: 140 }} allowClear searchable={false} placeholder="全部分类"
           value={category || undefined}
@@ -142,7 +142,7 @@ export function ServiceManager({ editable, onSessionError }: Props) {
           <div className="space-y-2"><label htmlFor="service-category" className="text-sm font-medium">分类</label><Input id="service-category" maxLength={40} placeholder="例如：数据库" value={fields.category} onChange={event => setFields({ ...fields, category: event.target.value })} /></div>
           <div className="space-y-2"><label htmlFor="service-port" className="text-sm font-medium">默认端口</label><Input id="service-port" type="number" min={0} max={65535} placeholder="可选" value={fields.defaultPort || ''} onChange={event => setFields({ ...fields, defaultPort: Number(event.target.value) || 0 })} /></div>
         </div>
-        <div className="space-y-2"><label htmlFor="service-description" className="text-sm font-medium">说明</label><Textarea id="service-description" maxLength={200} rows={3} placeholder="可选，一句话说明用途" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /></div>
+        <div className="space-y-2"><label htmlFor="service-description" className="text-sm font-medium">备注</label><Textarea id="service-description" maxLength={200} rows={3} placeholder="可选，一句话备注用途" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /></div>
         <DialogFooter><Button type="button" variant="outline" disabled={saving} onClick={() => setOpen(false)}>取消</Button><Button type="submit" disabled={saving}>{saving ? '保存中…' : '保存'}</Button></DialogFooter>
       </form>
     </DialogContent></Dialog>

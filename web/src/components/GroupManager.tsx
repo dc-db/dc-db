@@ -82,8 +82,8 @@ export function GroupManager({ editable, onSessionError, onChanged }: Props) {
 
   const columns = useMemo<ColumnDef<Group>[]>(() => [
     { accessorKey: 'name', header: '群组名称', cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
-    { accessorKey: 'description', header: '说明', cell: ({ row }) => row.original.description || <span className="text-muted-foreground">—</span> },
     { accessorKey: 'assetCount', header: '资产数', cell: ({ row }) => row.original.assetCount },
+    { accessorKey: 'description', header: '备注', cell: ({ row }) => row.original.description || <span className="text-muted-foreground">—</span> },
     ...(editable ? [{
       id: 'actions', header: () => <div className="text-right">操作</div>,
       cell: ({ row }: { row: { original: Group } }) => <div className="flex justify-end gap-1">
@@ -102,7 +102,7 @@ export function GroupManager({ editable, onSessionError, onChanged }: Props) {
   return <>
     <PageHeader
       title="群组"
-      filters={<Input className="max-w-sm" placeholder="搜索群组名称或说明" value={keyword} onChange={event => setKeyword(event.target.value)} />}
+      filters={<Input className="max-w-sm" placeholder="搜索群组名称或备注" value={keyword} onChange={event => setKeyword(event.target.value)} />}
       actions={editable && <Button onClick={() => showForm(null)}><Plus />新增群组</Button>}
     />
     {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
@@ -122,7 +122,7 @@ export function GroupManager({ editable, onSessionError, onChanged }: Props) {
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
       <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save() }}>
         <div className="space-y-2"><label htmlFor="group-name" className="text-sm font-medium">群组名称</label><Input id="group-name" required maxLength={80} placeholder="例如：核心业务、测试环境" value={fields.name} onChange={event => setFields({ ...fields, name: event.target.value })} /></div>
-        <div className="space-y-2"><label htmlFor="group-description" className="text-sm font-medium">说明</label><Textarea id="group-description" maxLength={200} rows={3} placeholder="可选，说明这个项目包含什么" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /></div>
+        <div className="space-y-2"><label htmlFor="group-description" className="text-sm font-medium">备注</label><Textarea id="group-description" maxLength={200} rows={3} placeholder="可选，备注这个项目包含什么" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /></div>
         <DialogFooter><Button type="button" variant="outline" disabled={saving} onClick={() => setOpen(false)}>取消</Button><Button type="submit" disabled={saving}>{saving ? '保存中…' : '保存'}</Button></DialogFooter>
       </form>
     </DialogContent></Dialog>
