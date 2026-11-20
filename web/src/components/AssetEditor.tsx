@@ -12,6 +12,7 @@ interface Props {
   busy: boolean
   error: string
   groups: Group[]
+  owners: string[]
   onSave: (fields: AssetFields & { version: number }) => void
   onCancel: () => void
 }
@@ -92,7 +93,7 @@ function parseAttributeRows(rows: AttributeRow[]): Record<string, unknown> {
   return attributes
 }
 
-export function AssetEditor({ asset, defaultKind, busy, error, groups, onSave, onCancel }: Props) {
+export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, onSave, onCancel }: Props) {
   const [fields, setFields] = useState<AssetFields>({
     kind: asset?.kind ?? defaultKind,
     name: asset?.name ?? '',
@@ -175,7 +176,7 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, onSave, o
 
       <label className="grid gap-2">平台<Choice value={fields.platform} onChange={value => update('platform', value as AssetFields['platform'])} options={[{ value: '', label: '未指定' }, { value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM / libvirt' }]} /></label>
       <label className="grid gap-2">状态<Choice value={fields.status} onChange={value => update('status', value as AssetFields['status'])} options={[{ value: 'unknown', label: '未知' }, { value: 'online', label: '在线' }, { value: 'offline', label: '离线' }, { value: 'running', label: '运行中' }, { value: 'stopped', label: '已停止' }, { value: 'paused', label: '已暂停' }]} /></label>
-      <label className="grid gap-2">负责人<Input value={fields.owner} maxLength={160} placeholder="姓名或团队" onChange={event => update('owner', event.target.value)} /></label>
+      <label className="grid gap-2">负责人<Input list="asset-owner-options" value={fields.owner} maxLength={160} placeholder="姓名或团队" onChange={event => update('owner', event.target.value)} /><datalist id="asset-owner-options">{owners.map(name => <option key={name} value={name} />)}</datalist></label>
       <label className="grid gap-2">环境<Input value={fields.environment} maxLength={40} placeholder="例如：生产" onChange={event => update('environment', event.target.value)} /></label>
       <label className="grid gap-2">所属群组<Choice value={fields.groupId ? String(fields.groupId) : ''} onChange={value => update('groupId', Number(value || 0))} options={[{ value: '', label: '未归属' }, ...groups.map(group => ({ value: String(group.id), label: group.name }))]} /></label>
       <label className="col-span-2 grid gap-2">管理地址 / IP<Input value={fields.address} maxLength={160} placeholder="例如：192.0.2.11" onChange={event => update('address', event.target.value)} /></label>

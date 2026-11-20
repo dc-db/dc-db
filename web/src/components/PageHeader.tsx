@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 interface Props {
-  title: string
+  title?: string
   filters?: ReactNode
   actions?: ReactNode
 }
@@ -12,7 +12,7 @@ interface Props {
  */
 export function PageHeader({ title, filters, actions }: Props) {
   return <>
-    <h2 className="asset-view-title">{title}</h2>
+    {title && <h2 className="asset-view-title">{title}</h2>}
     {(filters || actions) && (
       <div className="table-toolbar">
         <div className="page-header-filters">{filters}</div>

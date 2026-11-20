@@ -13,11 +13,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 
 interface Props {
   editable: boolean
+  hideTitle?: boolean
   onSessionError: (error: unknown) => void
   onChanged?: (groups: Group[]) => void
 }
 
-export function GroupManager({ editable, onSessionError, onChanged }: Props) {
+export function GroupManager({ editable, hideTitle, onSessionError, onChanged }: Props) {
   const [groups, setGroups] = useState<Group[]>([])
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -101,7 +102,7 @@ export function GroupManager({ editable, onSessionError, onChanged }: Props) {
 
   return <>
     <PageHeader
-      title="群组"
+      title={hideTitle ? undefined : '群组'}
       filters={<Input className="max-w-sm" placeholder="搜索群组名称或备注" value={keyword} onChange={event => setKeyword(event.target.value)} />}
       actions={editable && <Button onClick={() => showForm(null)}><Plus />新增群组</Button>}
     />

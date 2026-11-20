@@ -219,6 +219,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [assetTags, setAssetTags] = useState<TagItem[]>([])
   const [allTags, setAllTags] = useState<TagItem[]>([])
   const [groups, setGroups] = useState<Group[]>([])
+  const [owners, setOwners] = useState<string[]>([])
   const [bookmarks, setBookmarks] = useState<number[]>(() => {
     try {
       const parsed: unknown = JSON.parse(localStorage.getItem('dc-db-bookmarks') ?? '[]')
@@ -421,9 +422,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setBusy(true)
     setError('')
     try {
-      const [nextAssets, nextLinks, nextChanges, nextFacilities, nextSubnets, nextTags, nextGroups] = await Promise.all([
+      const [nextAssets, nextLinks, nextChanges, nextFacilities, nextSubnets, nextTags, nextGroups, nextOwners] = await Promise.all([
         api<Asset[]>('/assets'), api<Link[]>('/links'), api<Change[]>('/changes'),
         api<Facilities>('/facilities'), api<Subnet[]>('/subnets'), api<TagItem[]>('/tags'), api<Group[]>('/groups'),
+        api<{ name: string }[]>('/metadata?kind=owner'),
       ])
       setAssets(nextAssets)
       setLinks(nextLinks)
@@ -432,6 +434,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       setSubnets(nextSubnets)
       setAllTags(nextTags)
       setGroups(nextGroups)
+      setOwners(nextOwners.map(item => item.name))
     } catch (e) {
       handleError(e)
     } finally {
@@ -1181,7 +1184,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             </div>
         {editor ? (
           <AssetEditor
-            asset={selected} defaultKind={newKind} busy={saving} error={drawerError} groups={groups}
+            asset={selected} defaultKind={newKind} busy={saving} error={drawerError} groups={groups} owners={owners}
             onSave={fields => void saveAsset(fields)}
             onCancel={() => { setEditor(false); if (!selectedId) closeDrawer() }}
           />

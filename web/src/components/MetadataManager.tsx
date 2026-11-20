@@ -14,13 +14,14 @@ import { TablePager } from './TablePager'
 interface Props {
   kind: string
   title: string
+  hideTitle?: boolean
   editable: boolean
   onSessionError: (error: unknown) => void
   onChanged?: () => void
 }
 
 // Generic dictionary category (负责人, 运营商, …): name plus an optional note.
-export function MetadataManager({ kind, title, editable, onSessionError, onChanged }: Props) {
+export function MetadataManager({ kind, title, hideTitle, editable, onSessionError, onChanged }: Props) {
   const [entries, setEntries] = useState<MetadataEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -104,7 +105,7 @@ export function MetadataManager({ kind, title, editable, onSessionError, onChang
 
   return <>
     <PageHeader
-      title={title}
+      title={hideTitle ? undefined : title}
       filters={<Input className="max-w-sm" placeholder={`搜索${title}名称或备注`} value={keyword} onChange={event => setKeyword(event.target.value)} />}
       actions={editable && <Button onClick={() => showForm(null)}><Plus />新增{title}</Button>}
     />

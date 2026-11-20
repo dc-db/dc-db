@@ -791,7 +791,8 @@ html[data-theme="dark"] [data-slot="button"][data-variant="ghost"]:hover { backg
   .rack-detail-body { grid-template-columns: minmax(0, 1fr); }
 }
 
-.metadata-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 20px; align-items: start; }
+.metadata-layout { display: grid; grid-template-columns: 240px 2px minmax(0, 1fr); gap: 20px; align-items: stretch; }
+.metadata-divider { width: 2px; border-radius: 2px; background: var(--line); }
 .metadata-side { position: sticky; top: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .metadata-side .asset-view-title { margin-bottom: 4px; }
 .metadata-nav { display: flex; flex-direction: column; gap: 2px; }

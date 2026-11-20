@@ -14,12 +14,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 
 interface Props {
   editable: boolean
+  hideTitle?: boolean
   onSessionError: (error: unknown) => void
 }
 
 const emptyService: ServiceFields = { name: '', category: '', defaultPort: 0, description: '' }
 
-export function ServiceManager({ editable, onSessionError }: Props) {
+export function ServiceManager({ editable, hideTitle, onSessionError }: Props) {
   const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -109,7 +110,7 @@ export function ServiceManager({ editable, onSessionError }: Props) {
 
   return <>
     <PageHeader
-      title="服务"
+      title={hideTitle ? undefined : '服务'}
       filters={<>
         <Input className="max-w-sm" placeholder="搜索服务名称、分类或备注" value={keyword} onChange={event => setKeyword(event.target.value)} />
         <Select

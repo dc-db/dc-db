@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 
 interface Props {
   editable: boolean
+  hideTitle?: boolean
   onSessionError: (error: unknown) => void
   onChanged?: (tags: TagItem[]) => void
 }
@@ -34,7 +35,7 @@ function readableTextColor(color: string) {
   return luminance > 0.179 ? '#000000' : '#ffffff'
 }
 
-export function TagManager({ editable, onSessionError, onChanged }: Props) {
+export function TagManager({ editable, hideTitle, onSessionError, onChanged }: Props) {
   const [tags, setTags] = useState<TagItem[]>([])
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -106,7 +107,7 @@ export function TagManager({ editable, onSessionError, onChanged }: Props) {
 
   return <>
     <PageHeader
-      title="标签"
+      title={hideTitle ? undefined : '标签'}
       filters={<Input className="max-w-sm" placeholder="搜索标签名称或备注" value={keyword} onChange={event => setKeyword(event.target.value)} />}
       actions={editable && <Button onClick={() => showForm(null)}><Plus />新增标签</Button>}
     />
