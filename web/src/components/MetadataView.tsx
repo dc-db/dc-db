@@ -68,19 +68,19 @@ export function MetadataView({ page, editable, onSessionError, onGroupsChanged, 
       <div className="metadata-divider" aria-hidden="true" />
       <section className="metadata-main">
         {selected === 'groups' && (
-          <GroupManager hideTitle editable={editable} onSessionError={onSessionError} onChanged={groups => { onGroupsChanged(groups); void loadCounts() }} />
+          <GroupManager editable={editable} onSessionError={onSessionError} onChanged={groups => { onGroupsChanged(groups); void loadCounts() }} />
         )}
         {selected === 'services' && (
-          <ServiceManager hideTitle editable={editable} onSessionError={onSessionError} />
+          <ServiceManager editable={editable} onSessionError={onSessionError} />
         )}
         {selected === 'tags' && (
-          <TagManager hideTitle editable={editable} onSessionError={onSessionError} onChanged={tags => { onTagsChanged(tags); void loadCounts() }} />
+          <TagManager editable={editable} onSessionError={onSessionError} onChanged={tags => { onTagsChanged(tags); void loadCounts() }} />
         )}
         {selected === 'owner' && (
-          <MetadataManager kind="owner" title="负责人" hideTitle editable={editable} onSessionError={onSessionError} onChanged={() => void loadCounts()} />
+          <MetadataManager kind="owner" title="负责人" editable={editable} onSessionError={onSessionError} onChanged={() => void loadCounts()} />
         )}
         {selected === 'operator' && (
-          <MetadataManager kind="operator" title="运营商" hideTitle editable={editable} onSessionError={onSessionError} onChanged={() => void loadCounts()} />
+          <MetadataManager kind="operator" title="运营商" editable={editable} onSessionError={onSessionError} onChanged={() => void loadCounts()} />
         )}
       </section>
     </div>
