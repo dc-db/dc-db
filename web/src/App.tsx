@@ -12,10 +12,11 @@ import {
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
   House as HomeOutlined, ArrowLeft as ArrowLeftOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
+  Network as NetworkOutlined, Split as SplitOutlined, LocateFixed as LocateFixedOutlined,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
 import { downloadCSV } from './csv'
-import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, Service, Subnet, Tag as TagItem, User } from './api'
+import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, Service, Subnet, Tag as TagItem, User, VLAN } from './api'
 import { assetLocations, locationLabel } from './facilities'
 import type { AssetLocation, Facilities } from './facilities'
 import type { Page } from './types'
@@ -29,17 +30,20 @@ import { FacilityView } from './components/FacilityView'
 import { GlobalSearch } from './components/GlobalSearch'
 import { GroupManager } from './components/GroupManager'
 import { GuidePage } from './components/GuidePage'
+import { IPAddressView } from './components/IPAddressView'
+import { IpamView } from './components/IpamView'
 import { LoginBackdrop } from './components/LoginBackdrop'
 import {
-  GroupClusterIcon, OwnerBadgeIcon, ReferenceDataIcon, ServiceNodeIcon, TagMarkIcon,
+  GroupClusterIcon, OperatorTowerIcon, OwnerBadgeIcon, ReferenceDataIcon, ServiceNodeIcon, TagMarkIcon,
 } from './components/MetadataIcons'
 import { MetadataManager } from './components/MetadataManager'
-import { NetworkView, type NetworkTab } from './components/NetworkView'
+import { SubnetDetailView, VLANDetailView } from './components/NetworkDetailViews'
 import { PageHeader } from './components/PageHeader'
 import { ServiceIcon } from './components/ServiceIcon'
 import { ServiceManager } from './components/ServiceManager'
 import { TagManager } from './components/TagManager'
 import { UserManager } from './components/UserManager'
+import { VLANView } from './components/VLANView'
 import { Wordmark } from './components/Wordmark'
 
 const { Header, Sider, Content } = Layout
@@ -48,7 +52,7 @@ type NavLeaf = { key: string; label: ReactNode; icon: ReactNode }
 type NavGroup = { key: string; label: ReactNode; icon: ReactNode; children: NavLeaf[] }
 
 const kinds: Record<Kind, { label: string; icon: ReactNode }> = {
-  host: { label: '物理机', icon: <CloudServerOutlined /> },
+  host: { label: '服务器', icon: <CloudServerOutlined /> },
   vm: { label: '虚拟机', icon: <DesktopOutlined /> },
   switch: { label: '交换机', icon: <ApiOutlined /> },
 }
@@ -64,8 +68,9 @@ const relations: { kind: LinkKind; from: Kind; to: Kind[]; outgoing: string; inc
   { kind: 'hosts', from: 'host', to: ['vm'], outgoing: '承载虚拟机', incoming: '所在宿主机' },
 ]
 const defaultPageSize = 10
-const defaultAssetColumns = ['name', 'kind', 'status', 'tags', 'meta', 'address', 'owner']
-const assetColumnKeys = ['name', 'kind', 'status', 'tags', 'meta', 'address', 'owner', 'group', 'environment', 'capacity', 'updated']
+const defaultAssetColumns = ['name', 'status', 'tags', 'meta', 'address', 'owner']
+const defaultSwitchColumns = ['name', 'status', 'tags', 'address', 'owner']
+const assetColumnKeys = ['name', 'status', 'tags', 'meta', 'address', 'owner', 'group', 'environment', 'capacity', 'updated']
 
 
 function platformLabel(asset: Pick<Asset, 'platform'>) {
@@ -79,25 +84,20 @@ function messageText(error: unknown) {
   return error instanceof Error ? error.message : '操作失败'
 }
 
-const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'facilities', 'network', 'changes', 'password', 'tags', 'groups', 'services', 'owners', 'users', 'guide']
-const NETWORK_TABS: NetworkTab[] = ['subnets', 'ips', 'vlans', 'devices', 'operators']
+const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'switches', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'password', 'tags', 'groups', 'services', 'owners', 'users', 'guide']
 
 function readPageParam(): Page {
-  const value = new URLSearchParams(window.location.search).get('page')
-  if (value === 'ipam' || value === 'subnets' || value === 'vlans' || value === 'ips' || value === 'operators') return 'network'
+  const params = new URLSearchParams(window.location.search)
+  const value = params.get('page')
+  if (value === 'ipam') return 'subnets'
+  if (value === 'network') {
+    const tab = params.get('tab')
+    if (tab === 'ips' || tab === 'vlans' || tab === 'operators') return tab
+    if (tab === 'devices') return 'switches'
+    return 'subnets'
+  }
   if (value === 'metadata') return 'groups'
   return PAGE_KEYS.includes(value as Page) ? (value as Page) : 'home'
-}
-
-function readNetworkTabParam(): NetworkTab {
-  const params = new URLSearchParams(window.location.search)
-  const tab = params.get('tab')
-  if (tab && NETWORK_TABS.includes(tab as NetworkTab)) return tab as NetworkTab
-  const legacy = params.get('page')
-  if (legacy === 'ips') return 'ips'
-  if (legacy === 'vlans') return 'vlans'
-  if (legacy === 'operators') return 'operators'
-  return 'subnets'
 }
 
 function readRoomParam(): number | null {
@@ -175,28 +175,28 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [captchaLoading, setCaptchaLoading] = useState(false)
   const [error, setError] = useState('')
   const [page, setPage] = useState<Page>(readPageParam)
-  const [networkTab, setNetworkTab] = useState<NetworkTab>(readNetworkTabParam)
   const [facilityRoomId, setFacilityRoomId] = useState<number | null>(readRoomParam)
 
-  // Keep the current page, network tab, and room in the URL so a refresh (or a
-  // shared link) lands on the same screen instead of the dashboard.
+  // Keep the current page and room in the URL so a refresh (or a shared link)
+  // lands on the same screen instead of the dashboard.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (page === 'home') params.delete('page')
     else params.set('page', page)
     if (page === 'facilities' && facilityRoomId) params.set('room', String(facilityRoomId))
     else params.delete('room')
-    if (page === 'network' && networkTab !== 'subnets') params.set('tab', networkTab)
-    else params.delete('tab')
+    params.delete('tab')
     const query = params.toString()
     const next = query ? `${window.location.pathname}?${query}` : window.location.pathname
     if (next !== `${window.location.pathname}${window.location.search}`) {
       window.history.replaceState(null, '', next)
     }
-  }, [page, facilityRoomId, networkTab])
+  }, [page, facilityRoomId])
 
   const [facilityRackId, setFacilityRackId] = useState<number | null>(null)
-  const [ipamSubnetId, setIpamSubnetId] = useState<number | null>(null)
+  const [selectedSubnetId, setSelectedSubnetId] = useState<number | null>(null)
+  const [selectedVLAN, setSelectedVLAN] = useState<VLAN | null>(null)
+  const [ipFilterSubnetId, setIpFilterSubnetId] = useState<number | null>(null)
   const [openServiceId, setOpenServiceId] = useState<number | null>(null)
   const [collapsed, setCollapsed] = useState(false)
 
@@ -207,7 +207,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [subnets, setSubnets] = useState<Subnet[]>([])
 
   const [keyword, setKeyword] = useState('')
-  const [kindFilter, setKindFilter] = useState<Kind | undefined>(undefined)
   const [platformFilter, setPlatformFilter] = useState<string | undefined>()
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const [tagFilter, setTagFilter] = useState<number[]>([])
@@ -295,10 +294,19 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const navigation: (NavLeaf | NavGroup)[] = [
     { key: 'home', label: '首页', icon: <HomeOutlined /> },
     { key: 'facilities', label: '数据中心', icon: <BuildingOutlined /> },
-    { key: 'host', label: '物理机', icon: <CloudServerOutlined /> },
+    { key: 'host', label: '服务器', icon: <CloudServerOutlined /> },
     { key: 'vm', label: '虚拟机', icon: <DesktopOutlined /> },
     { key: 'services', label: '服务', icon: <ServiceNodeIcon /> },
-    { key: 'network', label: '网络', icon: <GlobalOutlined /> },
+    {
+      key: 'network_group', label: '网络', icon: <GlobalOutlined />,
+      children: [
+        { key: 'switches', label: '交换机', icon: <ApiOutlined /> },
+        { key: 'subnets', label: '网段', icon: <NetworkOutlined /> },
+        { key: 'ips', label: 'IP 地址', icon: <LocateFixedOutlined /> },
+        { key: 'vlans', label: 'VLAN', icon: <SplitOutlined /> },
+        { key: 'operators', label: '运营商', icon: <OperatorTowerIcon /> },
+      ],
+    },
     {
       key: 'reference', label: '基础数据', icon: <ReferenceDataIcon />,
       children: [
@@ -313,7 +321,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     },
   ]
   const editable = user?.role !== 'viewer'
-  const assetPage = page === 'host' || page === 'vm'
+  const assetPage = page === 'host' || page === 'vm' || page === 'switches'
 
   const byId = useMemo(() => new Map(assets.map(asset => [asset.id, asset])), [assets])
   const locations = useMemo(() => assetLocations(facilities, links), [facilities, links])
@@ -332,15 +340,15 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   }, [links])
 
   const scoped = useMemo(() => {
-    if (page !== 'host' && page !== 'vm') return []
+    if (page === 'host') return assets.filter(asset => asset.kind === 'host')
     if (page === 'vm') return assets.filter(asset => asset.kind === 'vm')
-    return assets.filter(asset => asset.kind !== 'vm')
+    if (page === 'switches') return assets.filter(asset => asset.kind === 'switch')
+    return []
   }, [assets, page])
   const filtered = useMemo(() => {
 
     const query = keyword.trim().toLowerCase()
     return scoped.filter(asset => {
-      if (kindFilter && asset.kind !== kindFilter) return false
       if (platformFilter && asset.platform !== platformFilter) return false
       if (statusFilter && asset.status !== statusFilter) return false
       if (tagFilter.length) {
@@ -353,7 +361,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       return !query || [asset.name, asset.address, asset.owner, asset.environment, ...(asset.tags?.map(tag => tag.name) ?? []), ...(vmRelations.get(asset.id) ?? [])]
         .some(value => value?.toLowerCase().includes(query))
     })
-  }, [scoped, kindFilter, platformFilter, statusFilter, tagFilter, tagFilterMode, keyword, vmRelations])
+  }, [scoped, platformFilter, statusFilter, tagFilter, tagFilterMode, keyword, vmRelations])
 
   const relationOptions = useMemo(() => {
     if (!selected) return []
@@ -390,7 +398,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   useEffect(() => {
     setPagination(1)
-  }, [keyword, kindFilter, platformFilter, page])
+  }, [keyword, platformFilter, page])
 
   useEffect(() => {
     try {
@@ -419,19 +427,20 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   useEffect(() => {
     setSelectedAssetIds([])
-  }, [page, keyword, kindFilter, platformFilter, statusFilter, tagFilter, tagFilterMode])
+  }, [page, keyword, platformFilter, statusFilter, tagFilter, tagFilterMode])
 
   useEffect(() => {
     if (!assetPage) return
+    const fallback = page === 'switches' ? defaultSwitchColumns : defaultAssetColumns
     try {
       const raw = localStorage.getItem('dc-db-columns:' + page)
       const parsed: unknown = raw ? JSON.parse(raw) : null
       const valid = Array.isArray(parsed)
         ? parsed.filter((key): key is string => typeof key === 'string' && assetColumnKeys.includes(key))
         : []
-      setVisibleColumns(valid.length ? assetColumnKeys.filter(key => valid.includes(key)) : defaultAssetColumns)
+      setVisibleColumns(valid.length ? assetColumnKeys.filter(key => valid.includes(key)) : fallback)
     } catch {
-      setVisibleColumns(defaultAssetColumns)
+      setVisibleColumns(fallback)
     }
   }, [assetPage, page])
 
@@ -475,7 +484,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       syncAssetParam(null)
       return
     }
-    setPage(asset.kind === 'vm' ? 'vm' : 'host')
+    setPage(asset.kind === 'vm' ? 'vm' : asset.kind === 'switch' ? 'switches' : 'host')
     void openAsset(asset.id)
     // openAsset is stable enough for a one-shot restore; it only depends on the id.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -579,18 +588,18 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       setDrawerError('')
       syncAssetParam(null)
     }
-    if (next === 'subnets' || next === 'ips' || next === 'vlans' || next === 'operators') {
-      setNetworkTab(next)
-      setPage('network')
+    if (next === 'network') {
+      setPage('subnets')
     } else if (next === 'metadata') {
       setPage('groups')
     } else {
       setPage(next)
     }
     if (next !== 'facilities') setFacilityRackId(null)
+    if (next !== 'subnets') setSelectedSubnetId(null)
+    if (next !== 'vlans') setSelectedVLAN(null)
     if (window.innerWidth < 992) setCollapsed(true)
     setKeyword('')
-    setKindFilter(undefined)
     setPlatformFilter(undefined)
     setStatusFilter(undefined)
     setTagFilter([])
@@ -615,7 +624,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   function clearFilters() {
     setKeyword('')
-    setKindFilter(undefined)
     setPlatformFilter(undefined)
     setStatusFilter(undefined)
     setTagFilter([])
@@ -674,7 +682,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   function startNew(kind?: Kind) {
     setSelectedId(null)
     setAssetTags([])
-    setNewKind(kind ?? (page === 'vm' ? 'vm' : 'host'))
+    setNewKind(kind ?? (page === 'vm' ? 'vm' : page === 'switches' ? 'switch' : 'host'))
     setEditor(true)
     setDrawerError('')
     setDrawerOpen(true)
@@ -730,9 +738,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   }
 
   function openSubnet(id: number) {
-    setIpamSubnetId(id)
-    setNetworkTab('subnets')
-    goTo('network')
+    setSelectedSubnetId(id)
+    setSelectedVLAN(null)
+    if (drawerOpen) closeDrawer()
+    setPage('subnets')
   }
 
   function openBulkTags() {
@@ -964,10 +973,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       },
     },
     {
-      key: 'kind', label: '类型',
-      column: { title: '类型', key: 'kind', width: 90, sorter: (left, right) => kinds[left.kind].label.localeCompare(kinds[right.kind].label, 'zh-CN'), render: (_, asset) => kinds[asset.kind].label },
-    },
-    {
       key: 'status', label: '状态',
       column: { title: '状态', key: 'status', width: 100, sorter: (left, right) => statusOf(left).label.localeCompare(statusOf(right).label, 'zh-CN'), render: (_, asset) => <Tag color={statusOf(asset).color}>{statusOf(asset).label}</Tag> },
     },
@@ -1031,7 +1036,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       },
     },
   ]
-  const columns = assetColumns.filter(item => visibleColumns.includes(item.key)).map(item => item.column)
+  const availableAssetColumns = page === 'switches'
+    ? assetColumns.filter(item => item.key !== 'meta' && item.key !== 'capacity')
+    : assetColumns
+  const columns = availableAssetColumns.filter(item => visibleColumns.includes(item.key)).map(item => item.column)
 
   const descriptions = selected ? [
     { key: 'platform', label: '平台', children: platformLabel(selected) },
@@ -1146,7 +1154,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       <h2>还没有录入任何资产</h2>
       <p>可以先加一台试试，或用 CSV 批量导入现有台账。</p>
       <Space wrap>
-        {editable && <Button type="primary" icon={<PlusOutlined />} onClick={startNew}>新增资产</Button>}
+        {editable && <Button type="primary" icon={<PlusOutlined />} onClick={() => startNew()}>新增资产</Button>}
         <Button icon={<DownloadOutlined />} onClick={downloadTemplate}>下载模板</Button>
         {editable && (
           <Upload accept=".csv,text/csv" showUploadList={false}
@@ -1175,7 +1183,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         </div>
         <Menu
           className="app-menu" mode="inline" selectedKeys={[page]}
-          defaultOpenKeys={['system']}
+          defaultOpenKeys={['network_group', 'reference', 'system']}
           items={navigation.map(item => 'children' in item
             ? {
                 key: item.key, icon: item.icon, label: item.label,
@@ -1183,7 +1191,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               }
             : { key: item.key, icon: item.icon, label: item.label })}
           onClick={({ key }: { key: string }) => {
-            if (key !== 'system' && key !== 'ipam' && key !== 'reference') goTo(key as Page)
+            if (key !== 'system' && key !== 'network_group' && key !== 'reference') goTo(key as Page)
           }}
         />
       </Sider>
@@ -1219,9 +1227,9 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                 setFacilityRackId(rackId)
                 goTo('facilities')
               }}
-              onIpam={() => { setNetworkTab('subnets'); goTo('network') }}
-              onIPAddress={() => { setNetworkTab('ips'); goTo('network') }}
-              onVLAN={() => { setNetworkTab('vlans'); goTo('network') }}
+              onIpam={() => goTo('subnets')}
+              onIPAddress={() => goTo('ips')}
+              onVLAN={() => goTo('vlans')}
               onTag={() => goTo('tags')}
             />
           </div>
@@ -1378,7 +1386,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                   <Button type="primary" size="large" icon={<BookOpenOutlined />} onClick={() => goTo('guide')}>查看使用指南</Button>
                   <Button size="large" icon={<PlusOutlined />} onClick={() => { setPage('host'); startNew('host') }}>先录资产</Button>
                   <Button size="large" icon={<BuildingOutlined />} onClick={() => goTo('facilities')}>先建机房</Button>
-                  <Button size="large" icon={<GlobalOutlined />} onClick={() => goTo('network')}>先管网络</Button>
+                  <Button size="large" icon={<GlobalOutlined />} onClick={() => goTo('subnets')}>先管网络</Button>
                 </div>
                 <p className="first-run-hint">「使用指南」里有截图级的操作顺序和常见问题。</p>
               </div>
@@ -1448,42 +1456,87 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             />
           )}
 
-          {page === 'network' && (
-            <NetworkView
-              tab={networkTab} onTabChange={setNetworkTab}
-              editable={editable} dark={dark} assets={assets} links={links} facilities={facilities} subnets={subnets}
-              openSubnetId={ipamSubnetId} onSubnetOpened={() => setIpamSubnetId(null)}
-              bookmarkedSubnets={subnetBookmarks} onToggleSubnetBookmark={toggleSubnetBookmark}
-              onOpenAsset={id => void openAsset(id)} onOpenRoom={openRoom}
-              onStartSwitch={() => startNew('switch')}
-              onSessionError={e => handleError(e)}
-              onChanged={() => void loadAll()}
+          {page === 'subnets' && (() => {
+            const activeSubnet = selectedSubnetId ? subnets.find(item => item.id === selectedSubnetId) ?? null : null
+            if (activeSubnet) {
+              return (
+                <SubnetDetailView
+                  subnet={activeSubnet}
+                  assets={assets} links={links} facilities={facilities} dark={dark}
+                  onBack={() => setSelectedSubnetId(null)}
+                  onOpenAsset={id => void openAsset(id)} onOpenRoom={openRoom}
+                  onOpenIPsForSubnet={id => { setSelectedSubnetId(null); setIpFilterSubnetId(id); goTo('ips') }}
+                  onSessionError={e => handleError(e)}
+                />
+              )
+            }
+            return (
+              <IpamView
+                editable={editable}
+                openSubnetId={null} onSubnetOpened={() => {}}
+                onSelectSubnet={id => setSelectedSubnetId(id)}
+                bookmarkedSubnets={subnetBookmarks} onToggleSubnetBookmark={toggleSubnetBookmark}
+                onSessionError={e => handleError(e)}
+                onChanged={() => void loadAll()}
+              />
+            )
+          })()}
+
+          {page === 'ips' && (
+            <IPAddressView
+              editable={editable}
+              initialSubnetId={ipFilterSubnetId}
+              onInitialSubnetConsumed={() => setIpFilterSubnetId(null)}
+              assets={assets} subnets={subnets}
+              onOpenAsset={id => void openAsset(id)} onOpenSubnet={openSubnet}
+              onSessionError={e => handleError(e)} onChanged={() => void loadAll()}
             />
           )}
 
-          {(page === 'host' || page === 'vm') && (
+          {page === 'vlans' && (selectedVLAN ? (
+            <VLANDetailView
+              vlan={selectedVLAN} subnets={subnets}
+              assets={assets} links={links} facilities={facilities} dark={dark}
+              onBack={() => setSelectedVLAN(null)}
+              onOpenSubnetDetail={subnet => { setSelectedVLAN(null); openSubnet(subnet.id) }}
+              onOpenAsset={id => void openAsset(id)} onOpenRoom={openRoom}
+            />
+          ) : (
+            <VLANView
+              editable={editable} rooms={facilities.rooms}
+              onSelectVLAN={vlan => setSelectedVLAN(vlan)}
+              onSessionError={e => handleError(e)} onChanged={() => void loadAll()}
+            />
+          ))}
+
+          {page === 'operators' && (
+            <MetadataManager
+              kind="operator" title="运营商" editable={editable}
+              onSessionError={e => handleError(e)}
+            />
+          )}
+
+          {assetPage && (() => {
+            const pageLabel = page === 'vm' ? '虚拟机' : page === 'switches' ? '交换机' : '服务器'
+            const defaultCols = page === 'switches' ? defaultSwitchColumns : defaultAssetColumns
+            return (
             <Card variant="borderless">
               <PageHeader
-                title={page === 'vm' ? '虚拟机' : '物理机'}
+                title={pageLabel}
                 filters={<Space wrap>
                   <Input
                     type="search" className="w-[200px]"
-                    aria-label={`搜索${page === 'vm' ? '虚拟机' : '物理机'}`}
-                    placeholder={`搜索${page === 'vm' ? '虚拟机' : '物理机'}…`}
+                    aria-label={`搜索${pageLabel}`}
+                    placeholder={`搜索${pageLabel}…`}
                     value={keyword} onChange={(event: React.ChangeEvent<HTMLInputElement>) => setKeyword(event.target.value)}
                   />
-                  {page === 'host' && (
+                  {page !== 'switches' && (
                     <Select
-                      style={{ width: 120 }} allowClear searchable={false} placeholder="全部类型" value={kindFilter}
-                      onChange={setKindFilter}
-                      options={[{ value: 'host', label: '物理机' }, { value: 'switch', label: '交换机' }]}
+                      style={{ width: 145 }} allowClear searchable={false} placeholder="全部平台" value={platformFilter}
+                      onChange={setPlatformFilter}
+                      options={[{ value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM' }]}
                     />
                   )}
-                  <Select
-                    style={{ width: 145 }} allowClear searchable={false} placeholder="全部平台" value={platformFilter}
-                    onChange={setPlatformFilter}
-                    options={[{ value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM' }]}
-                  />
                   <Select
                     style={{ width: 120 }} allowClear searchable={false} placeholder="全部状态" value={statusFilter}
                     onChange={setStatusFilter}
@@ -1516,10 +1569,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                           onChange={(values: string[]) => updateVisibleColumns(values.map(String))}
                         >
                           <Space direction="vertical">
-                            {assetColumns.map(item => <Checkbox key={item.key} value={item.key}>{item.label}</Checkbox>)}
+                            {availableAssetColumns.map(item => <Checkbox key={item.key} value={item.key}>{item.label}</Checkbox>)}
                           </Space>
                         </Checkbox.Group>
-                        <Button type="link" size="small" onClick={() => updateVisibleColumns(defaultAssetColumns)}>恢复默认</Button>
+                        <Button type="link" size="small" onClick={() => updateVisibleColumns(defaultCols)}>恢复默认</Button>
                       </div>
                     )}
                   >
@@ -1529,7 +1582,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                 actions={<Space wrap>
                   {editable && <Button onClick={() => { setAssetImportFile(null); setAssetImportOpen(true) }}><DownloadOutlined /> 导入</Button>}
                   <Button disabled={!filtered.length} onClick={exportCSV}><UploadOutlined /> 导出</Button>
-                  {editable && <Button type="primary" onClick={startNew}><PlusOutlined /> 新增设备</Button>}
+                  {editable && <Button type="primary" onClick={() => startNew()}><PlusOutlined /> 新增{pageLabel}</Button>}
                 </Space>}
               />
               {editable && selectedAssetIds.length > 0 && (
@@ -1571,7 +1624,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                 }}
               />
             </Card>
-          )}
+            )
+          })()}
           </>)}
         </Content>
       </Layout>

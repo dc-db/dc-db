@@ -32,7 +32,7 @@ const roleLabels: Record<string, string> = { loopback: '环回', secondary: '辅
 const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
 interface AddressFields { subnetId?: number; ip: string; status: string; dnsName: string; role: string; assetId?: number; label: string; notes: string }
 const emptyFields: AddressFields = { ip: '', status: 'active', dnsName: '', role: '', label: '', notes: '' }
-const assetLabel = (asset: Asset) => `${asset.name}（${asset.kind === 'vm' ? '虚拟机' : asset.kind === 'switch' ? '交换机' : '物理机'}）`
+const assetLabel = (asset: Asset) => `${asset.name}（${asset.kind === 'vm' ? '虚拟机' : asset.kind === 'switch' ? '交换机' : '服务器'}）`
 
 export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialSubnetConsumed, assets, subnets, onOpenAsset, onOpenSubnet, onSessionError, onChanged }: Props) {
   const [addresses, setAddresses] = useState<IPAddress[]>([])
@@ -119,7 +119,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
 
   return <>
     <PageHeader
-      title={hideTitle ? undefined : 'IP'}
+      title={hideTitle ? undefined : 'IP 地址'}
       filters={<>
         <Input className="max-w-sm" placeholder="搜索 IP、DNS、资产、用途或网段" value={keyword} onChange={event => setKeyword(event.target.value)} />
         <Select

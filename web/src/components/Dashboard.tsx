@@ -90,7 +90,7 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
       itemStyle: { borderColor: dark ? '#0a0a0a' : '#fff', borderWidth: 2 },
       label: { show: false },
       data: [
-        { value: stats.hosts.length, name: '物理机' },
+        { value: stats.hosts.length, name: '服务器' },
         { value: stats.vms.length, name: '虚拟机' },
         { value: stats.switches.length, name: '交换机' },
       ],
@@ -224,11 +224,11 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
       <div className="metric-row grid grid-cols-3 gap-4 xl:grid-cols-6">
         {[
           { label: '资产总数', value: stats.active.length, icon: <HardDrive size="1em" aria-hidden="true" />, hint: '在册资产', target: undefined, tone: 'neutral' },
-          { label: '物理机', value: stats.hosts.length, icon: <Server size="1em" aria-hidden="true" />, hint: '独立主机与虚拟化节点', target: 'host' as Page, tone: 'blue' },
+          { label: '服务器', value: stats.hosts.length, icon: <Server size="1em" aria-hidden="true" />, hint: '独立主机与虚拟化节点', target: 'host' as Page, tone: 'blue' },
           { label: '虚拟机', value: stats.vms.length, icon: <Monitor size="1em" aria-hidden="true" />, hint: `${stats.running} 台运行中`, target: 'vm' as Page, tone: 'teal' },
-          { label: '交换机', value: stats.switches.length, icon: <ArrowLeftRight size="1em" aria-hidden="true" />, hint: '网络设备', target: 'host' as Page, tone: 'amber' },
+          { label: '交换机', value: stats.switches.length, icon: <ArrowLeftRight size="1em" aria-hidden="true" />, hint: '网络设备', target: 'switches' as Page, tone: 'amber' },
           { label: '数据中心', value: facilities.rooms.length, icon: <Building2 size="1em" aria-hidden="true" />, hint: `${facilities.racks.length} 台机柜`, target: 'facilities' as Page, tone: 'violet' },
-          { label: 'IP 空闲', value: stats.free, icon: <Globe size="1em" aria-hidden="true" />, hint: `${subnets.length} 个网段 · 使用率 ${ipPercent}%`, target: 'network' as Page, tone: 'green' },
+          { label: 'IP 空闲', value: stats.free, icon: <Globe size="1em" aria-hidden="true" />, hint: `${subnets.length} 个网段 · 使用率 ${ipPercent}%`, target: 'subnets' as Page, tone: 'green' },
         ].map(item => {
           const card = (
             <Card className="h-full"><CardContent>
@@ -260,7 +260,7 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
                         <span className="bookmark-icon">{asset.kind === 'host' ? <Server size="1em" aria-hidden="true" /> : asset.kind === 'switch' ? <ArrowLeftRight size="1em" aria-hidden="true" /> : <Monitor size="1em" aria-hidden="true" />}</span>
                         <span className="bookmark-copy">
                           <strong>{asset.name}</strong>
-                          <small>{asset.kind === 'host' ? '物理机' : asset.kind === 'switch' ? '交换机' : '虚拟机'} · {asset.address || asset.owner || '—'}</small>
+                          <small>{asset.kind === 'host' ? '服务器' : asset.kind === 'switch' ? '交换机' : '虚拟机'} · {asset.address || asset.owner || '—'}</small>
                         </span>
                         <Star size="1em" className="bookmark-star" fill="currentColor" aria-hidden="true" />
                       </button>
@@ -330,7 +330,7 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
         </div>
         <div className="min-w-0">
           <DashboardCard title="平台分布">
-            {stats.hosts.length + stats.vms.length ? <Chart option={platformOption} dark={dark} /> : <div className="dashboard-chart-empty"><Empty description="暂无物理机或虚拟机" /></div>}
+            {stats.hosts.length + stats.vms.length ? <Chart option={platformOption} dark={dark} /> : <div className="dashboard-chart-empty"><Empty description="暂无服务器或虚拟机" /></div>}
           </DashboardCard>
         </div>
       </div>
