@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
 import { downloadCSV } from './csv'
-import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, Subnet, Tag as TagItem, User } from './api'
+import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, Service, Subnet, Tag as TagItem, User } from './api'
 import { assetLocations, locationLabel } from './facilities'
 import type { AssetLocation, Facilities } from './facilities'
 import type { Page } from './types'
@@ -28,13 +28,19 @@ import { ChangePassword } from './components/ChangePassword'
 import { Dashboard } from './components/Dashboard'
 import { FacilityView } from './components/FacilityView'
 import { GlobalSearch } from './components/GlobalSearch'
+import { GroupManager } from './components/GroupManager'
 import { GuidePage } from './components/GuidePage'
 import { IPAddressView } from './components/IPAddressView'
 import { IpamView } from './components/IpamView'
 import { LoginBackdrop } from './components/LoginBackdrop'
+import {
+  GroupClusterIcon, OperatorTowerIcon, OwnerBadgeIcon, ReferenceDataIcon, ServiceNodeIcon, TagMarkIcon,
+} from './components/MetadataIcons'
+import { MetadataManager } from './components/MetadataManager'
 import { PageHeader } from './components/PageHeader'
-import { ReferenceDataIcon } from './components/MetadataIcons'
-import { MetadataView } from './components/MetadataView'
+import { ServiceIcon } from './components/ServiceIcon'
+import { ServiceManager } from './components/ServiceManager'
+import { TagManager } from './components/TagManager'
 import { UserManager } from './components/UserManager'
 import { VLANView } from './components/VLANView'
 import { Wordmark } from './components/Wordmark'
@@ -76,11 +82,12 @@ function messageText(error: unknown) {
   return error instanceof Error ? error.message : '操作失败'
 }
 
-const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'facilities', 'subnets', 'vlans', 'ips', 'changes', 'password', 'tags', 'groups', 'services', 'metadata', 'users', 'guide']
+const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'facilities', 'subnets', 'vlans', 'ips', 'changes', 'password', 'tags', 'groups', 'services', 'owners', 'operators', 'users', 'guide']
 
 function readPageParam(): Page {
   const value = new URLSearchParams(window.location.search).get('page')
   if (value === 'ipam') return 'subnets'
+  if (value === 'metadata') return 'groups'
   return PAGE_KEYS.includes(value as Page) ? (value as Page) : 'home'
 }
 
@@ -178,6 +185,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   const [facilityRackId, setFacilityRackId] = useState<number | null>(null)
   const [ipamSubnetId, setIpamSubnetId] = useState<number | null>(null)
+  const [openServiceId, setOpenServiceId] = useState<number | null>(null)
   const [collapsed, setCollapsed] = useState(false)
 
   const [assets, setAssets] = useState<Asset[]>([])
@@ -219,6 +227,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [assetTags, setAssetTags] = useState<TagItem[]>([])
   const [allTags, setAllTags] = useState<TagItem[]>([])
   const [groups, setGroups] = useState<Group[]>([])
+  const [services, setServices] = useState<Service[]>([])
   const [owners, setOwners] = useState<string[]>([])
   const [bookmarks, setBookmarks] = useState<number[]>(() => {
     try {
@@ -276,6 +285,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     { key: 'facilities', label: '数据中心', icon: <BuildingOutlined /> },
     { key: 'host', label: '物理机', icon: <CloudServerOutlined /> },
     { key: 'vm', label: '虚拟机', icon: <DesktopOutlined /> },
+    { key: 'services', label: '服务', icon: <ServiceNodeIcon /> },
     {
       key: 'ipam', label: 'IPAM', icon: <GlobalOutlined />,
       children: [
@@ -284,7 +294,15 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         { key: 'ips', label: 'IP', icon: <LocateFixedOutlined /> },
       ],
     },
-    { key: 'metadata', label: '基础数据', icon: <ReferenceDataIcon /> },
+    {
+      key: 'reference', label: '基础数据', icon: <ReferenceDataIcon />,
+      children: [
+        { key: 'groups', label: '群组', icon: <GroupClusterIcon /> },
+        { key: 'tags', label: '标签', icon: <TagMarkIcon /> },
+        { key: 'owners', label: '负责人', icon: <OwnerBadgeIcon /> },
+        { key: 'operators', label: '运营商', icon: <OperatorTowerIcon /> },
+      ],
+    },
     {
       key: 'system', label: '系统管理', icon: <SettingOutlined />,
       children: systemChildren,
@@ -310,8 +328,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   }, [links])
 
   const scoped = useMemo(() => {
-    if (page === 'home' || page === 'changes' || page === 'password' || page === 'facilities' ||
-      page === 'subnets' || page === 'vlans' || page === 'ips' || page === 'users' || page === 'guide' || page === 'metadata') return []
+    if (page !== 'host' && page !== 'vm') return []
     if (page === 'vm') return assets.filter(asset => asset.kind === 'vm')
     return assets.filter(asset => asset.kind !== 'vm')
   }, [assets, page])
@@ -422,10 +439,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setBusy(true)
     setError('')
     try {
-      const [nextAssets, nextLinks, nextChanges, nextFacilities, nextSubnets, nextTags, nextGroups, nextOwners] = await Promise.all([
+      const [nextAssets, nextLinks, nextChanges, nextFacilities, nextSubnets, nextTags, nextGroups, nextServices, nextOwners] = await Promise.all([
         api<Asset[]>('/assets'), api<Link[]>('/links'), api<Change[]>('/changes'),
         api<Facilities>('/facilities'), api<Subnet[]>('/subnets'), api<TagItem[]>('/tags'), api<Group[]>('/groups'),
-        api<{ name: string }[]>('/metadata?kind=owner'),
+        api<Service[]>('/services'), api<{ name: string }[]>('/metadata?kind=owner'),
       ])
       setAssets(nextAssets)
       setLinks(nextLinks)
@@ -434,6 +451,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       setSubnets(nextSubnets)
       setAllTags(nextTags)
       setGroups(nextGroups)
+      setServices(nextServices)
       setOwners(nextOwners.map(item => item.name))
     } catch (e) {
       handleError(e)
@@ -568,6 +586,20 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setTagFilterMode('all')
     setPagination(1)
     setFacilityFocus(null)
+  }
+
+  function openRoom(roomId: number) {
+    closeDrawer()
+    setFacilityFocus(null)
+    setFacilityRoomId(roomId)
+    setFacilityRackId(null)
+    setPage('facilities')
+  }
+
+  function openService(serviceId: number) {
+    closeDrawer()
+    setOpenServiceId(serviceId)
+    setPage('services')
   }
 
   function clearFilters() {
@@ -1009,6 +1041,26 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         </div>
       ),
     }] : []),
+    ...(() => {
+      const bound = services.filter(item => item.assetIds?.includes(selected.id))
+      if (!bound.length) return []
+      return [{
+        key: 'services', label: '运行服务',
+        children: (
+          <div className="flex flex-wrap gap-2">
+            {bound.map(item => (
+              <button
+                key={item.id} type="button" className="asset-service-chip"
+                onClick={() => openService(item.id)}
+              >
+                <ServiceIcon name={item.name} category={item.category} />
+                <span>{item.name}</span>
+              </button>
+            ))}
+          </div>
+        ),
+      }]
+    })(),
     {
       key: 'updated', label: '最近更新',
       children: new Date(selected.updatedAt).toLocaleString('zh-CN', { hour12: false }),
@@ -1118,7 +1170,9 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                 children: item.children.map(child => ({ key: child.key, icon: child.icon, label: child.label })),
               }
             : { key: item.key, icon: item.icon, label: item.label })}
-          onClick={({ key }: { key: string }) => { if (key !== 'system') goTo(key as Page) }}
+          onClick={({ key }: { key: string }) => {
+            if (key !== 'system' && key !== 'ipam' && key !== 'reference') goTo(key as Page)
+          }}
         />
       </Sider>
 
@@ -1330,11 +1384,44 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             <Card variant="borderless" title="变更记录"><ChangeList changes={changes} filterable onOpen={id => void openAsset(id)} /></Card>
           )}
 
-          {(page === 'metadata' || page === 'tags' || page === 'groups' || page === 'services') && (
-            <MetadataView
-              page={page} editable={editable}
+          {page === 'services' && (
+            <ServiceManager
+              editable={editable} dark={dark}
+              assets={assets} links={links} facilities={facilities}
+              openServiceId={openServiceId} onServiceOpened={() => setOpenServiceId(null)}
+              onOpenAsset={id => void openAsset(id)} onOpenRoom={openRoom}
+              onSessionError={e => handleError(e)} onChanged={setServices}
+            />
+          )}
+
+          {page === 'groups' && (
+            <GroupManager
+              editable={editable}
               onSessionError={e => handleError(e)}
-              onGroupsChanged={setGroups} onTagsChanged={setAllTags}
+              onChanged={setGroups}
+            />
+          )}
+
+          {page === 'tags' && (
+            <TagManager
+              editable={editable}
+              onSessionError={e => handleError(e)}
+              onChanged={setAllTags}
+            />
+          )}
+
+          {page === 'owners' && (
+            <MetadataManager
+              kind="owner" title="负责人" editable={editable}
+              onSessionError={e => handleError(e)}
+              onChanged={() => { void api<{ name: string }[]>('/metadata?kind=owner').then(list => setOwners(list.map(i => i.name))).catch(() => {}) }}
+            />
+          )}
+
+          {page === 'operators' && (
+            <MetadataManager
+              kind="operator" title="运营商" editable={editable}
+              onSessionError={e => handleError(e)}
             />
           )}
 
