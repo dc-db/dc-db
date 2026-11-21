@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
-import { ArrowDown, ArrowDownUp, ArrowUp, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
+import { Download, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
 import type { VLAN, VLANFields } from '../api'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 import { Select } from './AppControls'
+import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 
 interface RoomOption { id: number; name: string }
@@ -80,13 +79,24 @@ export function VLANView({ editable, rooms, onSessionError, onChanged }: Props) 
   }, [keyword, status, vlans])
 
   const columns: ColumnDef<VLAN>[] = [
-    { accessorKey: 'vid', header: 'VLAN ID', cell: ({ row }) => <span className="font-mono">{row.original.vid}</span> },
-    { accessorKey: 'name', header: '名称', sortingFn: (a, b) => a.original.name.localeCompare(b.original.name, 'zh-CN'), cell: ({ row }) => <div className="flex flex-col gap-1"><strong>{row.original.name}</strong>{row.original.description && <span className="text-xs text-muted-foreground">{row.original.description}</span>}</div> },
-    { accessorKey: 'status', header: '状态', enableSorting: false, cell: ({ row }) => { const meta = statusMeta[row.original.status] ?? { label: row.original.status, className: '' }; return <Badge variant="outline" className={meta.className}>{meta.label}</Badge> } },
-    { accessorKey: 'roomName', header: '所属数据中心', enableSorting: false, cell: ({ row }) => row.original.roomName || '—' },
-    { accessorKey: 'prefixCount', header: '关联网段', cell: ({ row }) => <Badge variant={row.original.prefixCount ? 'secondary' : 'outline'}>{row.original.prefixCount}</Badge> },
-    { accessorKey: 'updatedAt', header: '最近更新', enableSorting: false, cell: ({ row }) => row.original.updatedAt ? new Date(row.original.updatedAt).toLocaleString('zh-CN', { hour12: false }) : '—' },
-    ...(editable ? [{ id: 'actions', header: '操作', cell: ({ row }: { row: { original: VLAN } }) => <div className="flex gap-1"><Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button><Button variant="ghost" size="icon" className="text-destructive" aria-label={`删除 VLAN ${row.original.vid}`} onClick={() => setDeleting(row.original)}><Trash2 /></Button></div> }] : []),
+    { accessorKey: 'vid', header: 'VLAN ID', meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <span className="font-mono text-xs font-medium tabular-nums">{row.original.vid}</span> },
+    { accessorKey: 'name', header: '名称', sortingFn: (a, b) => a.original.name.localeCompare(b.original.name, 'zh-CN'), cell: ({ row }) => <div className="flex flex-col gap-0.5"><span className="font-medium">{row.original.name}</span>{row.original.description && <span className="text-xs text-muted-foreground">{row.original.description}</span>}</div> },
+    { accessorKey: 'status', header: '状态', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => { const meta = statusMeta[row.original.status] ?? { label: row.original.status, className: '' }; return <Badge variant="outline" className={meta.className}>{meta.label}</Badge> } },
+    { accessorKey: 'roomName', header: '所属数据中心', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => row.original.roomName || <span className="text-muted-foreground">—</span> },
+    { accessorKey: 'prefixCount', header: '关联网段', meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <Badge variant={row.original.prefixCount ? 'secondary' : 'outline'} className="tabular-nums">{row.original.prefixCount}</Badge> },
+    { accessorKey: 'updatedAt', header: '最近更新', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <span className="text-xs text-muted-foreground tabular-nums">{row.original.updatedAt ? new Date(row.original.updatedAt).toLocaleString('zh-CN', { hour12: false }) : '—'}</span> },
+    ...(editable ? [{
+      id: 'actions',
+      enableSorting: false,
+      meta: { headerClassName: 'w-[120px] text-right', cellClassName: 'w-[120px] whitespace-nowrap text-right' },
+      header: () => <div className="text-right">操作</div>,
+      cell: ({ row }: { row: { original: VLAN } }) => (
+        <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button>
+          <Button variant="ghost" size="icon-sm" className="text-destructive" aria-label={`删除 VLAN ${row.original.vid}`} onClick={() => setDeleting(row.original)}><Trash2 /></Button>
+        </div>
+      ),
+    }] : []),
   ]
   const table = useReactTable({ data: visible, columns, state: { sorting }, onSortingChange: setSorting, initialState: { pagination: { pageIndex: 0, pageSize: 20 } }, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getPaginationRowModel: getPaginationRowModel() })
 
@@ -117,14 +127,14 @@ export function VLANView({ editable, rooms, onSessionError, onChanged }: Props) 
         {editable && <Button onClick={() => showForm(null)}><Plus />新增 VLAN</Button>}
       </>}
     />
-    <Card className="border-0 bg-transparent shadow-none">
-    <CardContent>
-      {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
-      {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
-
-      <div className="overflow-x-auto"><Table><TableHeader>{table.getHeaderGroups().map(group => <TableRow key={group.id}>{group.headers.map(header => <TableHead key={header.id} aria-sort={header.column.getCanSort() ? (header.column.getIsSorted() === 'asc' ? 'ascending' : header.column.getIsSorted() === 'desc' ? 'descending' : 'none') : undefined}>{header.column.getCanSort() ? <button className="inline-flex items-center gap-1" onClick={header.column.getToggleSortingHandler()}>{flexRender(header.column.columnDef.header, header.getContext())}{header.column.getIsSorted() === 'asc' ? <ArrowUp className="size-3" aria-hidden="true" /> : header.column.getIsSorted() === 'desc' ? <ArrowDown className="size-3" aria-hidden="true" /> : <ArrowDownUp className="size-3" aria-hidden="true" />}</button> : flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{loading ? <TableRow><TableCell colSpan={columns.length}>加载中...</TableCell></TableRow> : table.getRowModel().rows.length ? table.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">暂无 VLAN，新增一个开始规划二层网络</TableCell></TableRow>}</TableBody></Table></div>
-      <div className="mt-4 flex flex-wrap items-center justify-end gap-2 text-sm"><span className="text-muted-foreground">共 {visible.length} 个</span><label className="flex items-center gap-2 whitespace-nowrap text-muted-foreground">每页<select aria-label="每页条数" className={`${selectClass} w-20`} value={table.getState().pagination.pageSize} onChange={event => table.setPageSize(Number(event.target.value))}>{[10, 20, 50].map(size => <option key={size} value={size}>{size}</option>)}</select>条</label><span className="whitespace-nowrap text-muted-foreground">第 {table.getState().pagination.pageIndex + 1} / {Math.max(1, table.getPageCount())} 页</span><div className="flex items-center gap-1"><Button variant="outline" size="icon-sm" aria-label="第一页" disabled={!table.getCanPreviousPage()} onClick={() => table.setPageIndex(0)}><ChevronsLeft /></Button><Button variant="outline" size="icon-sm" aria-label="上一页" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}><ChevronLeft /></Button><Button variant="outline" size="icon-sm" aria-label="下一页" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}><ChevronRight /></Button><Button variant="outline" size="icon-sm" aria-label="最后一页" disabled={!table.getCanNextPage()} onClick={() => table.setPageIndex(Math.max(0, table.getPageCount() - 1))}><ChevronsRight /></Button></div></div>
-    </CardContent>
+    {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
+    {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
+    <DataTable
+      table={table}
+      loading={loading}
+      pagerUnit="个"
+      emptyMessage={keyword || status ? '没有匹配的 VLAN' : '暂无 VLAN，新增一个开始规划二层网络'}
+    />
     <Dialog open={modalOpen} onOpenChange={next => { if (!busy) { setModalOpen(next); if (!next) setEditing(null) } }}><DialogContent><DialogHeader><DialogTitle>{editing ? `编辑 VLAN ${editing.vid}` : '新增 VLAN'}</DialogTitle></DialogHeader>
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
       <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save() }}>
@@ -136,6 +146,5 @@ export function VLANView({ editable, rooms, onSessionError, onChanged }: Props) 
       </form>
     </DialogContent></Dialog>
     <Dialog open={!!deleting} onOpenChange={next => { if (!next && !busy) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>删除该 VLAN？</DialogTitle><DialogDescription>仍有网段使用时不能删除。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (deleting) void remove(deleting) }}>删除</Button></DialogFooter></DialogContent></Dialog>
-  </Card>
   </>
 }

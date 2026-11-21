@@ -563,8 +563,8 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                   </div>
                   {view === 'table' ? (
                     <div className="facility-table-wrap">
-                      <table className="facility-table">
-                        <thead><tr><th>机柜</th><th>区域 / 排</th><th>U 位总数</th><th>已用</th><th>空闲</th><th>占用率</th><th>设备数</th><th aria-label="操作" /></tr></thead>
+                      <table className="facility-table facility-table-clickable">
+                        <thead><tr><th>机柜</th><th>区域 / 排</th><th>U 位总数</th><th>已用</th><th>空闲</th><th>占用率</th><th>设备数</th><th className="text-right">操作</th></tr></thead>
                         <tbody>
                           {rackRows.map(item => {
                             const placements = roomPlacements.filter(entry => entry.rackId === item.id)

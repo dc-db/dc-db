@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
 import { ChevronDown, ChevronRight, Download, Plus, Star, Upload, X } from 'lucide-react'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -321,7 +320,6 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
         {editable && <Button onClick={addSubnet}><Plus />新增网段</Button>}
       </>}
     />
-    <Card className="border-0 bg-transparent shadow-none"><CardContent>
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
     {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
     {draft && <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{draft.id ? '编辑网段' : '新增网段'}</CardTitle><Button variant="ghost" size="icon" aria-label="关闭" onClick={() => setDraft(null)}><X /></Button></CardHeader><CardContent><form onSubmit={event => { event.preventDefault(); void saveSubnet() }}><div className="grid grid-cols-2 gap-3">
@@ -335,7 +333,7 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
     </div><div className="mt-4 flex gap-2"><Button type="submit" disabled={busy}>保存网段</Button><Button type="button" variant="outline" onClick={() => setDraft(null)}>取消</Button></div></form></CardContent></Card>}
     {!subnets.length ? <div className="py-12 text-center text-muted-foreground">{loading ? '正在加载 IPAM 数据…' : '暂无网段，新增一个网段开始管理 IP 地址'}</div> : <>
 
-      <div className="overflow-x-auto">
+      <div className="facility-table-wrap">
         <table className="facility-table ipam-subnet-table">
           <thead><tr><th>网段名称</th><th>CIDR</th><th>VLAN</th><th>网关</th><th>地址数</th><th>已用</th><th>空闲</th><th>利用率</th><th className="text-right">操作</th></tr></thead>
           <tbody>
@@ -372,7 +370,6 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
         </table>
       </div>
     </>}
-  </CardContent>
   <Dialog open={importOpen} onOpenChange={next => { if (!importBusy) setImportOpen(next) }}><DialogContent>
       <DialogHeader><DialogTitle>导入网段</DialogTitle><DialogDescription>CSV 表头：网段名称、CIDR、网关、VLAN、状态、用途、备注。</DialogDescription></DialogHeader>
       {importError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{importError}</div>}
@@ -391,6 +388,5 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
       <DialogFooter><Button variant="outline" disabled={importBusy} onClick={() => setImportOpen(false)}>取消</Button><Button disabled={importBusy || !importFile} onClick={() => void importSubnets()}>{importBusy ? '正在导入…' : '导入'}</Button></DialogFooter>
     </DialogContent></Dialog>
     <Dialog open={!!deleting} onOpenChange={next => { if (!busy) setDeleting(next ? deleting : null) }}><DialogContent><DialogHeader><DialogTitle>确定删除该网段？</DialogTitle><DialogDescription>确认删除 {deleting?.name}。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (deleting) void deleteSubnet(deleting) }}>删除</Button></DialogFooter></DialogContent></Dialog>
-  </Card>
   </>
 }

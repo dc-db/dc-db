@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { flexRender, getCoreRowModel, getPaginationRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
+import { Download, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
 import type { Asset, IPAddress, Subnet } from '../api'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 import { SearchableSelect } from './SearchableSelect'
+import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 import { Select } from './AppControls'
 
@@ -33,6 +32,7 @@ export function IPAddressView({ editable, assets, subnets, onOpenAsset, onOpenSu
   const [feedback, setFeedback] = useState('')
   const [keyword, setKeyword] = useState('')
   const [source, setSource] = useState('')
+  const [sorting, setSorting] = useState<SortingState>([])
   const [state, setState] = useState('')
   const [subnetId, setSubnetId] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
@@ -70,17 +70,25 @@ export function IPAddressView({ editable, assets, subnets, onOpenAsset, onOpenSu
   }, [addresses, keyword, source, state, subnetId])
   const stats = [['全部地址', addresses.length], ['手工分配', addresses.filter(a => a.source === 'allocated').length], ['资产地址', addresses.filter(a => a.source === 'asset').length], ['网关', addresses.filter(a => a.source === 'gateway').length]] as const
   const columns: ColumnDef<IPAddress>[] = [
-    { accessorKey: 'ip', header: 'IP 地址', cell: ({ row }) => <span className="font-mono">{row.original.ip}</span> },
-    { accessorKey: 'state', header: '状态', cell: ({ row }) => <Badge variant="outline">{stateMeta[row.original.state] ?? row.original.state}</Badge> },
-    { accessorKey: 'source', header: '来源', cell: ({ row }) => <Badge variant="secondary">{sourceMeta[row.original.source] ?? row.original.source}</Badge> },
-    { accessorKey: 'dnsName', header: 'DNS 名称', cell: ({ row }) => <span className="font-mono">{row.original.dnsName || '—'}</span> },
-    { accessorKey: 'role', header: '角色', cell: ({ row }) => roleLabels[row.original.role ?? ''] ?? (row.original.role || '—') },
-    { id: 'owner', header: '资产 / 用途', cell: ({ row }) => <span>{row.original.assetId && row.original.assetName ? <Button variant="link" className="h-auto p-0" onClick={() => onOpenAsset(row.original.assetId!)}>{row.original.assetName}</Button> : row.original.label || '—'}{row.original.assetId && row.original.label && <span className="text-muted-foreground"> / {row.original.label}</span>}</span> },
-    { id: 'subnet', header: '网段', cell: ({ row }) => <Button variant="link" className="h-auto p-0" onClick={() => onOpenSubnet(row.original.subnetId)}>{row.original.subnetName}</Button> },
-    { accessorKey: 'notes', header: '备注', cell: ({ row }) => row.original.notes || '—' },
-    ...(editable ? [{ id: 'actions', header: '操作', cell: ({ row }: { row: { original: IPAddress } }) => row.original.allocationId ? <div className="flex gap-1"><Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button><Button variant="ghost" size="icon" className="text-destructive" aria-label={`释放 ${row.original.ip}`} onClick={() => setReleasing(row.original)}><Trash2 /></Button></div> : '—' }] : []),
+    { accessorKey: 'ip', header: 'IP 地址', sortingFn: (a, b) => a.original.ip.localeCompare(b.original.ip, undefined, { numeric: true }), meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <span className="font-mono text-xs font-medium tabular-nums">{row.original.ip}</span> },
+    { accessorKey: 'state', header: '状态', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <Badge variant="outline">{stateMeta[row.original.state] ?? row.original.state}</Badge> },
+    { accessorKey: 'source', header: '来源', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <Badge variant="secondary">{sourceMeta[row.original.source] ?? row.original.source}</Badge> },
+    { accessorKey: 'dnsName', header: 'DNS 名称', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <span className="font-mono text-xs">{row.original.dnsName || <span className="text-muted-foreground">—</span>}</span> },
+    { accessorKey: 'role', header: '角色', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => roleLabels[row.original.role ?? ''] ?? (row.original.role || <span className="text-muted-foreground">—</span>) },
+    { id: 'owner', header: '资产 / 用途', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <span>{row.original.assetId && row.original.assetName ? <Button variant="link" className="h-auto p-0" onClick={() => onOpenAsset(row.original.assetId!)}>{row.original.assetName}</Button> : row.original.label || <span className="text-muted-foreground">—</span>}{row.original.assetId && row.original.label && <span className="text-muted-foreground"> / {row.original.label}</span>}</span> },
+    { id: 'subnet', header: '网段', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <Button variant="link" className="h-auto p-0" onClick={() => onOpenSubnet(row.original.subnetId)}>{row.original.subnetName}</Button> },
+    { accessorKey: 'notes', header: '备注', enableSorting: false, cell: ({ row }) => row.original.notes ? <span className="text-muted-foreground">{row.original.notes}</span> : <span className="text-muted-foreground">—</span> },
+    ...(editable ? [{
+      id: 'actions',
+      enableSorting: false,
+      meta: { headerClassName: 'w-[120px] text-right', cellClassName: 'w-[120px] whitespace-nowrap text-right' },
+      header: () => <div className="text-right">操作</div>,
+      cell: ({ row }: { row: { original: IPAddress } }) => row.original.allocationId
+        ? <div className="flex justify-end gap-1"><Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button><Button variant="ghost" size="icon-sm" className="text-destructive" aria-label={`释放 ${row.original.ip}`} onClick={() => setReleasing(row.original)}><Trash2 /></Button></div>
+        : <span className="text-muted-foreground">—</span>,
+    }] : []),
   ]
-  const table = useReactTable({ data: visible, columns, initialState: { pagination: { pageIndex: 0, pageSize: 20 } }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel() })
+  const table = useReactTable({ data: visible, columns, state: { sorting }, onSortingChange: setSorting, initialState: { pagination: { pageIndex: 0, pageSize: 20 } }, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getPaginationRowModel: getPaginationRowModel() })
   function exportCSV() {
     downloadCSV('dc-db-ip-addresses.csv', [
       ['IP 地址', '来源', '状态', 'DNS 名称', '角色', '网段', '资产', '标签', '备注'],
@@ -120,12 +128,14 @@ export function IPAddressView({ editable, assets, subnets, onOpenAsset, onOpenSu
         {editable && <Button onClick={() => showForm(null)}><Plus />分配 IP</Button>}
       </>}
     />
-    <Card className="border-0 bg-transparent shadow-none"><CardContent>
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
     {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
-    <div className="overflow-x-auto"><Table><TableHeader>{table.getHeaderGroups().map(group => <TableRow key={group.id}>{group.headers.map(header => <TableHead key={header.id}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{loading ? <TableRow><TableCell colSpan={columns.length}>加载中...</TableCell></TableRow> : table.getRowModel().rows.length ? table.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">暂无匹配的 IP 地址</TableCell></TableRow>}</TableBody></Table></div>
-    <div className="mt-4 flex flex-wrap items-center justify-end gap-2 text-sm"><span className="text-muted-foreground">共 {visible.length} 条</span><label className="flex items-center gap-2 whitespace-nowrap text-muted-foreground">每页<select aria-label="每页条数" className={`${selectClass} w-20`} value={table.getState().pagination.pageSize} onChange={event => table.setPageSize(Number(event.target.value))}>{[10, 20, 50].map(size => <option key={size} value={size}>{size}</option>)}</select>条</label><span className="whitespace-nowrap text-muted-foreground">第 {table.getState().pagination.pageIndex + 1} / {Math.max(1, table.getPageCount())} 页</span><div className="flex items-center gap-1"><Button variant="outline" size="icon-sm" aria-label="第一页" disabled={!table.getCanPreviousPage()} onClick={() => table.setPageIndex(0)}><ChevronsLeft /></Button><Button variant="outline" size="icon-sm" aria-label="上一页" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}><ChevronLeft /></Button><Button variant="outline" size="icon-sm" aria-label="下一页" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}><ChevronRight /></Button><Button variant="outline" size="icon-sm" aria-label="最后一页" disabled={!table.getCanNextPage()} onClick={() => table.setPageIndex(Math.max(0, table.getPageCount() - 1))}><ChevronsRight /></Button></div></div>
-  </CardContent><Dialog open={modalOpen} onOpenChange={next => { if (!busy) { setModalOpen(next); if (!next) setEditing(null) } }}><DialogContent className="sm:max-w-[600px]"><DialogHeader><DialogTitle>{editing ? `编辑 ${editing.ip}` : '分配 IP 地址'}</DialogTitle></DialogHeader>
+    <DataTable
+      table={table}
+      loading={loading}
+      emptyMessage="暂无匹配的 IP 地址"
+    />
+    <Dialog open={modalOpen} onOpenChange={next => { if (!busy) { setModalOpen(next); if (!next) setEditing(null) } }}><DialogContent className="sm:max-w-[600px]"><DialogHeader><DialogTitle>{editing ? `编辑 ${editing.ip}` : '分配 IP 地址'}</DialogTitle></DialogHeader>
     {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
     <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save() }}><div className="grid grid-cols-2 gap-3">
       <div className="space-y-2"><span className="text-sm font-medium">网段</span><SearchableSelect label="网段" placeholder="选择网段" allowClear={false} disabled={!!editing} value={fields.subnetId ? String(fields.subnetId) : ''} onChange={value => setFields({ ...fields, subnetId: Number(value) || undefined })} options={subnets.map(subnet => ({ value: String(subnet.id), label: `${subnet.name} · ${subnet.cidr}` }))} /></div>
@@ -138,6 +148,5 @@ export function IPAddressView({ editable, assets, subnets, onOpenAsset, onOpenSu
       <div className="col-span-2 space-y-2"><label htmlFor="address-notes" className="text-sm font-medium">备注</label><Textarea id="address-notes" rows={2} maxLength={2000} placeholder="可选" value={fields.notes} onChange={event => setFields({ ...fields, notes: event.target.value })} /></div>
     </div><DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={() => setModalOpen(false)}>取消</Button><Button type="submit" disabled={busy}>{busy ? '保存中...' : '保存'}</Button></DialogFooter></form></DialogContent></Dialog>
     <Dialog open={!!releasing} onOpenChange={next => { if (!next && !busy) setReleasing(null) }}><DialogContent><DialogHeader><DialogTitle>释放该 IP？</DialogTitle><DialogDescription>确认释放 {releasing?.ip}。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setReleasing(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (releasing) void release(releasing) }}>释放</Button></DialogFooter></DialogContent></Dialog>
-  </Card>
   </>
 }
