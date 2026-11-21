@@ -17,7 +17,8 @@ SELECT CASE WHEN
     EXISTS (SELECT 1 FROM rooms) OR EXISTS (SELECT 1 FROM racks) OR
     EXISTS (SELECT 1 FROM rack_placements) OR EXISTS (SELECT 1 FROM vlans) OR
     EXISTS (SELECT 1 FROM subnets) OR EXISTS (SELECT 1 FROM ip_allocations) OR
-    EXISTS (SELECT 1 FROM interfaces) OR EXISTS (SELECT 1 FROM changes)
+    EXISTS (SELECT 1 FROM interfaces) OR EXISTS (SELECT 1 FROM asset_services) OR
+    EXISTS (SELECT 1 FROM changes)
     THEN 0 ELSE 1 END;
 
 INSERT INTO assets (id, kind, name, platform, status, lifecycle, owner, environment, address, cpu, memory_mib, notes, attributes)
@@ -54,7 +55,12 @@ SELECT v.* FROM (
 INSERT INTO asset_links (from_id, to_id, kind)
 SELECT v.* FROM (
     SELECT 1::bigint, 3::bigint, 'hosts'::text
-    UNION ALL SELECT 1, 4, 'hosts' UNION ALL SELECT 2, 5, 'hosts'
+    UNION ALL SELECT 1, 4, 'hosts'
+    UNION ALL SELECT 2, 5, 'hosts'
+    UNION ALL SELECT 17, 19, 'hosts'
+    UNION ALL SELECT 20, 21, 'hosts'
+    UNION ALL SELECT 23, 24, 'hosts'
+    UNION ALL SELECT 27, 28, 'hosts'
 ) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
 INSERT INTO tags (id, name, color, description)
@@ -250,6 +256,27 @@ SELECT 2000 + i, 'operator',
        (ARRAY['中国移动', '中国联通', '中国电信', '中国广电', '教育网', '科技网', '国际专线', '云专线'])[i],
        '虚构线路运营商'
 FROM generate_series(1, 8) AS i
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
+ON CONFLICT DO NOTHING;
+
+-- 为演示服务关联虚拟机与物理机，方便在服务拓扑中查看「服务 → 虚拟机 → 物理机 → 数据中心」链路。
+INSERT INTO asset_services (asset_id, service_id)
+SELECT m.asset_id, s.id
+FROM (VALUES
+    (3::bigint, 'nginx'::text), (19, 'nginx'), (24, 'nginx'), (9, 'nginx'),
+    (4, 'postgresql'), (21, 'postgresql'),
+    (3, 'redis'), (5, 'redis'), (19, 'redis'),
+    (5, 'kafka'), (28, 'kafka'),
+    (10, 'prometheus'), (24, 'prometheus'),
+    (10, 'grafana'),
+    (20, 'minio'), (25, 'minio'),
+    (14, 'gitlab'),
+    (15, 'harbor'),
+    (18, 'elasticsearch'), (21, 'elasticsearch'),
+    (1, 'etcd'), (2, 'etcd'), (17, 'etcd'),
+    (14, 'vault')
+) AS m(asset_id, service_name)
+JOIN services s ON lower(s.name) = lower(m.service_name)
 WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
 ON CONFLICT DO NOTHING;
 
