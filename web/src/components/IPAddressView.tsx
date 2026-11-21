@@ -4,6 +4,7 @@ import { Download, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
 import type { Asset, IPAddress, Subnet } from '../api'
+import { kindLabel } from '../kinds'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
@@ -32,7 +33,7 @@ const roleLabels: Record<string, string> = { loopback: '环回', secondary: '辅
 const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
 interface AddressFields { subnetId?: number; ip: string; status: string; dnsName: string; role: string; assetId?: number; label: string; notes: string }
 const emptyFields: AddressFields = { ip: '', status: 'active', dnsName: '', role: '', label: '', notes: '' }
-const assetLabel = (asset: Asset) => `${asset.name}（${asset.kind === 'vm' ? '虚拟机' : asset.kind === 'switch' ? '交换机' : '服务器'}）`
+const assetLabel = (asset: Asset) => `${asset.name}（${kindLabel(asset.kind)}）`
 
 export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialSubnetConsumed, assets, subnets, onOpenAsset, onOpenSubnet, onSessionError, onChanged }: Props) {
   const [addresses, setAddresses] = useState<IPAddress[]>([])

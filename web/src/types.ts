@@ -1,1 +1,1 @@
-export type Page = 'home' | 'host' | 'vm' | 'switches' | 'facilities' | 'subnets' | 'vlans' | 'ips' | 'operators' | 'changes' | 'password' | 'tags' | 'groups' | 'services' | 'owners' | 'network' | 'metadata' | 'users' | 'guide'
+export type Page = 'home' | 'host' | 'vm' | 'network_devices' | 'facilities' | 'subnets' | 'vlans' | 'ips' | 'operators' | 'changes' | 'password' | 'tags' | 'groups' | 'services' | 'owners' | 'network' | 'metadata' | 'users' | 'guide'

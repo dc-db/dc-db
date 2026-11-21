@@ -241,7 +241,7 @@ export function SubnetDetailView({
       const loc = locations.get(host.id)
       hostNodes.push({
         id: `host-${host.id}`,
-        kind: host.kind === 'switch' ? 'switch' : 'host',
+        kind: host.kind,
         title: host.name,
         subtitle: [host.address, loc ? `${loc.rack.name} ${uRange(loc.placement)}` : '未上架'].filter(Boolean).join(' · '),
         statusTone: st.tone,
@@ -278,7 +278,7 @@ export function SubnetDetailView({
         }],
       },
       { key: 'vm', label: '虚拟机', nodes: vmNodes },
-      { key: 'host', label: '服务器 / 交换机', nodes: hostNodes },
+      { key: 'host', label: '服务器 / 网络设备', nodes: hostNodes },
       { key: 'room', label: '数据中心', nodes: roomNodes },
     ]
     return { tiers, edges, linkedAssets: seenAsset.size }

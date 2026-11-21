@@ -3,12 +3,14 @@ import {
   getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
   type ColumnDef, type SortingState,
 } from '@tanstack/react-table'
-import { ArrowLeft, Building2, Link2, List, Monitor, Network, Pencil, Plus, Server, Trash2, Unlink, Cable } from 'lucide-react'
+import { ArrowLeft, Building2, Link2, List, Network, Pencil, Plus, Trash2, Unlink } from 'lucide-react'
 import { api, APIError } from '../api'
-import type { Asset, Kind, Link, Service, ServiceFields } from '../api'
+import type { Asset, Link, Service, ServiceFields } from '../api'
 import type { Facilities } from '../facilities'
+import { isNetworkKind, kindLabel } from '../kinds'
 import { Select } from './AppControls'
 import { DataTable } from './DataTable'
+import { AssetKindIcon } from './MetadataIcons'
 import { PageHeader } from './PageHeader'
 import { ServiceIcon } from './ServiceIcon'
 import { ServiceTopologyGraph, buildTopologySummary } from './ServiceTopologyGraph'
@@ -34,12 +36,6 @@ interface Props {
 }
 
 const emptyService: ServiceFields = { name: '', category: '', defaultPort: 0, description: '' }
-
-const kindLabels: Record<Kind, string> = {
-  host: '服务器',
-  vm: '虚拟机',
-  switch: '交换机',
-}
 
 const assetStatusMeta: Record<string, { label: string; className: string }> = {
   online: { label: '在线', className: 'border-info-border bg-info-soft text-info' },
@@ -88,7 +84,7 @@ export function ServiceManager({
   const [bindSaving, setBindSaving] = useState(false)
   const [bindError, setBindError] = useState('')
   const [bindSearch, setBindSearch] = useState('')
-  const [bindKind, setBindKind] = useState<'' | Kind>('')
+  const [bindKind, setBindKind] = useState<'' | 'vm' | 'host' | 'network'>('')
   const [bindIds, setBindIds] = useState<number[]>([])
 
   useEffect(() => { void load() }, [])
@@ -295,14 +291,13 @@ export function ServiceManager({
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => {
         const asset = row.original
-        const Icon = asset.kind === 'vm' ? Monitor : asset.kind === 'switch' ? Cable : Server
         return (
           <button
             type="button"
             className="table-name-cell text-left hover:underline"
             onClick={() => onOpenAsset(asset.id)}
           >
-            <span className="row-icon-box" aria-hidden="true"><Icon className="size-3.5" /></span>
+            <span className="row-icon-box" aria-hidden="true"><AssetKindIcon kind={asset.kind} className="size-3.5" /></span>
             <span className="font-medium text-foreground">{asset.name}</span>
           </button>
         )
@@ -313,7 +308,7 @@ export function ServiceManager({
       header: '类型',
       enableSorting: false,
       meta: { cellClassName: 'whitespace-nowrap' },
-      cell: ({ row }) => <Badge variant="secondary">{kindLabels[row.original.kind] ?? row.original.kind}</Badge>,
+      cell: ({ row }) => <Badge variant="secondary">{kindLabel(row.original.kind)}</Badge>,
     },
     {
       accessorKey: 'status',
@@ -403,7 +398,7 @@ export function ServiceManager({
     const query = bindSearch.trim().toLowerCase()
     const selectedSet = new Set(bindIds)
     return assets
-      .filter(a => (!bindKind || a.kind === bindKind) &&
+      .filter(a => (!bindKind || (bindKind === 'network' ? isNetworkKind(a.kind) : a.kind === bindKind)) &&
         (!query || [a.name, a.address, a.owner].some(v => v.toLowerCase().includes(query))))
       .sort((a, b) => Number(selectedSet.has(b.id)) - Number(selectedSet.has(a.id)) || a.name.localeCompare(b.name, 'zh-CN'))
   }, [assets, bindIds, bindKind, bindSearch])
@@ -535,7 +530,7 @@ export function ServiceManager({
                 onChange={event => setBindSearch(event.target.value)}
               />
               <div className="svc-picker-kinds" role="group" aria-label="按类型筛选">
-                {([['', '全部'], ['vm', '虚拟机'], ['host', '服务器'], ['switch', '交换机']] as const).map(([value, label]) => (
+                {([['', '全部'], ['vm', '虚拟机'], ['host', '服务器'], ['network', '网络设备']] as const).map(([value, label]) => (
                   <button
                     key={value || 'all'} type="button"
                     className={`svc-picker-kind${bindKind === value ? ' is-active' : ''}`}
@@ -558,7 +553,7 @@ export function ServiceManager({
                     <div className="svc-picker-copy">
                       <strong>{asset.name}</strong>
                       <span>
-                        {kindLabels[asset.kind]}
+                        {kindLabel(asset.kind)}
                         {asset.address ? ` · ${asset.address}` : ''}
                         {loc ? ` · ${loc.room.name}` : ''}
                       </span>

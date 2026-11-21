@@ -1,4 +1,5 @@
 import type { SVGProps } from 'react'
+import { ArrowLeftRight, Monitor, Router, Scale, Server, Shield } from 'lucide-react'
 
 type IconProps = SVGProps<SVGSVGElement>
 
@@ -83,4 +84,30 @@ export function OperatorTowerIcon(props: IconProps) {
       <path d="M10.1 17.5h3.8" />
     </svg>
   )
+}
+
+// 网络设备：机架式网络硬件面板（端口阵列 + 上联口）
+export function NetworkDeviceIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <rect x="2.5" y="7" width="19" height="10" rx="2" />
+      <circle cx="6.25" cy="12" r="1" fill="currentColor" stroke="none" />
+      <path d="M9.75 10.5v3M12.5 10.5v3M15.25 10.5v3M18 10.5v3" />
+    </svg>
+  )
+}
+
+export function AssetKindIcon({ kind, className }: { kind: string; className?: string }) {
+  const Icon = kind === 'vm'
+    ? Monitor
+    : kind === 'switch'
+      ? ArrowLeftRight
+      : kind === 'router'
+        ? Router
+        : kind === 'firewall'
+          ? Shield
+          : kind === 'load_balancer'
+            ? Scale
+            : Server
+  return <Icon className={className} size={className ? undefined : '1em'} aria-hidden="true" />
 }

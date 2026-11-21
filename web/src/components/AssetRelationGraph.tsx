@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { Asset, Link } from '../api'
+import { kindLabel } from '../kinds'
 import { TopologyCanvas, type TopoEdgeInput, type TopoItem, type TopoTier } from './TopologyCanvas'
 
 interface Props {
@@ -19,12 +20,6 @@ const statusMap: Record<string, { label: string; tone: 'ok' | 'warn' | 'bad' | '
   unknown: { label: '未知', tone: 'idle' },
 }
 
-const kindLabels: Record<Asset['kind'], string> = {
-  host: '服务器',
-  vm: '虚拟机',
-  switch: '交换机',
-}
-
 function toTopoItem(asset: Asset, isRoot: boolean, onOpenAsset?: (id: number) => void): TopoItem {
   const st = asset.lifecycle === 'retired'
     ? { label: '已退役', tone: 'idle' as const }
@@ -33,7 +28,7 @@ function toTopoItem(asset: Asset, isRoot: boolean, onOpenAsset?: (id: number) =>
     id: `asset-${asset.id}`,
     kind: asset.kind,
     title: asset.name,
-    subtitle: [asset.address, kindLabels[asset.kind]].filter(Boolean).join(' · '),
+    subtitle: [asset.address, kindLabel(asset.kind)].filter(Boolean).join(' · '),
     statusTone: st.tone,
     statusLabel: st.label,
     isRoot,

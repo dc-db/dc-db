@@ -8,7 +8,7 @@ import {
 import type { TableColumnsType } from './components/AppControls'
 const zhCN = {}
 import {
-  Building2 as BuildingOutlined, BookOpen as BookOpenOutlined, Cable as ApiOutlined, Server as CloudServerOutlined,
+  Building2 as BuildingOutlined, BookOpen as BookOpenOutlined, Server as CloudServerOutlined,
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
   House as HomeOutlined, ArrowLeft as ArrowLeftOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
@@ -16,9 +16,10 @@ import {
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
 import { downloadCSV } from './csv'
-import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, Service, Subnet, Tag as TagItem, User, VLAN } from './api'
+import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, NetworkKind, Service, Subnet, Tag as TagItem, User, VLAN } from './api'
 import { assetLocations, locationLabel } from './facilities'
 import type { AssetLocation, Facilities } from './facilities'
+import { isNetworkKind, KIND_LABELS, kindLabel, NETWORK_KINDS } from './kinds'
 import type { Page } from './types'
 import { AssetEditor } from './components/AssetEditor'
 import { AssetInterfaces } from './components/AssetInterfaces'
@@ -34,7 +35,7 @@ import { IPAddressView } from './components/IPAddressView'
 import { IpamView } from './components/IpamView'
 import { LoginBackdrop } from './components/LoginBackdrop'
 import {
-  GroupClusterIcon, OperatorTowerIcon, OwnerBadgeIcon, ReferenceDataIcon, ServiceNodeIcon, TagMarkIcon,
+  AssetKindIcon, GroupClusterIcon, NetworkDeviceIcon, OperatorTowerIcon, OwnerBadgeIcon, ReferenceDataIcon, ServiceNodeIcon, TagMarkIcon,
 } from './components/MetadataIcons'
 import { MetadataManager } from './components/MetadataManager'
 import { SubnetDetailView, VLANDetailView } from './components/NetworkDetailViews'
@@ -51,11 +52,6 @@ const { Header, Sider, Content } = Layout
 type NavLeaf = { key: string; label: ReactNode; icon: ReactNode }
 type NavGroup = { key: string; label: ReactNode; icon: ReactNode; children: NavLeaf[] }
 
-const kinds: Record<Kind, { label: string; icon: ReactNode }> = {
-  host: { label: '服务器', icon: <CloudServerOutlined /> },
-  vm: { label: '虚拟机', icon: <DesktopOutlined /> },
-  switch: { label: '交换机', icon: <ApiOutlined /> },
-}
 const statuses: Record<string, { label: string; color: string }> = {
   online: { label: '在线', color: 'blue' },
   running: { label: '运行中', color: 'green' },
@@ -69,8 +65,8 @@ const relations: { kind: LinkKind; from: Kind; to: Kind[]; outgoing: string; inc
 ]
 const defaultPageSize = 10
 const defaultAssetColumns = ['name', 'status', 'tags', 'meta', 'address', 'owner']
-const defaultSwitchColumns = ['name', 'status', 'tags', 'address', 'owner']
-const assetColumnKeys = ['name', 'status', 'tags', 'meta', 'address', 'owner', 'group', 'environment', 'capacity', 'updated']
+const defaultNetworkDeviceColumns = ['name', 'kind', 'status', 'tags', 'address', 'owner']
+const assetColumnKeys = ['name', 'kind', 'status', 'tags', 'meta', 'address', 'owner', 'group', 'environment', 'capacity', 'updated']
 
 
 function platformLabel(asset: Pick<Asset, 'platform'>) {
@@ -84,16 +80,17 @@ function messageText(error: unknown) {
   return error instanceof Error ? error.message : '操作失败'
 }
 
-const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'switches', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'password', 'tags', 'groups', 'services', 'owners', 'users', 'guide']
+const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'network_devices', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'password', 'tags', 'groups', 'services', 'owners', 'users', 'guide']
 
 function readPageParam(): Page {
   const params = new URLSearchParams(window.location.search)
   const value = params.get('page')
   if (value === 'ipam') return 'subnets'
+  if (value === 'switches') return 'network_devices'
   if (value === 'network') {
     const tab = params.get('tab')
     if (tab === 'ips' || tab === 'vlans' || tab === 'operators') return tab
-    if (tab === 'devices') return 'switches'
+    if (tab === 'devices') return 'network_devices'
     return 'subnets'
   }
   if (value === 'metadata') return 'groups'
@@ -207,6 +204,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [subnets, setSubnets] = useState<Subnet[]>([])
 
   const [keyword, setKeyword] = useState('')
+  const [networkKindFilter, setNetworkKindFilter] = useState<'' | NetworkKind>('')
   const [platformFilter, setPlatformFilter] = useState<string | undefined>()
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const [tagFilter, setTagFilter] = useState<number[]>([])
@@ -300,7 +298,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     {
       key: 'network_group', label: '网络', icon: <GlobalOutlined />,
       children: [
-        { key: 'switches', label: '交换机', icon: <ApiOutlined /> },
+        { key: 'network_devices', label: '网络设备', icon: <NetworkDeviceIcon /> },
         { key: 'subnets', label: '网段', icon: <NetworkOutlined /> },
         { key: 'ips', label: 'IP 地址', icon: <LocateFixedOutlined /> },
         { key: 'vlans', label: 'VLAN', icon: <SplitOutlined /> },
@@ -321,7 +319,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     },
   ]
   const editable = user?.role !== 'viewer'
-  const assetPage = page === 'host' || page === 'vm' || page === 'switches'
+  const assetPage = page === 'host' || page === 'vm' || page === 'network_devices'
 
   const byId = useMemo(() => new Map(assets.map(asset => [asset.id, asset])), [assets])
   const locations = useMemo(() => assetLocations(facilities, links), [facilities, links])
@@ -342,13 +340,13 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const scoped = useMemo(() => {
     if (page === 'host') return assets.filter(asset => asset.kind === 'host')
     if (page === 'vm') return assets.filter(asset => asset.kind === 'vm')
-    if (page === 'switches') return assets.filter(asset => asset.kind === 'switch')
+    if (page === 'network_devices') return assets.filter(asset => isNetworkKind(asset.kind))
     return []
   }, [assets, page])
   const filtered = useMemo(() => {
-
     const query = keyword.trim().toLowerCase()
     return scoped.filter(asset => {
+      if (page === 'network_devices' && networkKindFilter && asset.kind !== networkKindFilter) return false
       if (platformFilter && asset.platform !== platformFilter) return false
       if (statusFilter && asset.status !== statusFilter) return false
       if (tagFilter.length) {
@@ -361,7 +359,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       return !query || [asset.name, asset.address, asset.owner, asset.environment, ...(asset.tags?.map(tag => tag.name) ?? []), ...(vmRelations.get(asset.id) ?? [])]
         .some(value => value?.toLowerCase().includes(query))
     })
-  }, [scoped, platformFilter, statusFilter, tagFilter, tagFilterMode, keyword, vmRelations])
+  }, [scoped, page, networkKindFilter, platformFilter, statusFilter, tagFilter, tagFilterMode, keyword, vmRelations])
 
   const relationOptions = useMemo(() => {
     if (!selected) return []
@@ -398,7 +396,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   useEffect(() => {
     setPagination(1)
-  }, [keyword, platformFilter, page])
+  }, [keyword, networkKindFilter, platformFilter, page])
 
   useEffect(() => {
     try {
@@ -427,11 +425,11 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   useEffect(() => {
     setSelectedAssetIds([])
-  }, [page, keyword, platformFilter, statusFilter, tagFilter, tagFilterMode])
+  }, [page, keyword, networkKindFilter, platformFilter, statusFilter, tagFilter, tagFilterMode])
 
   useEffect(() => {
     if (!assetPage) return
-    const fallback = page === 'switches' ? defaultSwitchColumns : defaultAssetColumns
+    const fallback = page === 'network_devices' ? defaultNetworkDeviceColumns : defaultAssetColumns
     try {
       const raw = localStorage.getItem('dc-db-columns:' + page)
       const parsed: unknown = raw ? JSON.parse(raw) : null
@@ -484,7 +482,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       syncAssetParam(null)
       return
     }
-    setPage(asset.kind === 'vm' ? 'vm' : asset.kind === 'switch' ? 'switches' : 'host')
+    setPage(asset.kind === 'vm' ? 'vm' : isNetworkKind(asset.kind) ? 'network_devices' : 'host')
     void openAsset(asset.id)
     // openAsset is stable enough for a one-shot restore; it only depends on the id.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -600,6 +598,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     if (next !== 'vlans') setSelectedVLAN(null)
     if (window.innerWidth < 992) setCollapsed(true)
     setKeyword('')
+    setNetworkKindFilter('')
     setPlatformFilter(undefined)
     setStatusFilter(undefined)
     setTagFilter([])
@@ -624,6 +623,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   function clearFilters() {
     setKeyword('')
+    setNetworkKindFilter('')
     setPlatformFilter(undefined)
     setStatusFilter(undefined)
     setTagFilter([])
@@ -682,7 +682,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   function startNew(kind?: Kind) {
     setSelectedId(null)
     setAssetTags([])
-    setNewKind(kind ?? (page === 'vm' ? 'vm' : page === 'switches' ? 'switch' : 'host'))
+    setNewKind(kind ?? (page === 'vm' ? 'vm' : page === 'network_devices' ? (networkKindFilter || 'switch') : 'host'))
     setEditor(true)
     setDrawerError('')
     setDrawerOpen(true)
@@ -890,7 +890,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     ]]
     for (const asset of filtered) {
       rows.push([
-        asset.name, kinds[asset.kind].label, platformLabel(asset), statusOf(asset).label,
+        asset.name, kindLabel(asset.kind), platformLabel(asset), statusOf(asset).label,
         asset.lifecycle === 'retired' ? '已退役' : '在册', asset.address, asset.cpu, asset.memoryMiB,
         asset.owner, asset.environment, asset.notes, JSON.stringify(asset.attributes),
         asset.tags?.map(tag => tag.name).join('; ') ?? '',
@@ -973,6 +973,19 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       },
     },
     {
+      key: 'kind', label: '设备类型',
+      column: {
+        title: '设备类型', key: 'kind', width: 120,
+        sorter: (left, right) => kindLabel(left.kind).localeCompare(kindLabel(right.kind), 'zh-CN'),
+        render: (_, asset) => (
+          <span className="device-kind-cell">
+            <AssetKindIcon kind={asset.kind} />
+            {kindLabel(asset.kind)}
+          </span>
+        ),
+      },
+    },
+    {
       key: 'status', label: '状态',
       column: { title: '状态', key: 'status', width: 100, sorter: (left, right) => statusOf(left).label.localeCompare(statusOf(right).label, 'zh-CN'), render: (_, asset) => <Tag color={statusOf(asset).color}>{statusOf(asset).label}</Tag> },
     },
@@ -1024,7 +1037,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       column: {
         title: 'CPU / 内存', key: 'capacity', width: 140,
         sorter: (left, right) => left.cpu - right.cpu || left.memoryMiB - right.memoryMiB,
-        render: (_, asset) => asset.kind === 'switch' ? '—' : `${asset.cpu || 0} 核 / ${asset.memoryMiB ? (asset.memoryMiB / 1024).toFixed(0) + ' GiB' : '—'}`,
+        render: (_, asset) => isNetworkKind(asset.kind) ? '—' : `${asset.cpu || 0} 核 / ${asset.memoryMiB ? (asset.memoryMiB / 1024).toFixed(0) + ' GiB' : '—'}`,
       },
     },
     {
@@ -1036,13 +1049,13 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       },
     },
   ]
-  const availableAssetColumns = page === 'switches'
+  const availableAssetColumns = page === 'network_devices'
     ? assetColumns.filter(item => item.key !== 'meta' && item.key !== 'capacity')
-    : assetColumns
+    : assetColumns.filter(item => item.key !== 'kind')
   const columns = availableAssetColumns.filter(item => visibleColumns.includes(item.key)).map(item => item.column)
 
   const descriptions = selected ? [
-    { key: 'platform', label: '平台', children: platformLabel(selected) },
+    ...(!isNetworkKind(selected.kind) ? [{ key: 'platform', label: '平台', children: platformLabel(selected) }] : []),
     { key: 'owner', label: '负责人', children: selected.owner || '—' },
     { key: 'environment', label: '环境', children: selected.environment || '—' },
     { key: 'address', label: '管理地址 / IP', children: <span className="mono">{selected.address || '—'}</span> },
@@ -1253,7 +1266,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               <Button onClick={() => closeDrawer(true)}><ArrowLeftOutlined /> 返回</Button>
               <div className="asset-drawer-title">
                 <span>{editor ? (selected ? '编辑资产' : '新增资产') : (selected ? selected.name : '资产详情')}</span>
-                {!editor && selected && <Tag>{kinds[selected.kind].label}</Tag>}
+                {!editor && selected && <Tag>{kindLabel(selected.kind)}</Tag>}
               </div>
             </div>
         {editor ? (
@@ -1517,8 +1530,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           )}
 
           {assetPage && (() => {
-            const pageLabel = page === 'vm' ? '虚拟机' : page === 'switches' ? '交换机' : '服务器'
-            const defaultCols = page === 'switches' ? defaultSwitchColumns : defaultAssetColumns
+            const pageLabel = page === 'vm' ? '虚拟机' : page === 'network_devices' ? '网络设备' : '服务器'
+            const defaultCols = page === 'network_devices' ? defaultNetworkDeviceColumns : defaultAssetColumns
             return (
             <Card variant="borderless">
               <PageHeader
@@ -1530,7 +1543,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                     placeholder={`搜索${pageLabel}…`}
                     value={keyword} onChange={(event: React.ChangeEvent<HTMLInputElement>) => setKeyword(event.target.value)}
                   />
-                  {page !== 'switches' && (
+                  {page !== 'network_devices' && (
                     <Select
                       style={{ width: 145 }} allowClear searchable={false} placeholder="全部平台" value={platformFilter}
                       onChange={setPlatformFilter}
@@ -1585,6 +1598,33 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                   {editable && <Button type="primary" onClick={() => startNew()}><PlusOutlined /> 新增{pageLabel}</Button>}
                 </Space>}
               />
+              {page === 'network_devices' && (
+                <div className="device-kind-bar" role="tablist" aria-label="按设备类型筛选">
+                  <button
+                    type="button" role="tab" aria-selected={networkKindFilter === ''}
+                    className={`device-kind-pill${networkKindFilter === '' ? ' is-active' : ''}`}
+                    onClick={() => setNetworkKindFilter('')}
+                  >
+                    <span>全部</span>
+                    <span className="device-kind-count">{scoped.length}</span>
+                  </button>
+                  {NETWORK_KINDS.map(kind => {
+                    const count = scoped.filter(item => item.kind === kind).length
+                    const active = networkKindFilter === kind
+                    return (
+                      <button
+                        key={kind} type="button" role="tab" aria-selected={active}
+                        className={`device-kind-pill${active ? ' is-active' : ''}`}
+                        onClick={() => setNetworkKindFilter(kind)}
+                      >
+                        <AssetKindIcon kind={kind} />
+                        <span>{KIND_LABELS[kind]}</span>
+                        <span className="device-kind-count">{count}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
               {editable && selectedAssetIds.length > 0 && (
                 <div className="bulk-bar">
                   <span>已选择 <strong>{selectedAssetIds.length}</strong> 条资产</span>
@@ -1707,7 +1747,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                 columns={[
                   { title: '行', dataIndex: 'row', width: 56 },
                   { title: '资源名称', dataIndex: 'name', width: 150 },
-                  { title: '类型', dataIndex: 'kind', width: 80, render: value => kinds[value as Kind]?.label ?? value },
+                  { title: '类型', dataIndex: 'kind', width: 96, render: value => kindLabel(String(value ?? '')) },
                   { title: '状态', dataIndex: 'status', width: 90, render: value => statuses[value]?.label ?? (value || '—') },
                   { title: '生命周期', dataIndex: 'lifecycle', width: 90, render: value => value === 'retired' ? '已退役' : '在册' },
                   { title: '负责人', dataIndex: 'owner', width: 110, render: value => value || '—' },

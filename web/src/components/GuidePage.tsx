@@ -60,7 +60,7 @@ export function GuidePage({ onGo, onStartAsset }: Props) {
         <CardHeader><CardTitle>资产怎么录</CardTitle></CardHeader>
         <CardContent>
           <ol className="guide-steps">
-            <Step index={1} title="手工新增">在「服务器」、「虚拟机」或「交换机」页点新增按钮，填名称、角色、负责人即可；CPU、内存、地址都可以留空。</Step>
+            <Step index={1} title="手工新增">在「服务器」、「虚拟机」或「网络设备」页点新增按钮，填名称、角色、负责人即可；CPU、内存、地址都可以留空。</Step>
             <Step index={2} title="CSV 批量导入">在资产页点「下载模板」，按列填好后点「导入 CSV」。导入前会显示预检结果和错误行，确认后才写入。</Step>
             <Step index={3} title="补充信息">扩展属性用来放各团队自定义的字段；标签用来做筛选和归类，需要先在「系统管理 → 标签管理」里建好。</Step>
           </ol>

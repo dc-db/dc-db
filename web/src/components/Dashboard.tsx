@@ -1,15 +1,17 @@
 import { useMemo } from 'react'
 import type { ReactNode } from 'react'
-import { ArrowLeftRight, Building2, Globe, HardDrive, List, Monitor, Server, Star } from 'lucide-react'
+import { Building2, Globe, HardDrive, List, Monitor, Server, Star } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Progress } from './ui/progress'
 import type { EChartsOption } from 'echarts'
 import type { Asset, Change, Subnet, Tag } from '../api'
 import type { Facilities } from '../facilities'
+import { isNetworkKind, KIND_LABELS, KIND_SHORT_LABELS, kindLabel, NETWORK_KINDS } from '../kinds'
 import type { Page } from '../types'
 import { Chart } from './Chart'
 import { ChangeList } from './ChangeList'
+import { AssetKindIcon, NetworkDeviceIcon } from './MetadataIcons'
 
 interface Props {
   assets: Asset[]
@@ -28,8 +30,8 @@ interface Props {
 }
 
 const chartColors = (dark: boolean) => dark
-  ? ['#60a5fa', '#2dd4bf', '#fbbf24', '#fb7185', '#a78bfa']
-  : ['#2563eb', '#0d9488', '#d97706', '#e11d48', '#7c3aed']
+  ? ['#60a5fa', '#2dd4bf', '#fbbf24', '#a78bfa', '#fb7185', '#34d399']
+  : ['#2563eb', '#0d9488', '#d97706', '#7c3aed', '#e11d48', '#059669']
 
 function statusChartColor(status: string, dark: boolean) {
   if (status === 'online') return dark ? '#60a5fa' : '#2563eb'
@@ -53,12 +55,16 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
     const active = assets.filter(asset => asset.lifecycle === 'active')
     const hosts = active.filter(asset => asset.kind === 'host')
     const vms = active.filter(asset => asset.kind === 'vm')
-    const switches = active.filter(asset => asset.kind === 'switch')
+    const networkDevices = active.filter(asset => isNetworkKind(asset.kind))
+    const networkBreakdown = NETWORK_KINDS
+      .map(kind => ({ kind, count: networkDevices.filter(asset => asset.kind === kind).length }))
+      .filter(item => item.count > 0)
     return {
       active,
       hosts,
       vms,
-      switches,
+      networkDevices,
+      networkBreakdown,
       running: vms.filter(asset => asset.status === 'running').length,
       usable: subnets.reduce((sum, item) => sum + item.usable, 0),
       used: subnets.reduce((sum, item) => sum + item.used, 0),
@@ -90,9 +96,11 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
       itemStyle: { borderColor: dark ? '#0a0a0a' : '#fff', borderWidth: 2 },
       label: { show: false },
       data: [
-        { value: stats.hosts.length, name: '服务器' },
-        { value: stats.vms.length, name: '虚拟机' },
-        { value: stats.switches.length, name: '交换机' },
+        { value: stats.hosts.length, name: KIND_LABELS.host },
+        { value: stats.vms.length, name: KIND_LABELS.vm },
+        ...(stats.networkBreakdown.length
+          ? stats.networkBreakdown.map(item => ({ value: item.count, name: KIND_LABELS[item.kind] }))
+          : [{ value: 0, name: '网络设备' }]),
       ],
     }],
   }), [dark, stats])
@@ -226,7 +234,16 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
           { label: '资产总数', value: stats.active.length, icon: <HardDrive size="1em" aria-hidden="true" />, hint: '在册资产', target: undefined, tone: 'neutral' },
           { label: '服务器', value: stats.hosts.length, icon: <Server size="1em" aria-hidden="true" />, hint: '独立主机与虚拟化节点', target: 'host' as Page, tone: 'blue' },
           { label: '虚拟机', value: stats.vms.length, icon: <Monitor size="1em" aria-hidden="true" />, hint: `${stats.running} 台运行中`, target: 'vm' as Page, tone: 'teal' },
-          { label: '交换机', value: stats.switches.length, icon: <ArrowLeftRight size="1em" aria-hidden="true" />, hint: '网络设备', target: 'switches' as Page, tone: 'amber' },
+          {
+            label: '网络设备',
+            value: stats.networkDevices.length,
+            icon: <NetworkDeviceIcon className="size-[1em]" />,
+            hint: stats.networkBreakdown.length
+              ? stats.networkBreakdown.map(item => `${KIND_SHORT_LABELS[item.kind]} ${item.count}`).join(' · ')
+              : '交换机 / 路由 / 防火墙 / LB',
+            target: 'network_devices' as Page,
+            tone: 'amber',
+          },
           { label: '数据中心', value: facilities.rooms.length, icon: <Building2 size="1em" aria-hidden="true" />, hint: `${facilities.racks.length} 台机柜`, target: 'facilities' as Page, tone: 'violet' },
           { label: 'IP 空闲', value: stats.free, icon: <Globe size="1em" aria-hidden="true" />, hint: `${subnets.length} 个网段 · 使用率 ${ipPercent}%`, target: 'subnets' as Page, tone: 'green' },
         ].map(item => {
@@ -257,10 +274,10 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
                   <div className="bookmark-grid">
                     {bookmarked.slice(0, 8).map(asset => (
                       <button key={asset.id} type="button" className="bookmark-item" onClick={() => onOpenAsset(asset.id)}>
-                        <span className="bookmark-icon">{asset.kind === 'host' ? <Server size="1em" aria-hidden="true" /> : asset.kind === 'switch' ? <ArrowLeftRight size="1em" aria-hidden="true" /> : <Monitor size="1em" aria-hidden="true" />}</span>
+                        <span className="bookmark-icon"><AssetKindIcon kind={asset.kind} /></span>
                         <span className="bookmark-copy">
                           <strong>{asset.name}</strong>
-                          <small>{asset.kind === 'host' ? '服务器' : asset.kind === 'switch' ? '交换机' : '虚拟机'} · {asset.address || asset.owner || '—'}</small>
+                          <small>{kindLabel(asset.kind)} · {asset.address || asset.owner || '—'}</small>
                         </span>
                         <Star size="1em" className="bookmark-star" fill="currentColor" aria-hidden="true" />
                       </button>

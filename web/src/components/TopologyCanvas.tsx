@@ -7,14 +7,14 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/style.css'
 import {
-  ArrowUpRight, Building2, Cable, ChevronRight, Globe, Maximize2, Minimize2,
-  Monitor, Network, Server, Split,
+  ArrowLeftRight, ArrowUpRight, Building2, ChevronRight, Globe, Maximize2, Minimize2,
+  Monitor, Network, Router, Scale, Server, Shield, Split,
 } from 'lucide-react'
 import { ServiceIcon } from './ServiceIcon'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 
-export type TopoEntityKind = 'service' | 'subnet' | 'vlan' | 'vm' | 'host' | 'switch' | 'room'
+export type TopoEntityKind = 'service' | 'subnet' | 'vlan' | 'vm' | 'host' | 'switch' | 'router' | 'firewall' | 'load_balancer' | 'room'
 
 export interface TopoItem {
   id: string
@@ -67,16 +67,22 @@ function EntityIcon({ item }: { item: TopoItem }) {
   const Icon = item.kind === 'vm'
     ? Monitor
     : item.kind === 'switch'
-      ? Cable
-      : item.kind === 'room'
-        ? Building2
-        : item.kind === 'subnet'
-          ? Network
-          : item.kind === 'vlan'
-            ? Split
-            : item.kind === 'host'
-              ? Server
-              : Globe
+      ? ArrowLeftRight
+      : item.kind === 'router'
+        ? Router
+        : item.kind === 'firewall'
+          ? Shield
+          : item.kind === 'load_balancer'
+            ? Scale
+            : item.kind === 'room'
+              ? Building2
+              : item.kind === 'subnet'
+                ? Network
+                : item.kind === 'vlan'
+                  ? Split
+                  : item.kind === 'host'
+                    ? Server
+                    : Globe
   return (
     <span className="topo-node-icon" aria-hidden="true">
       <Icon className="size-3.5" />

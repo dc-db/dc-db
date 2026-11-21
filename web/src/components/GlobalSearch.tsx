@@ -4,6 +4,7 @@ import { Input } from './ui/input'
 import { Building2, Crosshair, Globe, History, LoaderCircle, Network, Search, Server, Tags, X } from 'lucide-react'
 import { api } from '../api'
 import type { SearchResult, SearchResultType } from '../api'
+import { kindLabel } from '../kinds'
 
 interface Props {
   onAsset: (assetId: number) => void
@@ -25,7 +26,6 @@ const typeMeta: Record<SearchResultType, { label: string; icon: ReactNode }> = {
   ip: { label: 'IP 地址', icon: <Crosshair size={15} /> },
 }
 
-const kindLabels: Record<string, string> = { host: '服务器', vm: '虚拟机', switch: '交换机' }
 const statusLabels: Record<string, string> = {
   online: '在线', offline: '离线', running: '运行中', stopped: '已停止', paused: '已暂停', unknown: '未知',
 }
@@ -156,7 +156,7 @@ export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onV
 
   function resultDetail(result: SearchResult) {
     if (result.type === 'asset') {
-      return [kindLabels[result.kind ?? ''] ?? result.kind, statusLabels[result.status ?? ''] ?? result.status, result.detail]
+      return [result.kind ? kindLabel(result.kind) : '', statusLabels[result.status ?? ''] ?? result.status, result.detail]
         .filter(Boolean).join(' · ')
     }
     return result.detail

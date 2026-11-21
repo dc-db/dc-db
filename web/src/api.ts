@@ -1,4 +1,5 @@
-export type Kind = 'host' | 'vm' | 'switch'
+export type NetworkKind = 'switch' | 'router' | 'firewall' | 'load_balancer'
+export type Kind = 'host' | 'vm' | NetworkKind
 export type LinkKind = 'hosts'
 export type InterfaceMedium = 'copper' | 'fiber' | 'virtual'
 export type InterfaceStatus = 'up' | 'down' | 'disabled'
