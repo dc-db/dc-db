@@ -224,6 +224,7 @@ export interface MetadataFields {
 
 export interface MetadataEntry extends MetadataFields {
   id: number
+  assetCount?: number
 }
 
 export interface Tag {

@@ -18,7 +18,8 @@ type MetadataFields struct {
 
 type MetadataEntry struct {
 	MetadataFields
-	ID int64 `json:"id"`
+	ID         int64 `json:"id"`
+	AssetCount int64 `json:"assetCount"`
 }
 
 const metadataColumns = "id,kind,name,description"
@@ -48,13 +49,19 @@ func normalizeMetadataFields(fields *MetadataFields) error {
 // ListMetadata returns the entries of one kind, or every kind when kind is
 // empty, so the page can show counts per category without extra requests.
 func ListMetadata(ctx context.Context, db *sql.DB, kind string) ([]MetadataEntry, error) {
-	query := "SELECT " + metadataColumns + " FROM metadata_entries"
+	query := `
+		SELECT m.id, m.kind, m.name, m.description,
+			CASE WHEN m.kind = 'owner'
+				THEN (SELECT count(*) FROM assets a WHERE lower(a.owner) = lower(m.name))
+				ELSE 0
+			END
+		FROM metadata_entries m`
 	args := []any{}
 	if strings.TrimSpace(kind) != "" {
-		query += " WHERE kind=$1"
+		query += " WHERE m.kind=$1"
 		args = append(args, strings.TrimSpace(strings.ToLower(kind)))
 	}
-	query += " ORDER BY lower(name), id"
+	query += " ORDER BY lower(m.name), m.id"
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -62,8 +69,8 @@ func ListMetadata(ctx context.Context, db *sql.DB, kind string) ([]MetadataEntry
 	defer rows.Close()
 	entries := make([]MetadataEntry, 0)
 	for rows.Next() {
-		entry, err := readMetadata(rows)
-		if err != nil {
+		var entry MetadataEntry
+		if err := rows.Scan(&entry.ID, &entry.Kind, &entry.Name, &entry.Description, &entry.AssetCount); err != nil {
 			return nil, err
 		}
 		entries = append(entries, entry)
