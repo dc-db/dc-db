@@ -98,6 +98,26 @@ func (s *Server) deleteService(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (s *Server) setServiceAssets(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	var input struct {
+		AssetIDs []int64 `json:"assetIds"`
+	}
+	if err := decode(w, r, &input); err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	service, err := SetServiceAssets(r.Context(), s.db, id, input.AssetIDs, currentUser(r).Username)
+	if err != nil {
+		s.databaseError(w, err)
+		return
+	}
+	respond(w, http.StatusOK, service)
+}
+
 func (s *Server) listMetadata(w http.ResponseWriter, r *http.Request) {
 	entries, err := ListMetadata(r.Context(), s.db, r.URL.Query().Get("kind"))
 	if err != nil {

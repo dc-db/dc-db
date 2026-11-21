@@ -8,9 +8,9 @@ import (
 	"unicode/utf8"
 )
 
-// ServiceFields describes a catalogue entry. Services are a flat reference
-// list: name, category, default port and a note. They are not tied to assets
-// yet, on purpose.
+// ServiceFields describes a catalogue entry. Services are linked to assets via
+// asset_services so operators can trace a service down through VMs, hosts,
+// racks, and data centers.
 type ServiceFields struct {
 	Name        string `json:"name"`
 	Category    string `json:"category"`
@@ -20,8 +20,10 @@ type ServiceFields struct {
 
 type Service struct {
 	ServiceFields
-	ID      int64 `json:"id"`
-	Builtin bool  `json:"builtin"`
+	ID         int64   `json:"id"`
+	Builtin    bool    `json:"builtin"`
+	AssetCount int64   `json:"assetCount"`
+	AssetIDs   []int64 `json:"assetIds"`
 }
 
 const serviceColumns = "id,name,category,default_port,description,builtin"
@@ -30,6 +32,7 @@ func readService(row scanner) (Service, error) {
 	var service Service
 	err := row.Scan(&service.ID, &service.Name, &service.Category, &service.DefaultPort,
 		&service.Description, &service.Builtin)
+	service.AssetIDs = make([]int64, 0)
 	return service, err
 }
 
@@ -52,6 +55,48 @@ func normalizeServiceFields(fields *ServiceFields) error {
 	return nil
 }
 
+func serviceAssetIDs(ctx context.Context, q queryer, serviceID int64) ([]int64, error) {
+	rows, err := q.QueryContext(ctx, `
+		SELECT a.id FROM asset_services s
+		JOIN assets a ON a.id = s.asset_id
+		WHERE s.service_id = $1
+		ORDER BY lower(a.name), a.id`, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := make([]int64, 0)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+func serviceAssetNames(ctx context.Context, q queryer, serviceID int64) ([]string, error) {
+	rows, err := q.QueryContext(ctx, `
+		SELECT a.name FROM asset_services s
+		JOIN assets a ON a.id = s.asset_id
+		WHERE s.service_id = $1
+		ORDER BY lower(a.name), a.id`, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	names := make([]string, 0)
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+	return names, rows.Err()
+}
+
 func ListServices(ctx context.Context, db *sql.DB) ([]Service, error) {
 	rows, err := db.QueryContext(ctx, `
 		SELECT `+serviceColumns+` FROM services
@@ -61,14 +106,39 @@ func ListServices(ctx context.Context, db *sql.DB) ([]Service, error) {
 	}
 	defer rows.Close()
 	services := make([]Service, 0)
+	indexByID := make(map[int64]int)
 	for rows.Next() {
 		service, err := readService(rows)
 		if err != nil {
 			return nil, err
 		}
+		indexByID[service.ID] = len(services)
 		services = append(services, service)
 	}
-	return services, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	linkRows, err := db.QueryContext(ctx, `
+		SELECT s.service_id, s.asset_id
+		FROM asset_services s
+		JOIN assets a ON a.id = s.asset_id
+		ORDER BY s.service_id, lower(a.name), a.id`)
+	if err != nil {
+		return nil, err
+	}
+	defer linkRows.Close()
+	for linkRows.Next() {
+		var serviceID, assetID int64
+		if err := linkRows.Scan(&serviceID, &assetID); err != nil {
+			return nil, err
+		}
+		if idx, ok := indexByID[serviceID]; ok {
+			services[idx].AssetIDs = append(services[idx].AssetIDs, assetID)
+			services[idx].AssetCount = int64(len(services[idx].AssetIDs))
+		}
+	}
+	return services, linkRows.Err()
 }
 
 func SaveService(ctx context.Context, db *sql.DB, id int64, fields ServiceFields) (Service, error) {
@@ -99,9 +169,92 @@ func SaveService(ctx context.Context, db *sql.DB, id int64, fields ServiceFields
 		}
 		return Service{}, err
 	}
+	if id != 0 {
+		assetIDs, err := serviceAssetIDs(ctx, tx, service.ID)
+		if err != nil {
+			return Service{}, err
+		}
+		service.AssetIDs = assetIDs
+		service.AssetCount = int64(len(assetIDs))
+	}
 	if err := tx.Commit(); err != nil {
 		return Service{}, err
 	}
+	return service, nil
+}
+
+func SetServiceAssets(ctx context.Context, db *sql.DB, serviceID int64, assetIDs []int64, actor string) (Service, error) {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return Service{}, err
+	}
+	defer tx.Rollback()
+
+	service, err := readService(tx.QueryRowContext(ctx, "SELECT "+serviceColumns+" FROM services WHERE id=$1", serviceID))
+	if err != nil {
+		return Service{}, err
+	}
+	beforeNames, err := serviceAssetNames(ctx, tx, serviceID)
+	if err != nil {
+		return Service{}, err
+	}
+
+	seen := make(map[int64]bool, len(assetIDs))
+	ids := make([]int64, 0, len(assetIDs))
+	for _, id := range assetIDs {
+		if id < 1 {
+			return Service{}, fmt.Errorf("%w: 资产编号无效", ErrInvalid)
+		}
+		if !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) > 0 {
+		inList := placeholders(1, len(ids))
+		args := make([]any, len(ids))
+		for i, id := range ids {
+			args[i] = id
+		}
+		var valid int
+		if err := tx.QueryRowContext(ctx,
+			"SELECT count(*) FROM assets WHERE id IN ("+inList+")", args...).Scan(&valid); err != nil {
+			return Service{}, err
+		}
+		if valid != len(ids) {
+			return Service{}, fmt.Errorf("%w: 部分资产不存在", ErrInvalid)
+		}
+	}
+
+	if _, err := tx.ExecContext(ctx, "DELETE FROM asset_services WHERE service_id=$1", serviceID); err != nil {
+		return Service{}, err
+	}
+	for _, id := range ids {
+		if _, err := tx.ExecContext(ctx,
+			"INSERT INTO asset_services (asset_id,service_id) VALUES ($1,$2)", id, serviceID); err != nil {
+			return Service{}, err
+		}
+	}
+
+	afterIDs, err := serviceAssetIDs(ctx, tx, serviceID)
+	if err != nil {
+		return Service{}, err
+	}
+	afterNames, err := serviceAssetNames(ctx, tx, serviceID)
+	if err != nil {
+		return Service{}, err
+	}
+	if strings.Join(beforeNames, "\x00") != strings.Join(afterNames, "\x00") {
+		if err := writeNamedChange(ctx, tx, nil, service.Name, actor, "service_assets", beforeNames, afterNames); err != nil {
+			return Service{}, err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Service{}, err
+	}
+	service.AssetIDs = afterIDs
+	service.AssetCount = int64(len(afterIDs))
 	return service, nil
 }
 

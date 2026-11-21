@@ -214,6 +214,8 @@ export interface ServiceFields {
 export interface Service extends ServiceFields {
   id: number
   builtin: boolean
+  assetCount?: number
+  assetIds?: number[]
 }
 
 export interface MetadataFields {
