@@ -3,12 +3,14 @@ import {
   getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
   type ColumnDef, type SortingState,
 } from '@tanstack/react-table'
-import { Globe, Pencil, Plus, Tag, Trash2, UserRound } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { MetadataEntry, MetadataFields } from '../api'
 import { DataTable } from './DataTable'
+import { OperatorTowerIcon, OwnerBadgeIcon, TagMarkIcon } from './MetadataIcons'
 import { PageHeader } from './PageHeader'
 import { RowIconBox } from './ServiceIcon'
+import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
@@ -24,9 +26,9 @@ interface Props {
 }
 
 function kindIcon(kind: string) {
-  if (kind === 'owner') return <UserRound className="size-3.5" />
-  if (kind === 'operator') return <Globe className="size-3.5" />
-  return <Tag className="size-3.5" />
+  if (kind === 'owner') return <OwnerBadgeIcon className="size-3.5" />
+  if (kind === 'operator') return <OperatorTowerIcon className="size-3.5" />
+  return <TagMarkIcon className="size-3.5" />
 }
 
 // Generic dictionary category (负责人, 运营商, …): name plus an optional note.
@@ -117,6 +119,15 @@ export function MetadataManager({ kind, title, hideTitle, editable, onSessionErr
       ),
     },
     {
+      accessorKey: 'assetCount',
+      header: '关联资产',
+      meta: { headerClassName: 'w-[16%]', cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => {
+        const count = row.original.assetCount ?? 0
+        return <Badge variant={count ? 'secondary' : 'outline'} className="tabular-nums">{count}</Badge>
+      },
+    },
+    {
       accessorKey: 'description',
       header: '备注',
       enableSorting: false,
@@ -130,7 +141,7 @@ export function MetadataManager({ kind, title, hideTitle, editable, onSessionErr
       meta: { headerClassName: 'w-[88px] text-right', cellClassName: 'w-[88px] whitespace-nowrap text-right' },
       header: () => <div className="text-right">操作</div>,
       cell: ({ row }: { row: { original: MetadataEntry } }) => (
-        <div className="flex justify-end gap-1">
+        <div className="table-row-action flex justify-end gap-1">
           <Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button>
         </div>
       ),

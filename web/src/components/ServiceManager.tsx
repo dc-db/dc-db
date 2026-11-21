@@ -102,9 +102,9 @@ export function ServiceManager({ editable, hideTitle, onSessionError, onChanged 
   const columns = useMemo<ColumnDef<Service>[]>(() => [
     {
       accessorKey: 'name',
-      header: '服务名称',
+      header: '名称',
       sortingFn: (a, b) => a.original.name.localeCompare(b.original.name, 'zh-CN'),
-      meta: { cellClassName: 'whitespace-nowrap' },
+      meta: { headerClassName: 'w-[28%]', cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => (
         <div className="table-name-cell">
           <ServiceIcon name={row.original.name} category={row.original.category} />
@@ -116,26 +116,10 @@ export function ServiceManager({ editable, hideTitle, onSessionError, onChanged 
       accessorKey: 'category',
       header: '分类',
       sortingFn: (a, b) => a.original.category.localeCompare(b.original.category, 'zh-CN'),
-      meta: { cellClassName: 'whitespace-nowrap' },
+      meta: { headerClassName: 'w-[16%]', cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => row.original.category
         ? <Badge variant="secondary">{row.original.category}</Badge>
         : <span className="text-muted-foreground">—</span>,
-    },
-    {
-      accessorKey: 'defaultPort',
-      header: '默认端口',
-      meta: { cellClassName: 'whitespace-nowrap' },
-      cell: ({ row }) => row.original.defaultPort
-        ? <span className="font-mono text-xs tabular-nums">{row.original.defaultPort}</span>
-        : <span className="text-muted-foreground">—</span>,
-    },
-    {
-      accessorKey: 'builtin',
-      header: '来源',
-      meta: { cellClassName: 'whitespace-nowrap' },
-      cell: ({ row }) => row.original.builtin
-        ? <Badge variant="outline" className="text-muted-foreground">内置</Badge>
-        : <Badge variant="outline">自定义</Badge>,
     },
     {
       accessorKey: 'description',
@@ -151,7 +135,7 @@ export function ServiceManager({ editable, hideTitle, onSessionError, onChanged 
       meta: { headerClassName: 'w-[88px] text-right', cellClassName: 'w-[88px] whitespace-nowrap text-right' },
       header: () => <div className="text-right">操作</div>,
       cell: ({ row }: { row: { original: Service } }) => (
-        <div className="flex justify-end gap-1">
+        <div className="table-row-action flex justify-end gap-1">
           <Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button>
         </div>
       ),
@@ -205,11 +189,8 @@ export function ServiceManager({ editable, hideTitle, onSessionError, onChanged 
             <Input id="service-name" required maxLength={120} placeholder="例如：nginx、postgresql、redis" value={fields.name} onChange={event => setFields({ ...fields, name: event.target.value })} />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2"><label htmlFor="service-category" className="text-sm font-medium">分类</label><Input id="service-category" maxLength={40} placeholder="例如：数据库" value={fields.category} onChange={event => setFields({ ...fields, category: event.target.value })} /></div>
-          <div className="space-y-2"><label htmlFor="service-port" className="text-sm font-medium">默认端口</label><Input id="service-port" type="number" min={0} max={65535} placeholder="可选" value={fields.defaultPort || ''} onChange={event => setFields({ ...fields, defaultPort: Number(event.target.value) || 0 })} /></div>
-        </div>
-        <div className="space-y-2"><label htmlFor="service-description" className="text-sm font-medium">备注</label><Textarea id="service-description" maxLength={200} rows={3} placeholder="可选，一句话备注用途" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /></div>
+        <div className="space-y-2"><label htmlFor="service-category" className="text-sm font-medium">分类</label><Input id="service-category" maxLength={40} placeholder="例如：Web 服务、数据库、缓存" value={fields.category} onChange={event => setFields({ ...fields, category: event.target.value })} /></div>
+        <div className="space-y-2"><label htmlFor="service-description" className="text-sm font-medium">备注</label><Textarea id="service-description" maxLength={200} rows={3} placeholder="可选，一句话说明服务用途" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /></div>
         <DialogFooter>
           {editing && <Button type="button" variant="destructive" className="mr-auto" disabled={saving} onClick={() => { setOpen(false); setDeleting(editing) }}><Trash2 />删除</Button>}
           <Button type="button" variant="outline" disabled={saving} onClick={() => setOpen(false)}>取消</Button>

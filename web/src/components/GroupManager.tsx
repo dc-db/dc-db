@@ -3,10 +3,11 @@ import {
   getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
   type ColumnDef, type SortingState,
 } from '@tanstack/react-table'
-import { FolderTree, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Group, GroupFields } from '../api'
 import { DataTable } from './DataTable'
+import { GroupClusterIcon } from './MetadataIcons'
 import { PageHeader } from './PageHeader'
 import { RowIconBox } from './ServiceIcon'
 import { Badge } from './ui/badge'
@@ -89,12 +90,12 @@ export function GroupManager({ editable, hideTitle, onSessionError, onChanged }:
   const columns = useMemo<ColumnDef<Group>[]>(() => [
     {
       accessorKey: 'name',
-      header: '群组名称',
+      header: '名称',
       sortingFn: (a, b) => a.original.name.localeCompare(b.original.name, 'zh-CN'),
-      meta: { cellClassName: 'whitespace-nowrap' },
+      meta: { headerClassName: 'w-[28%]', cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => (
         <div className="table-name-cell">
-          <RowIconBox><FolderTree className="size-3.5" /></RowIconBox>
+          <RowIconBox><GroupClusterIcon className="size-3.5" /></RowIconBox>
           <span className="font-medium">{row.original.name}</span>
         </div>
       ),
@@ -102,7 +103,7 @@ export function GroupManager({ editable, hideTitle, onSessionError, onChanged }:
     {
       accessorKey: 'assetCount',
       header: '关联资产',
-      meta: { cellClassName: 'whitespace-nowrap' },
+      meta: { headerClassName: 'w-[16%]', cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => (
         <Badge variant={row.original.assetCount ? 'secondary' : 'outline'} className="tabular-nums">
           {row.original.assetCount}
@@ -123,7 +124,7 @@ export function GroupManager({ editable, hideTitle, onSessionError, onChanged }:
       meta: { headerClassName: 'w-[88px] text-right', cellClassName: 'w-[88px] whitespace-nowrap text-right' },
       header: () => <div className="text-right">操作</div>,
       cell: ({ row }: { row: { original: Group } }) => (
-        <div className="flex justify-end gap-1">
+        <div className="table-row-action flex justify-end gap-1">
           <Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button>
         </div>
       ),
