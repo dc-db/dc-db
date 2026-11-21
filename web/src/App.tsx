@@ -507,12 +507,12 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       setSelectedAssetIds([])
       void loadCaptcha()
     }
-  }, [checking, user, dark])
+  }, [checking, user])
 
   async function loadCaptcha() {
     setCaptchaLoading(true)
     try {
-      setCaptcha(await api<Captcha>(`/captcha?theme=${dark ? 'dark' : 'light'}`))
+      setCaptcha(await api<Captcha>('/captcha?theme=dark'))
       setCaptchaCode('')
     } catch (e) {
       setError('验证码加载失败，请刷新重试')
@@ -1104,50 +1104,51 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   if (!user) {
     return (
-      <main className="login-page">
-        <LoginBackdrop />
-        <section className="login-panel" aria-label="登录">
-          <Card className="login-card" variant="borderless">
-            <div className="login-brand"><Wordmark /></div>
-            {error && <Alert type="error" showIcon message={error} className="login-alert" />}
-            <Form layout="vertical" onFinish={login}>
-              <Form.Item label="账号" name="username" rules={[{ required: true, message: '请输入账号' }]}>
-                <Input
-                  size="large" autoComplete="username" value={loginForm.username}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => setLoginForm(current => ({ ...current, username: event.target.value }))}
-                />
-              </Form.Item>
-              <Form.Item label="密码" name="password" rules={[{ required: true, message: '请输入密码' }]}>
-                <Input.Password
-                  size="large" autoComplete="current-password" value={loginForm.password}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => setLoginForm(current => ({ ...current, password: event.target.value }))}
-                />
-              </Form.Item>
-              <Form.Item label="验证码" required>
-                <div className="captcha-row">
+      <main className="login-page" data-theme="dark">
+        <LoginBackdrop>
+          <section className="login-panel" aria-label="登录">
+            <Card className="login-card" variant="borderless">
+              <div className="login-brand"><Wordmark /></div>
+              {error && <Alert type="error" showIcon message={error} className="login-alert" />}
+              <Form layout="vertical" onFinish={login}>
+                <Form.Item label="账号" name="username" rules={[{ required: true, message: '请输入账号' }]}>
                   <Input
-                    size="large" value={captchaCode} maxLength={8} autoComplete="off" placeholder="请输入右侧字符"
-                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => setCaptchaCode(event.target.value)}
+                    size="large" autoComplete="username" value={loginForm.username}
+                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => setLoginForm(current => ({ ...current, username: event.target.value }))}
                   />
-                  <button
-                    type="button" className="captcha-image-button" title="点击刷新验证码"
-                    aria-label="刷新验证码" onClick={() => void loadCaptcha()} disabled={captchaLoading}
-                  >
-                    {captcha ? <img src={captcha.image} alt="验证码" /> : <span className="captcha-placeholder">加载中</span>}
-                  </button>
-                  <Button
-                    type="text" icon={<ReloadOutlined />} aria-label="刷新验证码"
-                    loading={captchaLoading} onClick={() => void loadCaptcha()}
+                </Form.Item>
+                <Form.Item label="密码" name="password" rules={[{ required: true, message: '请输入密码' }]}>
+                  <Input.Password
+                    size="large" autoComplete="current-password" value={loginForm.password}
+                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => setLoginForm(current => ({ ...current, password: event.target.value }))}
                   />
-                </div>
-              </Form.Item>
-              <Button
-                type="primary" htmlType="submit" block size="large"
-                loading={loginBusy} disabled={captchaLoading || !captcha || !captchaCode.trim()}
-              >登录</Button>
-            </Form>
-          </Card>
-        </section>
+                </Form.Item>
+                <Form.Item label="验证码" required>
+                  <div className="captcha-row">
+                    <Input
+                      size="large" value={captchaCode} maxLength={8} autoComplete="off" placeholder="请输入右侧字符"
+                      onChange={(event: React.ChangeEvent<HTMLInputElement>) => setCaptchaCode(event.target.value)}
+                    />
+                    <button
+                      type="button" className="captcha-image-button" title="点击刷新验证码"
+                      aria-label="刷新验证码" onClick={() => void loadCaptcha()} disabled={captchaLoading}
+                    >
+                      {captcha ? <img src={captcha.image} alt="验证码" /> : <span className="captcha-placeholder">加载中</span>}
+                    </button>
+                    <Button
+                      type="text" className="captcha-refresh-btn" icon={<ReloadOutlined />} aria-label="刷新验证码"
+                      title="刷新验证码" loading={captchaLoading} onClick={() => void loadCaptcha()}
+                    />
+                  </div>
+                </Form.Item>
+                <Button
+                  type="primary" htmlType="submit" block size="large" className="login-submit"
+                  loading={loginBusy} disabled={captchaLoading || !captcha || !captchaCode.trim()}
+                >登录</Button>
+              </Form>
+            </Card>
+          </section>
+        </LoginBackdrop>
       </main>
     )
   }
