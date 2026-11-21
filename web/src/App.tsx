@@ -12,7 +12,6 @@ import {
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
   House as HomeOutlined, ArrowLeft as ArrowLeftOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
-  Network as NetworkOutlined, Split as SplitOutlined, LocateFixed as LocateFixedOutlined,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
 import { downloadCSV } from './csv'
@@ -30,19 +29,17 @@ import { FacilityView } from './components/FacilityView'
 import { GlobalSearch } from './components/GlobalSearch'
 import { GroupManager } from './components/GroupManager'
 import { GuidePage } from './components/GuidePage'
-import { IPAddressView } from './components/IPAddressView'
-import { IpamView } from './components/IpamView'
 import { LoginBackdrop } from './components/LoginBackdrop'
 import {
-  GroupClusterIcon, OperatorTowerIcon, OwnerBadgeIcon, ReferenceDataIcon, ServiceNodeIcon, TagMarkIcon,
+  GroupClusterIcon, OwnerBadgeIcon, ReferenceDataIcon, ServiceNodeIcon, TagMarkIcon,
 } from './components/MetadataIcons'
 import { MetadataManager } from './components/MetadataManager'
+import { NetworkView, type NetworkTab } from './components/NetworkView'
 import { PageHeader } from './components/PageHeader'
 import { ServiceIcon } from './components/ServiceIcon'
 import { ServiceManager } from './components/ServiceManager'
 import { TagManager } from './components/TagManager'
 import { UserManager } from './components/UserManager'
-import { VLANView } from './components/VLANView'
 import { Wordmark } from './components/Wordmark'
 
 const { Header, Sider, Content } = Layout
@@ -82,13 +79,25 @@ function messageText(error: unknown) {
   return error instanceof Error ? error.message : '操作失败'
 }
 
-const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'facilities', 'subnets', 'vlans', 'ips', 'changes', 'password', 'tags', 'groups', 'services', 'owners', 'operators', 'users', 'guide']
+const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'facilities', 'network', 'changes', 'password', 'tags', 'groups', 'services', 'owners', 'users', 'guide']
+const NETWORK_TABS: NetworkTab[] = ['subnets', 'ips', 'vlans', 'devices', 'operators']
 
 function readPageParam(): Page {
   const value = new URLSearchParams(window.location.search).get('page')
-  if (value === 'ipam') return 'subnets'
+  if (value === 'ipam' || value === 'subnets' || value === 'vlans' || value === 'ips' || value === 'operators') return 'network'
   if (value === 'metadata') return 'groups'
   return PAGE_KEYS.includes(value as Page) ? (value as Page) : 'home'
+}
+
+function readNetworkTabParam(): NetworkTab {
+  const params = new URLSearchParams(window.location.search)
+  const tab = params.get('tab')
+  if (tab && NETWORK_TABS.includes(tab as NetworkTab)) return tab as NetworkTab
+  const legacy = params.get('page')
+  if (legacy === 'ips') return 'ips'
+  if (legacy === 'vlans') return 'vlans'
+  if (legacy === 'operators') return 'operators'
+  return 'subnets'
 }
 
 function readRoomParam(): number | null {
@@ -166,22 +175,25 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [captchaLoading, setCaptchaLoading] = useState(false)
   const [error, setError] = useState('')
   const [page, setPage] = useState<Page>(readPageParam)
+  const [networkTab, setNetworkTab] = useState<NetworkTab>(readNetworkTabParam)
   const [facilityRoomId, setFacilityRoomId] = useState<number | null>(readRoomParam)
 
-  // Keep the current page and room in the URL so a refresh (or a shared link)
-  // lands on the same screen instead of the dashboard.
+  // Keep the current page, network tab, and room in the URL so a refresh (or a
+  // shared link) lands on the same screen instead of the dashboard.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (page === 'home') params.delete('page')
     else params.set('page', page)
     if (page === 'facilities' && facilityRoomId) params.set('room', String(facilityRoomId))
     else params.delete('room')
+    if (page === 'network' && networkTab !== 'subnets') params.set('tab', networkTab)
+    else params.delete('tab')
     const query = params.toString()
     const next = query ? `${window.location.pathname}?${query}` : window.location.pathname
     if (next !== `${window.location.pathname}${window.location.search}`) {
       window.history.replaceState(null, '', next)
     }
-  }, [page, facilityRoomId])
+  }, [page, facilityRoomId, networkTab])
 
   const [facilityRackId, setFacilityRackId] = useState<number | null>(null)
   const [ipamSubnetId, setIpamSubnetId] = useState<number | null>(null)
@@ -286,21 +298,13 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     { key: 'host', label: '物理机', icon: <CloudServerOutlined /> },
     { key: 'vm', label: '虚拟机', icon: <DesktopOutlined /> },
     { key: 'services', label: '服务', icon: <ServiceNodeIcon /> },
-    {
-      key: 'ipam', label: 'IPAM', icon: <GlobalOutlined />,
-      children: [
-        { key: 'subnets', label: '网段', icon: <NetworkOutlined /> },
-        { key: 'vlans', label: 'VLAN', icon: <SplitOutlined /> },
-        { key: 'ips', label: 'IP', icon: <LocateFixedOutlined /> },
-      ],
-    },
+    { key: 'network', label: '网络', icon: <GlobalOutlined /> },
     {
       key: 'reference', label: '基础数据', icon: <ReferenceDataIcon />,
       children: [
         { key: 'groups', label: '群组', icon: <GroupClusterIcon /> },
         { key: 'tags', label: '标签', icon: <TagMarkIcon /> },
         { key: 'owners', label: '负责人', icon: <OwnerBadgeIcon /> },
-        { key: 'operators', label: '运营商', icon: <OperatorTowerIcon /> },
       ],
     },
     {
@@ -575,7 +579,14 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       setDrawerError('')
       syncAssetParam(null)
     }
-    setPage(next)
+    if (next === 'subnets' || next === 'ips' || next === 'vlans' || next === 'operators') {
+      setNetworkTab(next)
+      setPage('network')
+    } else if (next === 'metadata') {
+      setPage('groups')
+    } else {
+      setPage(next)
+    }
     if (next !== 'facilities') setFacilityRackId(null)
     if (window.innerWidth < 992) setCollapsed(true)
     setKeyword('')
@@ -720,7 +731,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   function openSubnet(id: number) {
     setIpamSubnetId(id)
-    goTo('subnets')
+    setNetworkTab('ips')
+    goTo('network')
   }
 
   function openBulkTags() {
@@ -1207,9 +1219,9 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                 setFacilityRackId(rackId)
                 goTo('facilities')
               }}
-              onIpam={() => goTo('subnets')}
-              onIPAddress={() => goTo('ips')}
-              onVLAN={() => goTo('vlans')}
+              onIpam={() => { setNetworkTab('subnets'); goTo('network') }}
+              onIPAddress={() => { setNetworkTab('ips'); goTo('network') }}
+              onVLAN={() => { setNetworkTab('vlans'); goTo('network') }}
               onTag={() => goTo('tags')}
             />
           </div>
@@ -1366,7 +1378,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                   <Button type="primary" size="large" icon={<BookOpenOutlined />} onClick={() => goTo('guide')}>查看使用指南</Button>
                   <Button size="large" icon={<PlusOutlined />} onClick={() => { setPage('host'); startNew('host') }}>先录资产</Button>
                   <Button size="large" icon={<BuildingOutlined />} onClick={() => goTo('facilities')}>先建机房</Button>
-                  <Button size="large" icon={<GlobalOutlined />} onClick={() => goTo('subnets')}>先管网络</Button>
+                  <Button size="large" icon={<GlobalOutlined />} onClick={() => goTo('network')}>先管网络</Button>
                 </div>
                 <p className="first-run-hint">「使用指南」里有截图级的操作顺序和常见问题。</p>
               </div>
@@ -1418,13 +1430,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             />
           )}
 
-          {page === 'operators' && (
-            <MetadataManager
-              kind="operator" title="运营商" editable={editable}
-              onSessionError={e => handleError(e)}
-            />
-          )}
-
           {page === 'users' && user?.role === 'admin' && (
             <UserManager currentUsername={user.username} onSessionError={e => handleError(e)} />
           )}
@@ -1443,26 +1448,16 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             />
           )}
 
-          {page === 'subnets' && (
-            <IpamView
-              editable={editable}
+          {page === 'network' && (
+            <NetworkView
+              tab={networkTab} onTabChange={setNetworkTab}
+              editable={editable} assets={assets} links={links} facilities={facilities} subnets={subnets}
               openSubnetId={ipamSubnetId} onSubnetOpened={() => setIpamSubnetId(null)}
               bookmarkedSubnets={subnetBookmarks} onToggleSubnetBookmark={toggleSubnetBookmark}
+              onOpenAsset={id => void openAsset(id)} onOpenRoom={openRoom}
+              onStartSwitch={() => startNew('switch')}
               onSessionError={e => handleError(e)}
               onChanged={() => void loadAll()}
-            />
-          )}
-          {page === 'ips' && (
-            <IPAddressView
-              editable={editable} assets={assets} subnets={subnets}
-              onOpenAsset={id => void openAsset(id)} onOpenSubnet={openSubnet}
-              onSessionError={e => handleError(e)} onChanged={() => void loadAll()}
-            />
-          )}
-          {page === 'vlans' && (
-            <VLANView
-              editable={editable} rooms={facilities.rooms}
-              onSessionError={e => handleError(e)} onChanged={() => void loadAll()}
             />
           )}
 

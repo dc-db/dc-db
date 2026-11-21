@@ -50,7 +50,7 @@ export function GuidePage({ onGo, onStartAsset }: Props) {
               <Globe2 aria-hidden />
               <strong>我先规划网络</strong>
               <p>先建 VLAN，再划网段，最后分配 IP 地址。</p>
-              <Button size="sm" onClick={() => onGo('subnets')}>去 IPAM</Button>
+              <Button size="sm" onClick={() => onGo('network')}>去网络</Button>
             </div>
           </div>
         </CardContent>
@@ -136,7 +136,7 @@ export function GuidePage({ onGo, onStartAsset }: Props) {
 
       <div className="guide-footer">
         <Space><Button variant="outline" onClick={() => onGo('facilities')}><Boxes className="size-4" />数据中心</Button>
-          <Button variant="outline" onClick={() => onGo('subnets')}><Network className="size-4" />IPAM</Button>
+          <Button variant="outline" onClick={() => onGo('network')}><Network className="size-4" />网络</Button>
           <Button variant="outline" onClick={() => onGo('host')}><Upload className="size-4" />资产列表</Button></Space>
       </div>
     </div>
