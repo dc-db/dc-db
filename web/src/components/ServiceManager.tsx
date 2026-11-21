@@ -3,7 +3,7 @@ import {
   getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
   type ColumnDef, type SortingState,
 } from '@tanstack/react-table'
-import { ArrowLeft, Building2, Link2, Monitor, Pencil, Plus, Server, Trash2, Unlink, Cable } from 'lucide-react'
+import { ArrowLeft, Building2, Link2, List, Monitor, Network, Pencil, Plus, Server, Trash2, Unlink, Cable } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Asset, Kind, Link, Service, ServiceFields } from '../api'
 import type { Facilities } from '../facilities'
@@ -74,6 +74,7 @@ export function ServiceManager({
   const [category, setCategory] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [detailView, setDetailView] = useState<'details' | 'topology'>('details')
 
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Service | null>(null)
@@ -95,6 +96,7 @@ export function ServiceManager({
   useEffect(() => {
     if (openServiceId) {
       setSelectedId(openServiceId)
+      setDetailView('details')
       onServiceOpened?.()
     }
   }, [openServiceId, onServiceOpened])
@@ -456,46 +458,68 @@ export function ServiceManager({
               {selectedService.description && <p className="svc-detail-desc">{selectedService.description}</p>}
             </div>
           </div>
-          {editable && (
-            <div className="svc-detail-actions">
-              <Button variant="outline" size="sm" onClick={() => showForm(selectedService)}><Pencil />编辑服务</Button>
-              <Button size="sm" onClick={() => showBindModal(selectedService)}><Link2 />关联资产</Button>
+          <div className="svc-detail-actions">
+            <div className="view-switch" role="group" aria-label="切换详情或拓扑视图">
+              <button
+                type="button"
+                className={detailView === 'details' ? 'is-active' : ''}
+                onClick={() => setDetailView('details')}
+              >
+                <List className="size-3.5" aria-hidden="true" />详情信息
+              </button>
+              <button
+                type="button"
+                className={detailView === 'topology' ? 'is-active' : ''}
+                onClick={() => setDetailView('topology')}
+              >
+                <Network className="size-3.5" aria-hidden="true" />关系拓扑
+              </button>
             </div>
-          )}
+            {editable && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => showForm(selectedService)}><Pencil />编辑</Button>
+                <Button size="sm" onClick={() => showBindModal(selectedService)}><Link2 />关联资产</Button>
+              </>
+            )}
+          </div>
         </div>
 
         {error && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
-        <div className="svc-detail-stats">
-          <div><span>关联资产</span><strong>{detailSummary.boundCount}</strong></div>
-          <div><span>虚拟机</span><strong>{detailSummary.vmCount}</strong></div>
-          <div><span>物理机</span><strong>{detailSummary.hostCount}</strong></div>
-          <div><span>覆盖数据中心</span><strong>{detailSummary.roomCount}</strong></div>
-        </div>
+        {detailView === 'details' ? (
+          <>
+            <div className="svc-detail-stats">
+              <div><span>关联资产</span><strong>{detailSummary.boundCount}</strong></div>
+              <div><span>虚拟机</span><strong>{detailSummary.vmCount}</strong></div>
+              <div><span>物理机</span><strong>{detailSummary.hostCount}</strong></div>
+              <div><span>覆盖数据中心</span><strong>{detailSummary.roomCount}</strong></div>
+            </div>
 
-        <ServiceTopologyGraph
-          service={selectedService}
-          assets={assets}
-          links={links}
-          facilities={facilities}
-          dark={dark}
-          editable={editable}
-          onOpenAsset={onOpenAsset}
-          onOpenRoom={onOpenRoom}
-          onManageAssets={() => showBindModal(selectedService)}
-        />
-
-        <section className="svc-bound-section">
-          <div className="svc-bound-head">
-            <h3>关联资产清单</h3>
-            <span className="text-xs text-muted-foreground tabular-nums">共 {detailSummary.boundCount} 台</span>
-          </div>
-          <DataTable
-            table={boundTable}
-            showPager={false}
-            emptyMessage="尚未关联资产，点击右上角「关联资产」绑定运行该服务的虚拟机或物理机"
+            <section className="svc-bound-section">
+              <div className="svc-bound-head">
+                <h3>关联资产清单</h3>
+                <span className="text-xs text-muted-foreground tabular-nums">共 {detailSummary.boundCount} 台</span>
+              </div>
+              <DataTable
+                table={boundTable}
+                showPager={false}
+                emptyMessage="尚未关联资产，点击右上角「关联资产」绑定运行该服务的虚拟机或物理机"
+              />
+            </section>
+          </>
+        ) : (
+          <ServiceTopologyGraph
+            service={selectedService}
+            assets={assets}
+            links={links}
+            facilities={facilities}
+            dark={dark}
+            editable={editable}
+            onOpenAsset={onOpenAsset}
+            onOpenRoom={onOpenRoom}
+            onManageAssets={() => showBindModal(selectedService)}
           />
-        </section>
+        )}
 
         <Dialog open={bindOpen} onOpenChange={next => { if (!bindSaving) setBindOpen(next) }}>
           <DialogContent className="sm:max-w-[560px]">
@@ -579,11 +603,12 @@ export function ServiceManager({
       onRowClick={(service, event) => {
         if ((event.target as HTMLElement).closest('button, a')) return
         setSelectedId(service.id)
+        setDetailView('details')
       }}
       emptyMessage={keyword || category ? '没有匹配的服务' : '还没有服务，新增一个开始维护'}
       pagerExtra={
         <span>
-          点击任一服务查看部署拓扑 · 开源图标基于 <a href="/licenses/simple-icons.txt" target="_blank" rel="noreferrer">Simple Icons (CC0 1.0)</a>
+          点击任一服务查看详情与部署拓扑 · 开源图标基于 <a href="/licenses/simple-icons.txt" target="_blank" rel="noreferrer">Simple Icons (CC0 1.0)</a>
         </span>
       }
     />
