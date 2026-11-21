@@ -200,7 +200,7 @@ export function ServiceTopologyGraph({
         }],
       },
       { key: 'vm', label: '虚拟机', nodes: vmNodes },
-      { key: 'host', label: '物理机', nodes: hostNodes },
+      { key: 'host', label: '服务器', nodes: hostNodes },
       { key: 'room', label: '数据中心', nodes: roomNodes },
     ]
 
@@ -218,7 +218,7 @@ export function ServiceTopologyGraph({
         <>
           <div className="mb-1"><ServiceIcon name={service.name} category={service.category} /></div>
           <p className="text-sm font-medium text-foreground">暂未关联承载资产</p>
-          <p className="text-xs text-muted-foreground">关联运行该服务的虚拟机或物理机后，可在此查看完整部署拓扑。</p>
+          <p className="text-xs text-muted-foreground">关联运行该服务的虚拟机或服务器后，可在此查看完整部署拓扑。</p>
           {editable && (
             <Button size="sm" variant="outline" className="mt-2" onClick={onManageAssets}>
               <Link2 />关联资产

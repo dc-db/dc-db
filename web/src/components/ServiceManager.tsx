@@ -36,7 +36,7 @@ interface Props {
 const emptyService: ServiceFields = { name: '', category: '', defaultPort: 0, description: '' }
 
 const kindLabels: Record<Kind, string> = {
-  host: '物理机',
+  host: '服务器',
   vm: '虚拟机',
   switch: '交换机',
 }
@@ -491,7 +491,7 @@ export function ServiceManager({
             <div className="svc-detail-stats">
               <div><span>关联资产</span><strong>{detailSummary.boundCount}</strong></div>
               <div><span>虚拟机</span><strong>{detailSummary.vmCount}</strong></div>
-              <div><span>物理机</span><strong>{detailSummary.hostCount}</strong></div>
+              <div><span>服务器</span><strong>{detailSummary.hostCount}</strong></div>
               <div><span>覆盖数据中心</span><strong>{detailSummary.roomCount}</strong></div>
             </div>
 
@@ -503,7 +503,7 @@ export function ServiceManager({
               <DataTable
                 table={boundTable}
                 showPager={false}
-                emptyMessage="尚未关联资产，点击右上角「关联资产」绑定运行该服务的虚拟机或物理机"
+                emptyMessage="尚未关联资产，点击右上角「关联资产」绑定运行该服务的虚拟机或服务器"
               />
             </section>
           </>
@@ -525,7 +525,7 @@ export function ServiceManager({
           <DialogContent className="sm:max-w-[560px]">
             <DialogHeader>
               <DialogTitle>关联资产 · {selectedService.name}</DialogTitle>
-              <DialogDescription>勾选运行该服务的虚拟机或物理机，系统会自动关联其宿主机与所在数据中心。</DialogDescription>
+              <DialogDescription>勾选运行该服务的虚拟机或服务器，系统会自动关联其宿主机与所在数据中心。</DialogDescription>
             </DialogHeader>
             {bindError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{bindError}</div>}
             <div className="svc-picker-filters">
@@ -535,7 +535,7 @@ export function ServiceManager({
                 onChange={event => setBindSearch(event.target.value)}
               />
               <div className="svc-picker-kinds" role="group" aria-label="按类型筛选">
-                {([['', '全部'], ['vm', '虚拟机'], ['host', '物理机'], ['switch', '交换机']] as const).map(([value, label]) => (
+                {([['', '全部'], ['vm', '虚拟机'], ['host', '服务器'], ['switch', '交换机']] as const).map(([value, label]) => (
                   <button
                     key={value || 'all'} type="button"
                     className={`svc-picker-kind${bindKind === value ? ' is-active' : ''}`}

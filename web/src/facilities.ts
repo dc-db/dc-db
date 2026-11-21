@@ -58,7 +58,7 @@ export interface AssetLocation {
 }
 
 export const mountKinds = {
-  host: '物理机',
+  host: '服务器',
   switch: '交换机',
 } as const
 

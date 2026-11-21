@@ -173,7 +173,7 @@ export function SubnetDetailView({
     getPaginationRowModel: getPaginationRowModel(),
   })
 
-  // Build layered topology: [VLAN?] → 网段 → 虚拟机/直接承载资产 → 物理机 → 数据中心
+  // Build layered topology: [VLAN?] → 网段 → 虚拟机/直接承载资产 → 服务器 → 数据中心
   const topo = useMemo(() => {
     const assetById = new Map(assets.map(a => [a.id, a]))
     const locations = assetLocations(facilities, links)
@@ -278,7 +278,7 @@ export function SubnetDetailView({
         }],
       },
       { key: 'vm', label: '虚拟机', nodes: vmNodes },
-      { key: 'host', label: '物理机 / 交换机', nodes: hostNodes },
+      { key: 'host', label: '服务器 / 交换机', nodes: hostNodes },
       { key: 'room', label: '数据中心', nodes: roomNodes },
     ]
     return { tiers, edges, linkedAssets: seenAsset.size }

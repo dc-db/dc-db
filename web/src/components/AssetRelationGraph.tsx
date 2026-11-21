@@ -20,7 +20,7 @@ const statusMap: Record<string, { label: string; tone: 'ok' | 'warn' | 'bad' | '
 }
 
 const kindLabels: Record<Asset['kind'], string> = {
-  host: '物理机',
+  host: '服务器',
   vm: '虚拟机',
   switch: '交换机',
 }
