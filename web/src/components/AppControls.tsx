@@ -149,9 +149,9 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, p
     const sorted = header.column.getIsSorted()
     if (!header.column.getCanSort()) return flexRender(header.column.columnDef.header, header.getContext())
     return (
-      <button type="button" className="control-sort-button" onClick={header.column.getToggleSortingHandler()}>
+      <button type="button" className={`control-sort-button${sorted ? ' is-sorted' : ''}`} onClick={header.column.getToggleSortingHandler()}>
         {flexRender(header.column.columnDef.header, header.getContext())}{' '}
-        <span className="control-sort-icon" aria-hidden>{sorted === 'asc' ? <ArrowUp size={12} /> : sorted === 'desc' ? <ArrowDown size={12} /> : <ChevronsUpDown size={12} />}</span>
+        <span className="control-sort-icon" aria-hidden>{sorted === 'asc' ? <ArrowUp size={14} /> : sorted === 'desc' ? <ArrowDown size={14} /> : <ChevronsUpDown size={14} />}</span>
       </button>
     )
   }
@@ -183,31 +183,33 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, p
       </tr>)}</thead><tbody>{rows.map(row => <tr key={String(row.original[rowKey])} className={rowClassName?.(row.original) || undefined} onClick={onRowClick ? event => onRowClick(row.original, event) : undefined} style={onRowClick ? { cursor: 'pointer' } : undefined}>{row.getVisibleCells().map((cell, cellIndex) => <td key={cell.id}>{rowSelection && cellIndex === 0
           ? <span className="control-cell-select"><UiCheckbox aria-label="选择该行" checked={selected.includes(row.original[rowKey] as string | number)} onCheckedChange={v => rowSelection.onChange(v ? [...selected, row.original[rowKey] as string | number] : selected.filter(k => k !== row.original[rowKey]))} />{flexRender(cell.column.columnDef.cell, cell.getContext())}</span>
           : flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}</tr>)}{!rows.length && <tr><td colSpan={columns.length}>{locale?.emptyText ?? <Empty />}</td></tr>}</tbody></table>
-      {pagination && (
-        <div className="control-pagination">
-          <span className="control-pagination-selected">
-            {rowSelection ? `${selected.length} 条已选` : pagination.showTotal?.(pagination.total)}
-          </span>
-          <div className="control-pagination-controls">
-            {pagination.showSizeChanger !== false && (
-              <label className="control-page-size">
-                每页
-                <select aria-label="每页条数" value={pageSize} onChange={e => pagination.onChange(1, Number(e.target.value))}>
-                  {(pagination.pageSizeOptions ?? ['10', '20', '50']).map(size => <option key={size} value={size}>{size}</option>)}
-                </select>
-                条
-              </label>
-            )}
-            <span className="control-page-count">第 {current} / {totalPages} 页</span>
-            <div className="control-page-buttons">
-              <UiButton variant="outline" size="icon-sm" aria-label="第一页" disabled={current <= 1} onClick={() => pagination.onChange(1, pageSize)}><ChevronsLeft /></UiButton>
-              <UiButton variant="outline" size="icon-sm" aria-label="上一页" disabled={current <= 1} onClick={() => pagination.onChange(current - 1, pageSize)}><ChevronLeft /></UiButton>
-              <UiButton variant="outline" size="icon-sm" aria-label="下一页" disabled={current >= totalPages} onClick={() => pagination.onChange(current + 1, pageSize)}><ChevronRight /></UiButton>
-              <UiButton variant="outline" size="icon-sm" aria-label="最后一页" disabled={current >= totalPages} onClick={() => pagination.onChange(totalPages, pageSize)}><ChevronsRight /></UiButton>
-            </div>
+    </div>
+    {pagination && (
+      <div className="control-pagination">
+        <span className="control-pagination-selected">
+          {rowSelection && selected.length > 0
+            ? <>已选 <strong className="font-medium text-foreground">{selected.length}</strong> / 共 {pagination.total} 条</>
+            : (pagination.showTotal?.(pagination.total) ?? <>共 <strong className="font-medium text-foreground">{pagination.total}</strong> 条</>)}
+        </span>
+        <div className="control-pagination-controls">
+          {pagination.showSizeChanger !== false && (
+            <label className="control-page-size">
+              每页
+              <select aria-label="每页条数" value={pageSize} onChange={e => pagination.onChange(1, Number(e.target.value))}>
+                {(pagination.pageSizeOptions ?? ['10', '20', '50']).map(size => <option key={size} value={size}>{size}</option>)}
+              </select>
+              条
+            </label>
+          )}
+          <span className="control-page-count">第 {current} / {totalPages} 页</span>
+          <div className="control-page-buttons">
+            <UiButton variant="outline" size="icon-sm" aria-label="第一页" disabled={current <= 1} onClick={() => pagination.onChange(1, pageSize)}><ChevronsLeft /></UiButton>
+            <UiButton variant="outline" size="icon-sm" aria-label="上一页" disabled={current <= 1} onClick={() => pagination.onChange(current - 1, pageSize)}><ChevronLeft /></UiButton>
+            <UiButton variant="outline" size="icon-sm" aria-label="下一页" disabled={current >= totalPages} onClick={() => pagination.onChange(current + 1, pageSize)}><ChevronRight /></UiButton>
+            <UiButton variant="outline" size="icon-sm" aria-label="最后一页" disabled={current >= totalPages} onClick={() => pagination.onChange(totalPages, pageSize)}><ChevronsRight /></UiButton>
           </div>
         </div>
-      )}
-    </div>
+      </div>
+    )}
   </div>
 }
