@@ -49,9 +49,12 @@ var importHeaderAliases = map[string]string{
 }
 
 var importKinds = map[string]string{
-	"host": "host", "物理机": "host", "主机": "host", "宿主机": "host",
+	"host": "host", "服务器": "host", "物理机": "host", "主机": "host", "宿主机": "host",
 	"vm": "vm", "虚拟机": "vm",
 	"switch": "switch", "交换机": "switch",
+	"router": "router", "路由器": "router",
+	"firewall": "firewall", "防火墙": "firewall",
+	"load_balancer": "load_balancer", "loadbalancer": "load_balancer", "lb": "load_balancer", "负载均衡": "load_balancer", "负载均衡器": "load_balancer",
 }
 
 var importPlatforms = map[string]string{
@@ -364,7 +367,7 @@ func decodeImportRow(record []string, columns map[string]int, rowNumber int) (Fi
 	rawKind := value("kind")
 	kind, ok := importKinds[strings.ToLower(rawKind)]
 	if !ok {
-		return Fields{}, nil, importRowError(rowNumber, "资源类型 %q 无效，可用：物理机、虚拟机、交换机", rawKind)
+		return Fields{}, nil, importRowError(rowNumber, "资源类型 %q 无效，可用：服务器、虚拟机、交换机、路由器、防火墙、负载均衡", rawKind)
 	}
 	name := value("name")
 	if name == "" {

@@ -375,3 +375,72 @@ func TestUsers(t *testing.T) {
 		t.Fatalf("wrong password: %v, %v", err, valid)
 	}
 }
+
+func TestNetworkDeviceKinds(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+
+	room, err := SaveRoom(ctx, db, 0, RoomFields{Name: "网络测试机房"}, 0, "tester")
+	if err != nil {
+		t.Fatalf("create room: %v", err)
+	}
+	rack, err := SaveRack(ctx, db, 0, room.ID, RackFields{Name: "NET-A01", HeightU: 42}, 0, "tester")
+	if err != nil {
+		t.Fatalf("create rack: %v", err)
+	}
+
+	csvText := strings.Join([]string{
+		"资源名称,类型,状态,地址 / IP",
+		"net-srv-01,服务器,在线,192.0.2.101",
+		"net-rtr-01,路由器,在线,192.0.2.102",
+		"net-fw-01,防火墙,在线,192.0.2.103",
+		"net-lb-01,负载均衡,在线,192.0.2.104",
+		"net-lb-02,LB,在线,192.0.2.105",
+	}, "\n") + "\n"
+	result, err := ImportAssets(ctx, db, strings.NewReader(csvText), "tester")
+	if err != nil || result.Imported != 5 {
+		t.Fatalf("import network kinds = %+v, %v", result, err)
+	}
+
+	assets, err := ListAssets(ctx, db)
+	if err != nil {
+		t.Fatalf("list assets: %v", err)
+	}
+	byName := make(map[string]Asset, len(assets))
+	for _, a := range assets {
+		byName[a.Name] = a
+	}
+	wantKinds := map[string]string{
+		"net-srv-01": "host",
+		"net-rtr-01": "router",
+		"net-fw-01":  "firewall",
+		"net-lb-01":  "load_balancer",
+		"net-lb-02":  "load_balancer",
+	}
+	startU := 1
+	for name, wantKind := range wantKinds {
+		asset, ok := byName[name]
+		if !ok || asset.Kind != wantKind {
+			t.Fatalf("asset %s = %+v, want kind %q", name, asset, wantKind)
+		}
+		if err := validateFields(&asset.Fields); err != nil {
+			t.Fatalf("validate %s (%s): %v", name, wantKind, err)
+		}
+		if _, err := SavePlacement(ctx, db, asset.ID, nil, PlacementFields{
+			RackID: rack.ID, StartU: startU, Units: 1, Face: "front", Depth: "full",
+		}, 0, "tester"); err != nil {
+			t.Fatalf("mount %s (%s): %v", name, wantKind, err)
+		}
+		startU += 2
+	}
+
+	vm, err := SaveAsset(ctx, db, 0, 0, baseFields("vm", "net-vm-01"), "tester")
+	if err != nil {
+		t.Fatalf("create vm: %v", err)
+	}
+	if _, err := SavePlacement(ctx, db, vm.ID, nil, PlacementFields{
+		RackID: rack.ID, StartU: 20, Units: 1, Face: "front", Depth: "full",
+	}, 0, "tester"); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("mounting vm error = %v, want ErrInvalid", err)
+	}
+}
