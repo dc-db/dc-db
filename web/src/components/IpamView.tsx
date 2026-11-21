@@ -16,8 +16,10 @@ import type { Subnet, SubnetFields, VLAN } from '../api'
 
 interface Props {
   editable: boolean
+  hideTitle?: boolean
   openSubnetId: number | null
   onSubnetOpened: () => void
+  onSelectSubnet?: (subnetId: number) => void
   bookmarkedSubnets: number[]
   onToggleSubnetBookmark: (id: number) => void
   onSessionError: (error: unknown) => void
@@ -126,7 +128,7 @@ function flattenSubnetTree(nodes: SubnetNode[], collapsed: Set<number>): SubnetR
   return rows
 }
 
-export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSubnets, onToggleSubnetBookmark, onSessionError, onChanged }: Props) {
+export function IpamView({ editable, hideTitle, openSubnetId, onSubnetOpened, onSelectSubnet, bookmarkedSubnets, onToggleSubnetBookmark, onSessionError, onChanged }: Props) {
   const [subnets, setSubnets] = useState<Subnet[]>([])
   const [vlans, setVLANs] = useState<VLAN[]>([])
   const [draft, setDraft] = useState<SubnetDraft | null>(null)
@@ -305,7 +307,7 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
 
   return <>
     <PageHeader
-      title="网段"
+      title={hideTitle ? undefined : '网段'}
       filters={<>
         <Input className="max-w-sm" placeholder="搜索名称、CIDR、VLAN、用途" value={subnetSearch} onChange={event => setSubnetSearch(event.target.value)} />
         <Select
@@ -341,7 +343,13 @@ export function IpamView({ editable, openSubnetId, onSubnetOpened, bookmarkedSub
               const total = item.usable
               const usedPct = total > 0 ? Math.min(100, Math.round(item.used / total * 100)) : 0
               return (
-                <tr key={item.id}>
+                <tr
+                  key={item.id}
+                  onClick={onSelectSubnet ? event => {
+                    if ((event.target as HTMLElement).closest('button, a')) return
+                    onSelectSubnet(item.id)
+                  } : undefined}
+                >
                   <td style={{ paddingLeft: 12 + depth * 16 }}>
                     <span className="ipam-subnet-name">
                       {children > 0

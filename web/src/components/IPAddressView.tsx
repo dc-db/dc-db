@@ -14,7 +14,18 @@ import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 import { Select } from './AppControls'
 
-interface Props { editable: boolean; assets: Asset[]; subnets: Subnet[]; onOpenAsset: (id: number) => void; onOpenSubnet: (id: number) => void; onSessionError: (error: unknown) => void; onChanged: () => void }
+interface Props {
+  editable: boolean
+  hideTitle?: boolean
+  initialSubnetId?: number | null
+  onInitialSubnetConsumed?: () => void
+  assets: Asset[]
+  subnets: Subnet[]
+  onOpenAsset: (id: number) => void
+  onOpenSubnet: (id: number) => void
+  onSessionError: (error: unknown) => void
+  onChanged: () => void
+}
 const stateMeta: Record<string, string> = { active: '启用', reserved: '预留', deprecated: '停用', dhcp: 'DHCP', slaac: 'SLAAC' }
 const sourceMeta: Record<string, string> = { allocated: '手工分配', asset: '资产地址', gateway: '网关' }
 const roleLabels: Record<string, string> = { loopback: '环回', secondary: '辅助', vip: 'VIP', vrrp: 'VRRP', hsrp: 'HSRP', glbp: 'GLBP', anycast: 'Anycast' }
@@ -23,7 +34,7 @@ interface AddressFields { subnetId?: number; ip: string; status: string; dnsName
 const emptyFields: AddressFields = { ip: '', status: 'active', dnsName: '', role: '', label: '', notes: '' }
 const assetLabel = (asset: Asset) => `${asset.name}（${asset.kind === 'vm' ? '虚拟机' : asset.kind === 'switch' ? '交换机' : '物理机'}）`
 
-export function IPAddressView({ editable, assets, subnets, onOpenAsset, onOpenSubnet, onSessionError, onChanged }: Props) {
+export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialSubnetConsumed, assets, subnets, onOpenAsset, onOpenSubnet, onSessionError, onChanged }: Props) {
   const [addresses, setAddresses] = useState<IPAddress[]>([])
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -34,12 +45,18 @@ export function IPAddressView({ editable, assets, subnets, onOpenAsset, onOpenSu
   const [source, setSource] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
   const [state, setState] = useState('')
-  const [subnetId, setSubnetId] = useState('')
+  const [subnetId, setSubnetId] = useState(() => (initialSubnetId ? String(initialSubnetId) : ''))
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<IPAddress | null>(null)
   const [releasing, setReleasing] = useState<IPAddress | null>(null)
   const [fields, setFields] = useState<AddressFields>(emptyFields)
   useEffect(() => { void load() }, [])
+  useEffect(() => {
+    if (initialSubnetId) {
+      setSubnetId(String(initialSubnetId))
+      onInitialSubnetConsumed?.()
+    }
+  }, [initialSubnetId, onInitialSubnetConsumed])
   function report(e: unknown) { if (e instanceof APIError && e.status === 401) { onSessionError(e); return }; setError(e instanceof Error ? e.message : '操作失败') }
   async function load() { setLoading(true); setError(''); try { setAddresses(await api<IPAddress[]>('/ip-addresses')) } catch (e) { report(e) } finally { setLoading(false) } }
   function showForm(address: IPAddress | null) {
@@ -102,7 +119,7 @@ export function IPAddressView({ editable, assets, subnets, onOpenAsset, onOpenSu
 
   return <>
     <PageHeader
-      title="IP"
+      title={hideTitle ? undefined : 'IP'}
       filters={<>
         <Input className="max-w-sm" placeholder="搜索 IP、DNS、资产、用途或网段" value={keyword} onChange={event => setKeyword(event.target.value)} />
         <Select
@@ -120,7 +137,6 @@ export function IPAddressView({ editable, assets, subnets, onOpenAsset, onOpenSu
           onChange={(value: string | undefined) => setState(value ?? '')}
           options={Object.entries(stateMeta).map(([value, label]) => ({ value, label }))}
         />
-        <span className="text-sm text-muted-foreground">共 {visible.length} 条</span>
       </>}
       actions={<>
         <Button variant="outline" disabled={!visible.length} onClick={exportCSV}><Download />导出</Button>
