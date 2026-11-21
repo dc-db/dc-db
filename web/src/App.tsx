@@ -731,7 +731,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   function openSubnet(id: number) {
     setIpamSubnetId(id)
-    setNetworkTab('ips')
+    setNetworkTab('subnets')
     goTo('network')
   }
 
@@ -1451,7 +1451,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           {page === 'network' && (
             <NetworkView
               tab={networkTab} onTabChange={setNetworkTab}
-              editable={editable} assets={assets} links={links} facilities={facilities} subnets={subnets}
+              editable={editable} dark={dark} assets={assets} links={links} facilities={facilities} subnets={subnets}
               openSubnetId={ipamSubnetId} onSubnetOpened={() => setIpamSubnetId(null)}
               bookmarkedSubnets={subnetBookmarks} onToggleSubnetBookmark={toggleSubnetBookmark}
               onOpenAsset={id => void openAsset(id)} onOpenRoom={openRoom}

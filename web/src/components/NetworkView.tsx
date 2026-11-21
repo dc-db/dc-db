@@ -14,6 +14,7 @@ import { IPAddressView } from './IPAddressView'
 import { IpamView } from './IpamView'
 import { OperatorTowerIcon } from './MetadataIcons'
 import { MetadataManager } from './MetadataManager'
+import { SubnetDetailView, VLANDetailView } from './NetworkDetailViews'
 import { PageHeader } from './PageHeader'
 import { RowIconBox } from './ServiceIcon'
 import { VLANView } from './VLANView'
@@ -27,6 +28,7 @@ interface Props {
   tab: NetworkTab
   onTabChange: (tab: NetworkTab) => void
   editable: boolean
+  dark: boolean
   assets: Asset[]
   links: Link[]
   facilities: Facilities
@@ -55,6 +57,7 @@ export function NetworkView({
   tab,
   onTabChange,
   editable,
+  dark,
   assets,
   links,
   facilities,
@@ -72,6 +75,8 @@ export function NetworkView({
   const [vlanCount, setVlanCount] = useState(0)
   const [operatorCount, setOperatorCount] = useState(0)
   const [filterSubnetId, setFilterSubnetId] = useState<number | null>(null)
+  const [selectedSubnetId, setSelectedSubnetId] = useState<number | null>(null)
+  const [selectedVLAN, setSelectedVLAN] = useState<VLAN | null>(null)
 
   // Network devices (switches) tab state
   const [deviceSearch, setDeviceSearch] = useState('')
@@ -95,10 +100,16 @@ export function NetworkView({
 
   useEffect(() => {
     if (openSubnetId == null) return
-    setFilterSubnetId(openSubnetId)
-    onTabChange('ips')
+    setSelectedVLAN(null)
+    setSelectedSubnetId(openSubnetId)
+    onTabChange('subnets')
     onSubnetOpened()
   }, [openSubnetId, onSubnetOpened, onTabChange])
+
+  const selectedSubnet = useMemo(
+    () => (selectedSubnetId ? subnets.find(s => s.id === selectedSubnetId) ?? null : null),
+    [selectedSubnetId, subnets],
+  )
 
   const switches = useMemo(() => assets.filter(asset => asset.kind === 'switch'), [assets])
   const onlineSwitches = useMemo(
@@ -209,18 +220,77 @@ export function NetworkView({
     getPaginationRowModel: getPaginationRowModel(),
   })
 
-  const tabs: { key: NetworkTab; label: string; count: number; icon: ComponentType<{ className?: string }> }[] = [
-    { key: 'subnets', label: '网段', count: subnets.length, icon: Network },
-    { key: 'ips', label: 'IP 地址', count: ipStats.used, icon: LocateFixed },
-    { key: 'vlans', label: 'VLAN', count: vlanCount, icon: Split },
-    { key: 'devices', label: '网络设备', count: switches.length, icon: Cable },
-    { key: 'operators', label: '运营商', count: operatorCount, icon: OperatorTowerIcon },
+  const sections: {
+    key: NetworkTab
+    label: string
+    value: string | number
+    sub: string
+    icon: ComponentType<{ className?: string }>
+  }[] = [
+    { key: 'subnets', label: '网段', value: subnets.length, sub: `总利用率 ${ipStats.percent}%`, icon: Network },
+    { key: 'ips', label: 'IP 地址', value: ipStats.used.toLocaleString('zh-CN'), sub: `空闲 ${ipStats.free.toLocaleString('zh-CN')} 个`, icon: LocateFixed },
+    { key: 'vlans', label: 'VLAN', value: vlanCount, sub: '二层广播域', icon: Split },
+    { key: 'devices', label: '网络设备', value: switches.length, sub: `在线 ${onlineSwitches} 台`, icon: Cable },
+    { key: 'operators', label: '运营商', value: operatorCount, sub: '线路与出口', icon: OperatorTowerIcon },
   ]
+
+  function switchTab(next: NetworkTab) {
+    setSelectedSubnetId(null)
+    setSelectedVLAN(null)
+    onTabChange(next)
+  }
 
   function handleDataChanged() {
     onChanged()
     void loadCounts()
   }
+
+  // Dedicated full-page Subnet Detail (details table default + toggleable topology)
+  if (selectedSubnet) {
+    return (
+      <SubnetDetailView
+        subnet={selectedSubnet}
+        assets={assets}
+        links={links}
+        facilities={facilities}
+        dark={dark}
+        onBack={() => setSelectedSubnetId(null)}
+        onOpenAsset={onOpenAsset}
+        onOpenRoom={onOpenRoom}
+        onOpenIPsForSubnet={id => {
+          setSelectedSubnetId(null)
+          setFilterSubnetId(id)
+          onTabChange('ips')
+        }}
+        onSessionError={onSessionError}
+      />
+    )
+  }
+
+  // Dedicated full-page VLAN Detail (details table default + toggleable topology)
+  if (selectedVLAN) {
+    return (
+      <VLANDetailView
+        vlan={selectedVLAN}
+        subnets={subnets}
+        assets={assets}
+        links={links}
+        facilities={facilities}
+        dark={dark}
+        onBack={() => setSelectedVLAN(null)}
+        onOpenSubnetDetail={subnet => {
+          setSelectedVLAN(null)
+          setSelectedSubnetId(subnet.id)
+          onTabChange('subnets')
+        }}
+        onOpenAsset={onOpenAsset}
+        onOpenRoom={onOpenRoom}
+      />
+    )
+  }
+
+  const activeSection = sections.find(s => s.key === tab) ?? sections[0]
+  const ActiveIcon = activeSection.icon
 
   return (
     <div className="network-page">
@@ -228,36 +298,9 @@ export function NetworkView({
         <h2 className="asset-view-title">网络</h2>
       </div>
 
-      <div className="network-summary" role="region" aria-label="网络概览">
-        <button type="button" className={`network-stat${tab === 'subnets' ? ' is-active' : ''}`} onClick={() => onTabChange('subnets')}>
-          <span className="network-stat-label">网段</span>
-          <strong className="network-stat-value">{subnets.length}</strong>
-          <span className="network-stat-sub">总利用率 {ipStats.percent}%</span>
-        </button>
-        <button type="button" className={`network-stat${tab === 'ips' ? ' is-active' : ''}`} onClick={() => onTabChange('ips')}>
-          <span className="network-stat-label">空闲 IP</span>
-          <strong className="network-stat-value">{ipStats.free.toLocaleString('zh-CN')}</strong>
-          <span className="network-stat-sub">已用 {ipStats.used.toLocaleString('zh-CN')}</span>
-        </button>
-        <button type="button" className={`network-stat${tab === 'vlans' ? ' is-active' : ''}`} onClick={() => onTabChange('vlans')}>
-          <span className="network-stat-label">VLAN</span>
-          <strong className="network-stat-value">{vlanCount}</strong>
-          <span className="network-stat-sub">二层网络规划</span>
-        </button>
-        <button type="button" className={`network-stat${tab === 'devices' ? ' is-active' : ''}`} onClick={() => onTabChange('devices')}>
-          <span className="network-stat-label">网络设备</span>
-          <strong className="network-stat-value">{switches.length}</strong>
-          <span className="network-stat-sub">在线 {onlineSwitches} 台</span>
-        </button>
-        <button type="button" className={`network-stat${tab === 'operators' ? ' is-active' : ''}`} onClick={() => onTabChange('operators')}>
-          <span className="network-stat-label">运营商</span>
-          <strong className="network-stat-value">{operatorCount}</strong>
-          <span className="network-stat-sub">线路与出口</span>
-        </button>
-      </div>
-
-      <nav className="network-tabs" role="tablist" aria-label="网络模块">
-        {tabs.map(item => {
+      {/* Single unified switcher: KPI overview + unmistakable active tab */}
+      <nav className="network-switcher" role="tablist" aria-label="网络功能区">
+        {sections.map(item => {
           const Icon = item.icon
           const active = item.key === tab
           return (
@@ -266,25 +309,37 @@ export function NetworkView({
               type="button"
               role="tab"
               aria-selected={active}
-              className={`network-tab${active ? ' is-active' : ''}`}
-              onClick={() => onTabChange(item.key)}
+              className={`network-card${active ? ' is-active' : ''}`}
+              onClick={() => switchTab(item.key)}
             >
-              <Icon className="size-4" />
-              <span>{item.label}</span>
-              <span className="network-tab-count">{item.count}</span>
+              <div className="network-card-top">
+                <span className="network-card-label">
+                  <Icon className="network-card-icon" />
+                  <span>{item.label}</span>
+                </span>
+                {active && <span className="network-card-active-dot" aria-hidden="true" />}
+              </div>
+              <strong className="network-card-value">{item.value}</strong>
+              <span className="network-card-sub">{item.sub}</span>
             </button>
           )
         })}
       </nav>
 
-      <div className="network-panel" role="tabpanel">
+      <div className="network-panel" role="tabpanel" aria-label={activeSection.label}>
+        <div className="network-section-bar">
+          <ActiveIcon className="size-4 text-info" />
+          <h3>{activeSection.label}</h3>
+          <span className="text-xs text-muted-foreground">{activeSection.sub}</span>
+        </div>
+
         {tab === 'subnets' && (
           <IpamView
             hideTitle
             editable={editable}
             openSubnetId={null}
             onSubnetOpened={() => {}}
-            onSelectSubnet={id => { setFilterSubnetId(id); onTabChange('ips') }}
+            onSelectSubnet={id => setSelectedSubnetId(id)}
             bookmarkedSubnets={bookmarkedSubnets}
             onToggleSubnetBookmark={onToggleSubnetBookmark}
             onSessionError={onSessionError}
@@ -301,7 +356,7 @@ export function NetworkView({
             assets={assets}
             subnets={subnets}
             onOpenAsset={onOpenAsset}
-            onOpenSubnet={id => setFilterSubnetId(id)}
+            onOpenSubnet={id => setSelectedSubnetId(id)}
             onSessionError={onSessionError}
             onChanged={handleDataChanged}
           />
@@ -312,6 +367,7 @@ export function NetworkView({
             hideTitle
             editable={editable}
             rooms={facilities.rooms}
+            onSelectVLAN={vlan => setSelectedVLAN(vlan)}
             onSessionError={onSessionError}
             onChanged={handleDataChanged}
           />

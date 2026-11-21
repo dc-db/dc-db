@@ -14,7 +14,7 @@ import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 
 interface RoomOption { id: number; name: string }
-interface Props { editable: boolean; hideTitle?: boolean; rooms: RoomOption[]; onSessionError: (error: unknown) => void; onChanged: () => void }
+interface Props { editable: boolean; hideTitle?: boolean; rooms: RoomOption[]; onSelectVLAN?: (vlan: VLAN) => void; onSessionError: (error: unknown) => void; onChanged: () => void }
 const statusMeta: Record<string, { label: string; className: string }> = {
   active: { label: '启用', className: 'border-success-border bg-success-soft text-success' },
   reserved: { label: '预留', className: 'border-warning-border bg-warning-soft text-warning' },
@@ -23,7 +23,7 @@ const statusMeta: Record<string, { label: string; className: string }> = {
 const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
 const emptyFields: VLANFields = { vid: 0, name: '', status: 'active', description: '', roomId: undefined }
 
-export function VLANView({ editable, hideTitle, rooms, onSessionError, onChanged }: Props) {
+export function VLANView({ editable, hideTitle, rooms, onSelectVLAN, onSessionError, onChanged }: Props) {
   const [vlans, setVlans] = useState<VLAN[]>([])
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -133,6 +133,10 @@ export function VLANView({ editable, hideTitle, rooms, onSessionError, onChanged
       table={table}
       loading={loading}
       pagerUnit="个"
+      onRowClick={onSelectVLAN ? (vlan, event) => {
+        if ((event.target as HTMLElement).closest('button, a')) return
+        onSelectVLAN(vlan)
+      } : undefined}
       emptyMessage={keyword || status ? '没有匹配的 VLAN' : '暂无 VLAN，新增一个开始规划二层网络'}
     />
     <Dialog open={modalOpen} onOpenChange={next => { if (!busy) { setModalOpen(next); if (!next) setEditing(null) } }}><DialogContent><DialogHeader><DialogTitle>{editing ? `编辑 VLAN ${editing.vid}` : '新增 VLAN'}</DialogTitle></DialogHeader>
