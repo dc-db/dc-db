@@ -123,7 +123,7 @@ export default function App() {
     } catch {
       // Storage may be unavailable in private browsing.
     }
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0a0a0a' : '#ffffff')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#111215' : '#f6f6f4')
   }, [dark])
 
   return (
@@ -132,11 +132,11 @@ export default function App() {
       theme={{
         algorithm: dark ? theme.darkAlgorithm : theme.defaultAlgorithm,
         token: {
-          colorPrimary: dark ? '#e5e5e5' : '#171717',
+          colorPrimary: dark ? '#eceef2' : '#1c1c1a',
           borderRadius: 8,
-          colorBgContainer: dark ? '#0a0a0a' : '#ffffff',
-          colorBgLayout: dark ? '#0a0a0a' : '#ffffff',
-          colorBgElevated: dark ? '#171717' : '#ffffff',
+          colorBgContainer: dark ? '#181a1f' : '#ffffff',
+          colorBgLayout: dark ? '#111215' : '#f6f6f4',
+          colorBgElevated: dark ? '#1f2229' : '#ffffff',
         },
       }}
     >
