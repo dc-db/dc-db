@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { api, APIError } from '../api'
 import type { Asset, Link } from '../api'
 import { assetLocations, isMountKind, locationLabel, mountKinds, occupiedUnits, placementsConflict } from '../facilities'
+import { isNetworkKind } from '../kinds'
 import type { AssetLocation, Facilities, MountKind, Placement, PlacementDepth, Rack, RackFace, RackFields, Region, Room, RoomFields } from '../facilities'
 import { rackElevationSvg } from '../rackExport'
 import { downloadCSV } from '../csv'
@@ -420,7 +421,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
     if (next.mode === 'existing') {
       changeDevice(next)
     } else {
-      const units = next.kind === 'switch' ? 1 : 2
+      const units = isNetworkKind(next.kind) ? 1 : 2
       setMountDraft({ ...next, units, startU: freePosition(units, 0, next.face, next.depth) })
     }
   }

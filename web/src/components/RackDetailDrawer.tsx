@@ -55,8 +55,6 @@ export function RackDetailDrawer({
   const frontUsed = occupiedUnits(devices.filter(item => item.depth === 'full' || item.face === 'front')).size
   const rearUsed = occupiedUnits(devices.filter(item => item.depth === 'full' || item.face === 'rear')).size
   const percent = Math.round(used / rack.heightU * 100)
-  const hostCount = devices.filter(item => assets.get(item.assetId)?.kind === 'host').length
-  const switchCount = devices.filter(item => assets.get(item.assetId)?.kind === 'switch').length
   const fullDepthCount = devices.filter(item => item.depth === 'full').length
   const halfDepthCount = devices.length - fullDepthCount
 

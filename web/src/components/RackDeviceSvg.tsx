@@ -1,3 +1,5 @@
+import { isNetworkKind } from '../kinds'
+
 interface Props {
   kind: string
   units: number
@@ -96,8 +98,60 @@ function SwitchFaceplate({ status }: { status?: string }) {
   )
 }
 
+function ApplianceFaceplate({ status }: { status?: string }) {
+  const ports = Array.from({ length: 8 }, (_, index) => index)
+  return (
+    <svg className="rack-face" viewBox="0 0 400 40" preserveAspectRatio="none" aria-hidden="true">
+      <rect className="face-body switch-body" x="1" y="1" width="398" height="38" rx="2" />
+      <rect className="face-edge" x="3" y="3" width="394" height="34" rx="1" />
+      <rect className="face-handle" x="6" y="7" width="6" height="26" rx="2" />
+      <circle className="face-button" cx="22" cy="14" r="3" />
+      <circle className={`face-led ${ledClass(status)}`} cx="22" cy="25" r="2" />
+      <circle className="face-led" cx="22" cy="32" r="1.4" />
+
+      <rect className="face-bay" x="42" y="8" width="68" height="24" rx="1.5" />
+      <rect className="face-bay-slot" x="47" y="13" width="42" height="14" rx="1" />
+      <circle className={`face-led ${ledClass(status)}`} cx="99" cy="16" r="2" />
+      <circle className="face-led" cx="99" cy="24" r="1.6" />
+
+      <g className="face-ports">
+        {ports.map(index => {
+          const row = index < 4 ? 0 : 1
+          const column = index % 4
+          const x = 132 + column * 24
+          const y = 7 + row * 15
+          return (
+            <g key={index}>
+              <rect className="face-port" x={x} y={y} width="18" height="10" rx="1" />
+              <rect className="face-port-inner" x={x + 2} y={y + 2} width="14" height="6" rx=".5" />
+              <circle className={`face-led ${ledClass(status)}`} cx={x + 3.5} cy={y + 4} r="1" />
+            </g>
+          )
+        })}
+      </g>
+
+      <g className="face-sfp">
+        <rect x="248" y="7" width="26" height="10" rx="1" />
+        <rect x="278" y="7" width="26" height="10" rx="1" />
+        <rect x="248" y="23" width="26" height="10" rx="1" />
+        <rect x="278" y="23" width="26" height="10" rx="1" />
+        <rect className="face-sfp-inner" x="252" y="10" width="18" height="4" rx=".5" />
+        <rect className="face-sfp-inner" x="282" y="10" width="18" height="4" rx=".5" />
+        <rect className="face-sfp-inner" x="252" y="26" width="18" height="4" rx=".5" />
+        <rect className="face-sfp-inner" x="282" y="26" width="18" height="4" rx=".5" />
+      </g>
+      <g className="face-vents">
+        {Array.from({ length: 5 }, (_, index) => (
+          <rect key={index} x="320" y={8 + index * 5} width="40" height="2.6" rx="1" />
+        ))}
+      </g>
+      <rect className="face-console" x="372" y="15" width="14" height="10" rx="1" />
+    </svg>
+  )
+}
+
 export function RackDeviceSvg({ kind, units, status }: Props) {
-  return kind === 'switch'
-    ? <SwitchFaceplate status={status} />
-    : <ServerFaceplate units={units} status={status} />
+  if (kind === 'switch') return <SwitchFaceplate status={status} />
+  if (isNetworkKind(kind)) return <ApplianceFaceplate status={status} />
+  return <ServerFaceplate units={units} status={status} />
 }

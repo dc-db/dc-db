@@ -60,6 +60,9 @@ export interface AssetLocation {
 export const mountKinds = {
   host: '服务器',
   switch: '交换机',
+  router: '路由器',
+  firewall: '防火墙',
+  load_balancer: '负载均衡',
 } as const
 
 export type MountKind = keyof typeof mountKinds
