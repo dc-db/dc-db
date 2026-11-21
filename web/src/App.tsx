@@ -1543,7 +1543,14 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                     placeholder={`搜索${pageLabel}…`}
                     value={keyword} onChange={(event: React.ChangeEvent<HTMLInputElement>) => setKeyword(event.target.value)}
                   />
-                  {page !== 'network_devices' && (
+                  {page === 'network_devices' ? (
+                    <Select
+                      style={{ width: 135 }} allowClear searchable={false} placeholder="全部类型"
+                      value={networkKindFilter || undefined}
+                      onChange={(value: NetworkKind | undefined) => setNetworkKindFilter(value ?? '')}
+                      options={NETWORK_KINDS.map(kind => ({ value: kind, label: KIND_LABELS[kind] }))}
+                    />
+                  ) : (
                     <Select
                       style={{ width: 145 }} allowClear searchable={false} placeholder="全部平台" value={platformFilter}
                       onChange={setPlatformFilter}
@@ -1598,33 +1605,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                   {editable && <Button type="primary" onClick={() => startNew()}><PlusOutlined /> 新增{pageLabel}</Button>}
                 </Space>}
               />
-              {page === 'network_devices' && (
-                <div className="device-kind-bar" role="tablist" aria-label="按设备类型筛选">
-                  <button
-                    type="button" role="tab" aria-selected={networkKindFilter === ''}
-                    className={`device-kind-pill${networkKindFilter === '' ? ' is-active' : ''}`}
-                    onClick={() => setNetworkKindFilter('')}
-                  >
-                    <span>全部</span>
-                    <span className="device-kind-count">{scoped.length}</span>
-                  </button>
-                  {NETWORK_KINDS.map(kind => {
-                    const count = scoped.filter(item => item.kind === kind).length
-                    const active = networkKindFilter === kind
-                    return (
-                      <button
-                        key={kind} type="button" role="tab" aria-selected={active}
-                        className={`device-kind-pill${active ? ' is-active' : ''}`}
-                        onClick={() => setNetworkKindFilter(kind)}
-                      >
-                        <AssetKindIcon kind={kind} />
-                        <span>{KIND_LABELS[kind]}</span>
-                        <span className="device-kind-count">{count}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
               {editable && selectedAssetIds.length > 0 && (
                 <div className="bulk-bar">
                   <span>已选择 <strong>{selectedAssetIds.length}</strong> 条资产</span>
