@@ -12,7 +12,6 @@ import {
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
   House as HomeOutlined, ArrowLeft as ArrowLeftOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
-  FolderTree as FolderTreeOutlined, Boxes as BoxesOutlined, Blocks as BlocksOutlined,
   Network as NetworkOutlined, Split as SplitOutlined, LocateFixed as LocateFixedOutlined,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
@@ -34,6 +33,7 @@ import { IPAddressView } from './components/IPAddressView'
 import { IpamView } from './components/IpamView'
 import { LoginBackdrop } from './components/LoginBackdrop'
 import { PageHeader } from './components/PageHeader'
+import { ReferenceDataIcon } from './components/MetadataIcons'
 import { MetadataView } from './components/MetadataView'
 import { UserManager } from './components/UserManager'
 import { VLANView } from './components/VLANView'
@@ -284,7 +284,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         { key: 'ips', label: 'IP', icon: <LocateFixedOutlined /> },
       ],
     },
-    { key: 'metadata', label: '基础数据', icon: <FolderTreeOutlined /> },
+    { key: 'metadata', label: '基础数据', icon: <ReferenceDataIcon /> },
     {
       key: 'system', label: '系统管理', icon: <SettingOutlined />,
       children: systemChildren,

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { ComponentType } from 'react'
-import { Boxes, FolderTree, Globe, Tags, UserRound } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Group, Tag } from '../api'
 import type { Page } from '../types'
 import { GroupManager } from './GroupManager'
+import {
+  GroupClusterIcon, OperatorTowerIcon, OwnerBadgeIcon, ServiceNodeIcon, TagMarkIcon,
+} from './MetadataIcons'
 import { ServiceManager } from './ServiceManager'
 import { TagManager } from './TagManager'
 import { MetadataManager } from './MetadataManager'
@@ -20,11 +22,11 @@ interface Props {
 type CategoryKey = 'groups' | 'services' | 'tags' | 'owner' | 'operator'
 
 const categories: { key: CategoryKey; label: string; kind?: string; icon: ComponentType<{ className?: string }> }[] = [
-  { key: 'groups', label: '群组', icon: FolderTree },
-  { key: 'services', label: '服务', icon: Boxes },
-  { key: 'tags', label: '标签', icon: Tags },
-  { key: 'owner', label: '负责人', kind: 'owner', icon: UserRound },
-  { key: 'operator', label: '运营商', kind: 'operator', icon: Globe },
+  { key: 'groups', label: '群组', icon: GroupClusterIcon },
+  { key: 'services', label: '服务', icon: ServiceNodeIcon },
+  { key: 'tags', label: '标签', icon: TagMarkIcon },
+  { key: 'owner', label: '负责人', kind: 'owner', icon: OwnerBadgeIcon },
+  { key: 'operator', label: '运营商', kind: 'operator', icon: OperatorTowerIcon },
 ]
 
 function categoryForPage(page: Page): CategoryKey {
