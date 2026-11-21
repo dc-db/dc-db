@@ -846,6 +846,7 @@ html:not([data-theme="dark"]) [data-slot="button"][data-variant="outline"]:hover
 .data-table-sort.is-sorted .data-table-sort-icon { color: var(--text); opacity: 1; }
 
 .table-name-cell { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.table-row-action { margin-right: -10px; }
 .row-icon-box { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--subtle); color: var(--muted); }
 .row-icon-box.is-brand { background: var(--surface); color: var(--brand-light, var(--text)); }
 html[data-theme="dark"] .row-icon-box.is-brand { background: var(--subtle); color: var(--brand-dark, var(--text)); }

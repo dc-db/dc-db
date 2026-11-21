@@ -84,7 +84,7 @@ export function IPAddressView({ editable, assets, subnets, onOpenAsset, onOpenSu
       meta: { headerClassName: 'w-[120px] text-right', cellClassName: 'w-[120px] whitespace-nowrap text-right' },
       header: () => <div className="text-right">操作</div>,
       cell: ({ row }: { row: { original: IPAddress } }) => row.original.allocationId
-        ? <div className="flex justify-end gap-1"><Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button><Button variant="ghost" size="icon-sm" className="text-destructive" aria-label={`释放 ${row.original.ip}`} onClick={() => setReleasing(row.original)}><Trash2 /></Button></div>
+        ? <div className="table-row-action flex justify-end gap-1"><Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button><Button variant="ghost" size="icon-sm" className="text-destructive" aria-label={`释放 ${row.original.ip}`} onClick={() => setReleasing(row.original)}><Trash2 /></Button></div>
         : <span className="text-muted-foreground">—</span>,
     }] : []),
   ]

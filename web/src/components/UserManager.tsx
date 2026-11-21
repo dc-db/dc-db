@@ -115,7 +115,7 @@ export function UserManager({ currentUsername, onSessionError }: Props) {
         if (user.username === currentUsername) return <span className="text-xs text-muted-foreground">请使用「更改密码」维护当前账号</span>
         const lastAdmin = user.role === 'admin' && adminCount <= 1
         return (
-          <div className="flex justify-end gap-1">
+          <div className="table-row-action flex justify-end gap-1">
             <Button variant="ghost" size="sm" onClick={() => showForm(user)}><Pencil />编辑</Button>
             <Button variant="ghost" size="icon-sm" className="text-destructive" disabled={busy || lastAdmin} title={lastAdmin ? '不能删除最后一个管理员' : undefined} aria-label={`删除账号 ${user.username}`} onClick={() => setDeleting(user)}><Trash2 /></Button>
           </div>
