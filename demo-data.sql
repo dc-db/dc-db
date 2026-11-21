@@ -30,7 +30,7 @@ SELECT v.* FROM (
     UNION ALL SELECT 5, 'vm', 'demo-worker-01', 'kvm', 'stopped', 'active', '示例应用组', '演示', '198.51.100.23', 4, 8192, '虚构工作节点', '{}'
     UNION ALL SELECT 6, 'switch', 'demo-switch-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.2', 0, 0, '虚构核心交换机', '{}'
     UNION ALL SELECT 7, 'switch', 'demo-switch-02', '', 'offline', 'active', '示例网络组', '演示', '192.0.2.3', 0, 0, '虚构接入交换机', '{}'
-    UNION ALL SELECT 8, 'host', 'demo-fw-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.1', 0, 0, '虚构边界防火墙', '{}'
+    UNION ALL SELECT 8, 'firewall', 'demo-fw-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.1', 0, 0, '虚构边界防火墙', '{}'
     UNION ALL SELECT 9, 'host', 'demo-host-03', 'pve', 'online', 'active', '示例运维组', '演示', '192.0.2.13', 16, 65536, '虚构宿主机', '{}'
     UNION ALL SELECT 10, 'host', 'demo-host-04', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.14', 16, 65536, '虚构宿主机', '{}'
     UNION ALL SELECT 11, 'switch', 'demo-switch-03', '', 'online', 'active', '示例网络组', '演示', '192.0.2.4', 0, 0, '虚构汇聚交换机', '{}'
@@ -50,7 +50,11 @@ SELECT v.* FROM (
     UNION ALL SELECT 25, 'host', 'demo-cd-host-01', 'kvm', 'online', 'active', '示例运维组', '演示', '203.0.113.15', 12, 49152, '虚构成都宿主机', '{}'
     UNION ALL SELECT 26, 'switch', 'demo-cd-switch-01', '', 'online', 'active', '示例网络组', '演示', '203.0.113.3', 0, 0, '虚构成都汇聚交换机', '{}'
     UNION ALL SELECT 27, 'host', 'demo-test-host-03', 'pve', 'offline', 'active', '示例运维组', '演示', '203.0.113.16', 8, 32768, '虚构测试宿主机', '{}'
-    UNION ALL SELECT 28, 'vm', 'demo-test-app-01', 'kvm', 'stopped', 'active', '示例应用组', '演示', '203.0.113.24', 2, 4096, '虚构测试虚拟机', '{}') AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+    UNION ALL SELECT 28, 'vm', 'demo-test-app-01', 'kvm', 'stopped', 'active', '示例应用组', '演示', '203.0.113.24', 2, 4096, '虚构测试虚拟机', '{}'
+    UNION ALL SELECT 29, 'router', 'demo-router-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.7', 0, 0, '虚构核心出口路由器', '{}'
+    UNION ALL SELECT 30, 'firewall', 'demo-sz-fw-01', '', 'online', 'active', '示例网络组', '演示', '203.0.113.1', 0, 0, '虚构深圳边界防火墙', '{}'
+    UNION ALL SELECT 31, 'load_balancer', 'demo-lb-01', '', 'online', 'active', '示例网络组', '演示', '198.51.100.2', 0, 0, '虚构北京硬件负载均衡', '{}'
+    UNION ALL SELECT 32, 'load_balancer', 'demo-sh-lb-01', '', 'online', 'active', '示例网络组', '演示', '198.51.100.3', 0, 0, '虚构上海硬件负载均衡', '{}') AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
 INSERT INTO asset_links (from_id, to_id, kind)
 SELECT v.* FROM (
@@ -93,6 +97,8 @@ SELECT v.* FROM (
     UNION ALL SELECT 17, 1 UNION ALL SELECT 18, 1 UNION ALL SELECT 19, 1 UNION ALL SELECT 20, 1
     UNION ALL SELECT 21, 1 UNION ALL SELECT 23, 1 UNION ALL SELECT 24, 1 UNION ALL SELECT 25, 1
     UNION ALL SELECT 22, 3 UNION ALL SELECT 26, 3
+    UNION ALL SELECT 29, 3 UNION ALL SELECT 30, 3 UNION ALL SELECT 31, 3 UNION ALL SELECT 32, 3
+    UNION ALL SELECT 29, 1 UNION ALL SELECT 30, 1 UNION ALL SELECT 31, 1 UNION ALL SELECT 32, 1
     UNION ALL SELECT 17, 2 UNION ALL SELECT 18, 2 UNION ALL SELECT 23, 2 UNION ALL SELECT 25, 2
 ) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
@@ -167,6 +173,10 @@ SELECT v.* FROM (
     UNION ALL SELECT 26, 20, 38, 1, 'front', 'full'
     UNION ALL SELECT 27, 22, 10, 2, 'front', 'full'
     UNION ALL SELECT 28, 22, 16, 1, 'front', 'full'
+    UNION ALL SELECT 29, 2, 41, 1, 'front', 'full'
+    UNION ALL SELECT 30, 12, 40, 1, 'front', 'full'
+    UNION ALL SELECT 31, 2, 36, 1, 'front', 'full'
+    UNION ALL SELECT 32, 7, 40, 1, 'front', 'full'
 ) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
 INSERT INTO vlans (id, vid, name, status, description, room_id)
@@ -259,7 +269,7 @@ FROM generate_series(1, 8) AS i
 WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
 ON CONFLICT DO NOTHING;
 
--- 为演示服务关联虚拟机与物理机，方便在服务拓扑中查看「服务 → 虚拟机 → 物理机 → 数据中心」链路。
+-- 为演示服务关联虚拟机与服务器，方便在服务拓扑中查看「服务 → 虚拟机 → 服务器 → 数据中心」链路。
 INSERT INTO asset_services (asset_id, service_id)
 SELECT m.asset_id, s.id
 FROM (VALUES
