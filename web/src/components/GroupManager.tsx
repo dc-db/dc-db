@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
-import { flexRender, getCoreRowModel, getPaginationRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import {
+  getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
+  type ColumnDef, type SortingState,
+} from '@tanstack/react-table'
+import { FolderTree, Pencil, Plus, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Group, GroupFields } from '../api'
-import { Button } from './ui/button'
+import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
-import { TablePager } from './TablePager'
+import { RowIconBox } from './ServiceIcon'
+import { Badge } from './ui/badge'
+import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 
 interface Props {
   editable: boolean
@@ -21,6 +25,7 @@ interface Props {
 export function GroupManager({ editable, hideTitle, onSessionError, onChanged }: Props) {
   const [groups, setGroups] = useState<Group[]>([])
   const [keyword, setKeyword] = useState('')
+  const [sorting, setSorting] = useState<SortingState>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [open, setOpen] = useState(false)
@@ -82,14 +87,46 @@ export function GroupManager({ editable, hideTitle, onSessionError, onChanged }:
   }
 
   const columns = useMemo<ColumnDef<Group>[]>(() => [
-    { accessorKey: 'name', header: '群组名称', cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
-    { accessorKey: 'assetCount', header: '资产数', cell: ({ row }) => row.original.assetCount },
-    { accessorKey: 'description', header: '备注', cell: ({ row }) => row.original.description || <span className="text-muted-foreground">—</span> },
+    {
+      accessorKey: 'name',
+      header: '群组名称',
+      sortingFn: (a, b) => a.original.name.localeCompare(b.original.name, 'zh-CN'),
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => (
+        <div className="table-name-cell">
+          <RowIconBox><FolderTree className="size-3.5" /></RowIconBox>
+          <span className="font-medium">{row.original.name}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'assetCount',
+      header: '关联资产',
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => (
+        <Badge variant={row.original.assetCount ? 'secondary' : 'outline'} className="tabular-nums">
+          {row.original.assetCount}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: 'description',
+      header: '备注',
+      enableSorting: false,
+      cell: ({ row }) => row.original.description
+        ? <span className="text-muted-foreground">{row.original.description}</span>
+        : <span className="text-muted-foreground">—</span>,
+    },
     ...(editable ? [{
-      id: 'actions', header: () => <div className="text-right">操作</div>,
-      cell: ({ row }: { row: { original: Group } }) => <div className="flex justify-end gap-1">
-        <Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button>
-      </div>,
+      id: 'actions',
+      enableSorting: false,
+      meta: { headerClassName: 'w-[88px] text-right', cellClassName: 'w-[88px] whitespace-nowrap text-right' },
+      header: () => <div className="text-right">操作</div>,
+      cell: ({ row }: { row: { original: Group } }) => (
+        <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button>
+        </div>
+      ),
     }] : []),
   ], [editable])
 
@@ -97,7 +134,17 @@ export function GroupManager({ editable, hideTitle, onSessionError, onChanged }:
     const query = keyword.trim().toLowerCase()
     return query ? groups.filter(item => [item.name, item.description].some(value => value.toLowerCase().includes(query))) : groups
   }, [groups, keyword])
-  const table = useReactTable({ data: visible, columns, initialState: { pagination: { pageIndex: 0, pageSize: 20 } }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel() })
+
+  const table = useReactTable({
+    data: visible,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    initialState: { pagination: { pageIndex: 0, pageSize: 20 } },
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  })
 
   return <>
     <PageHeader
@@ -106,17 +153,11 @@ export function GroupManager({ editable, hideTitle, onSessionError, onChanged }:
       actions={editable && <Button onClick={() => showForm(null)}><Plus />新增群组</Button>}
     />
     {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-      <Table>
-        <TableHeader>{table.getHeaderGroups().map(group => <TableRow key={group.id}>{group.headers.map(header => <TableHead key={header.id}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
-        <TableBody>
-          {loading
-            ? <TableRow><TableCell colSpan={columns.length}>加载中…</TableCell></TableRow>
-            : table.getRowModel().rows.length
-              ? table.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)
-              : <TableRow><TableCell colSpan={columns.length} className="py-10 text-center text-muted-foreground">还没有群组。按项目建一个，资产就能归类了</TableCell></TableRow>}
-        </TableBody>
-    </Table>
-      <TablePager table={table} />
+    <DataTable
+      table={table}
+      loading={loading}
+      emptyMessage={keyword ? '没有匹配的群组' : '还没有群组。按项目建一个，资产就能归类了'}
+    />
     <Dialog open={open} onOpenChange={next => { if (!saving) setOpen(next) }}><DialogContent>
       <DialogHeader><DialogTitle>{editing ? '编辑群组' : '新增群组'}</DialogTitle></DialogHeader>
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}

@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { flexRender, getCoreRowModel, getPaginationRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import {
+  getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
+  type ColumnDef, type SortingState,
+} from '@tanstack/react-table'
+import { Globe, Pencil, Plus, Tag, Trash2, UserRound } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { MetadataEntry, MetadataFields } from '../api'
+import { DataTable } from './DataTable'
+import { PageHeader } from './PageHeader'
+import { RowIconBox } from './ServiceIcon'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
-import { PageHeader } from './PageHeader'
-import { TablePager } from './TablePager'
 
 interface Props {
   kind: string
@@ -20,12 +23,19 @@ interface Props {
   onChanged?: () => void
 }
 
+function kindIcon(kind: string) {
+  if (kind === 'owner') return <UserRound className="size-3.5" />
+  if (kind === 'operator') return <Globe className="size-3.5" />
+  return <Tag className="size-3.5" />
+}
+
 // Generic dictionary category (负责人, 运营商, …): name plus an optional note.
 export function MetadataManager({ kind, title, hideTitle, editable, onSessionError, onChanged }: Props) {
   const [entries, setEntries] = useState<MetadataEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  const [sorting, setSorting] = useState<SortingState>([])
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<MetadataEntry | null>(null)
   const [deleting, setDeleting] = useState<MetadataEntry | null>(null)
@@ -33,7 +43,11 @@ export function MetadataManager({ kind, title, hideTitle, editable, onSessionErr
   const [modalError, setModalError] = useState('')
   const [fields, setFields] = useState({ name: '', description: '' })
 
-  useEffect(() => { void load() }, [kind])
+  useEffect(() => {
+    setKeyword('')
+    setSorting([])
+    void load()
+  }, [kind])
 
   function report(value: unknown) {
     if (value instanceof APIError && value.status === 401) { onSessionError(value); return }
@@ -90,17 +104,49 @@ export function MetadataManager({ kind, title, hideTitle, editable, onSessionErr
   }
 
   const columns = useMemo<ColumnDef<MetadataEntry>[]>(() => [
-    { accessorKey: 'name', header: '名称', cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
-    { accessorKey: 'description', header: '备注', cell: ({ row }) => row.original.description || <span className="text-muted-foreground">—</span> },
+    {
+      accessorKey: 'name',
+      header: '名称',
+      sortingFn: (a, b) => a.original.name.localeCompare(b.original.name, 'zh-CN'),
+      meta: { headerClassName: 'w-[28%]', cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => (
+        <div className="table-name-cell">
+          <RowIconBox>{kindIcon(kind)}</RowIconBox>
+          <span className="font-medium">{row.original.name}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'description',
+      header: '备注',
+      enableSorting: false,
+      cell: ({ row }) => row.original.description
+        ? <span className="text-muted-foreground">{row.original.description}</span>
+        : <span className="text-muted-foreground">—</span>,
+    },
     ...(editable ? [{
-      id: 'actions', header: () => <div className="text-right">操作</div>,
-      cell: ({ row }: { row: { original: MetadataEntry } }) => <div className="flex justify-end gap-1">
-        <Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button>
-      </div>,
+      id: 'actions',
+      enableSorting: false,
+      meta: { headerClassName: 'w-[88px] text-right', cellClassName: 'w-[88px] whitespace-nowrap text-right' },
+      header: () => <div className="text-right">操作</div>,
+      cell: ({ row }: { row: { original: MetadataEntry } }) => (
+        <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button>
+        </div>
+      ),
     }] : []),
-  ], [editable])
+  ], [editable, kind])
 
-  const table = useReactTable({ data: visible, columns, initialState: { pagination: { pageIndex: 0, pageSize: 20 } }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel() })
+  const table = useReactTable({
+    data: visible,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    initialState: { pagination: { pageIndex: 0, pageSize: 20 } },
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  })
 
   return <>
     <PageHeader
@@ -109,17 +155,11 @@ export function MetadataManager({ kind, title, hideTitle, editable, onSessionErr
       actions={editable && <Button onClick={() => showForm(null)}><Plus />新增{title}</Button>}
     />
     {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-    <Table>
-      <TableHeader>{table.getHeaderGroups().map(group => <TableRow key={group.id}>{group.headers.map(header => <TableHead key={header.id}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
-      <TableBody>
-        {loading
-          ? <TableRow><TableCell colSpan={columns.length}>加载中…</TableCell></TableRow>
-          : table.getRowModel().rows.length
-            ? table.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)
-            : <TableRow><TableCell colSpan={columns.length} className="py-10 text-center text-muted-foreground">还没有{title}，新增一个开始归类</TableCell></TableRow>}
-      </TableBody>
-    </Table>
-      <TablePager table={table} />
+    <DataTable
+      table={table}
+      loading={loading}
+      emptyMessage={keyword ? `没有匹配的${title}` : `还没有${title}，新增一个开始归类`}
+    />
     <Dialog open={open} onOpenChange={next => { if (!saving) setOpen(next) }}><DialogContent>
       <DialogHeader><DialogTitle>{editing ? `编辑${title}` : `新增${title}`}</DialogTitle></DialogHeader>
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}

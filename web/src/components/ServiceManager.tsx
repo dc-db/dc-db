@@ -1,31 +1,37 @@
 import { useEffect, useMemo, useState } from 'react'
-import { flexRender, getCoreRowModel, getPaginationRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
+import {
+  getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
+  type ColumnDef, type SortingState,
+} from '@tanstack/react-table'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Service, ServiceFields } from '../api'
 import { Select } from './AppControls'
-import { Button } from './ui/button'
+import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
-import { TablePager } from './TablePager'
+import { ServiceIcon } from './ServiceIcon'
+import { Badge } from './ui/badge'
+import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 
 interface Props {
   editable: boolean
   hideTitle?: boolean
   onSessionError: (error: unknown) => void
+  onChanged?: () => void
 }
 
 const emptyService: ServiceFields = { name: '', category: '', defaultPort: 0, description: '' }
 
-export function ServiceManager({ editable, hideTitle, onSessionError }: Props) {
+export function ServiceManager({ editable, hideTitle, onSessionError, onChanged }: Props) {
   const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
   const [category, setCategory] = useState('')
+  const [sorting, setSorting] = useState<SortingState>([])
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Service | null>(null)
   const [deleting, setDeleting] = useState<Service | null>(null)
@@ -73,6 +79,7 @@ export function ServiceManager({ editable, hideTitle, onSessionError }: Props) {
       else await api<Service>('/services', 'POST', fields)
       setOpen(false)
       await load()
+      onChanged?.()
     } catch (value) {
       if (value instanceof APIError && value.status === 401) { onSessionError(value); return }
       setModalError(value instanceof Error ? value.message : '保存失败')
@@ -85,6 +92,7 @@ export function ServiceManager({ editable, hideTitle, onSessionError }: Props) {
       await api(`/services/${service.id}`, 'DELETE')
       setDeleting(null)
       await load()
+      onChanged?.()
     } catch (value) {
       if (value instanceof APIError && value.status === 401) { onSessionError(value); return }
       setError(value instanceof Error ? value.message : '删除失败')
@@ -92,20 +100,74 @@ export function ServiceManager({ editable, hideTitle, onSessionError }: Props) {
   }
 
   const columns = useMemo<ColumnDef<Service>[]>(() => [
-    { accessorKey: 'name', header: '服务名称', cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
-    { accessorKey: 'category', header: '分类', cell: ({ row }) => row.original.category || <span className="text-muted-foreground">—</span> },
-    { accessorKey: 'defaultPort', header: '默认端口', cell: ({ row }) => row.original.defaultPort ? <span className="font-mono">{row.original.defaultPort}</span> : <span className="text-muted-foreground">—</span> },
-    { id: 'builtin', header: '来源', cell: ({ row }) => <span className="text-muted-foreground">{row.original.builtin ? '内置' : '自定义'}</span> },
-    { accessorKey: 'description', header: '备注', cell: ({ row }) => row.original.description || <span className="text-muted-foreground">—</span> },
+    {
+      accessorKey: 'name',
+      header: '服务名称',
+      sortingFn: (a, b) => a.original.name.localeCompare(b.original.name, 'zh-CN'),
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => (
+        <div className="table-name-cell">
+          <ServiceIcon name={row.original.name} category={row.original.category} />
+          <span className="font-medium">{row.original.name}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'category',
+      header: '分类',
+      sortingFn: (a, b) => a.original.category.localeCompare(b.original.category, 'zh-CN'),
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => row.original.category
+        ? <Badge variant="secondary">{row.original.category}</Badge>
+        : <span className="text-muted-foreground">—</span>,
+    },
+    {
+      accessorKey: 'defaultPort',
+      header: '默认端口',
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => row.original.defaultPort
+        ? <span className="font-mono text-xs tabular-nums">{row.original.defaultPort}</span>
+        : <span className="text-muted-foreground">—</span>,
+    },
+    {
+      accessorKey: 'builtin',
+      header: '来源',
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => row.original.builtin
+        ? <Badge variant="outline" className="text-muted-foreground">内置</Badge>
+        : <Badge variant="outline">自定义</Badge>,
+    },
+    {
+      accessorKey: 'description',
+      header: '备注',
+      enableSorting: false,
+      cell: ({ row }) => row.original.description
+        ? <span className="text-muted-foreground">{row.original.description}</span>
+        : <span className="text-muted-foreground">—</span>,
+    },
     ...(editable ? [{
-      id: 'actions', header: () => <div className="text-right">操作</div>,
-      cell: ({ row }: { row: { original: Service } }) => <div className="flex justify-end gap-1">
-        <Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button>
-      </div>,
+      id: 'actions',
+      enableSorting: false,
+      meta: { headerClassName: 'w-[88px] text-right', cellClassName: 'w-[88px] whitespace-nowrap text-right' },
+      header: () => <div className="text-right">操作</div>,
+      cell: ({ row }: { row: { original: Service } }) => (
+        <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button>
+        </div>
+      ),
     }] : []),
   ], [editable])
 
-  const table = useReactTable({ data: visible, columns, initialState: { pagination: { pageIndex: 0, pageSize: 20 } }, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel() })
+  const table = useReactTable({
+    data: visible,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    initialState: { pagination: { pageIndex: 0, pageSize: 20 } },
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  })
 
   return <>
     <PageHeader
@@ -122,22 +184,27 @@ export function ServiceManager({ editable, hideTitle, onSessionError }: Props) {
       actions={editable && <Button onClick={() => showForm(null)}><Plus />新增服务</Button>}
     />
     {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-      <Table>
-        <TableHeader>{table.getHeaderGroups().map(group => <TableRow key={group.id}>{group.headers.map(header => <TableHead key={header.id}>{flexRender(header.column.columnDef.header, header.getContext())}</TableHead>)}</TableRow>)}</TableHeader>
-        <TableBody>
-          {loading
-            ? <TableRow><TableCell colSpan={columns.length}>加载中…</TableCell></TableRow>
-            : table.getRowModel().rows.length
-              ? table.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)
-              : <TableRow><TableCell colSpan={columns.length} className="py-10 text-center text-muted-foreground">没有匹配的服务</TableCell></TableRow>}
-        </TableBody>
-    </Table>
-      <TablePager table={table} />
+    <DataTable
+      table={table}
+      loading={loading}
+      emptyMessage={keyword || category ? '没有匹配的服务' : '还没有服务，新增一个开始维护'}
+      pagerExtra={
+        <span>
+          内置开源图标基于 <a href="/licenses/simple-icons.txt" target="_blank" rel="noreferrer">Simple Icons (CC0 1.0)</a>
+        </span>
+      }
+    />
     <Dialog open={open} onOpenChange={next => { if (!saving) setOpen(next) }}><DialogContent>
       <DialogHeader><DialogTitle>{editing ? '编辑服务' : '新增服务'}</DialogTitle></DialogHeader>
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
       <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save() }}>
-        <div className="space-y-2"><label htmlFor="service-name" className="text-sm font-medium">服务名称</label><Input id="service-name" required maxLength={120} placeholder="例如：nginx" value={fields.name} onChange={event => setFields({ ...fields, name: event.target.value })} /></div>
+        <div className="space-y-2">
+          <label htmlFor="service-name" className="text-sm font-medium">服务名称</label>
+          <div className="flex items-center gap-2.5">
+            <ServiceIcon name={fields.name} category={fields.category} />
+            <Input id="service-name" required maxLength={120} placeholder="例如：nginx、postgresql、redis" value={fields.name} onChange={event => setFields({ ...fields, name: event.target.value })} />
+          </div>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2"><label htmlFor="service-category" className="text-sm font-medium">分类</label><Input id="service-category" maxLength={40} placeholder="例如：数据库" value={fields.category} onChange={event => setFields({ ...fields, category: event.target.value })} /></div>
           <div className="space-y-2"><label htmlFor="service-port" className="text-sm font-medium">默认端口</label><Input id="service-port" type="number" min={0} max={65535} placeholder="可选" value={fields.defaultPort || ''} onChange={event => setFields({ ...fields, defaultPort: Number(event.target.value) || 0 })} /></div>

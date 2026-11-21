@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import type { ComponentType } from 'react'
+import { Boxes, FolderTree, Globe, Tags, UserRound } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Group, Tag } from '../api'
 import type { Page } from '../types'
@@ -17,12 +19,12 @@ interface Props {
 
 type CategoryKey = 'groups' | 'services' | 'tags' | 'owner' | 'operator'
 
-const categories: { key: CategoryKey; label: string; kind?: string }[] = [
-  { key: 'groups', label: '群组' },
-  { key: 'services', label: '服务' },
-  { key: 'tags', label: '标签' },
-  { key: 'owner', label: '负责人', kind: 'owner' },
-  { key: 'operator', label: '运营商', kind: 'operator' },
+const categories: { key: CategoryKey; label: string; kind?: string; icon: ComponentType<{ className?: string }> }[] = [
+  { key: 'groups', label: '群组', icon: FolderTree },
+  { key: 'services', label: '服务', icon: Boxes },
+  { key: 'tags', label: '标签', icon: Tags },
+  { key: 'owner', label: '负责人', kind: 'owner', icon: UserRound },
+  { key: 'operator', label: '运营商', kind: 'operator', icon: Globe },
 ]
 
 function categoryForPage(page: Page): CategoryKey {
@@ -53,16 +55,23 @@ export function MetadataView({ page, editable, onSessionError, onGroupsChanged, 
       <aside className="metadata-side">
         <h2 className="asset-view-title">基础数据</h2>
         <nav className="metadata-nav" aria-label="基础数据分类">
-          {categories.map(item => (
-            <button
-              key={item.key} type="button"
-              className={`metadata-nav-item${item.key === selected ? ' is-active' : ''}`}
-              onClick={() => setSelected(item.key)}
-            >
-              <span>{item.label}</span>
-              <span className="metadata-nav-count">{counts[item.kind ?? item.key] ?? 0}</span>
-            </button>
-          ))}
+          {categories.map(item => {
+            const Icon = item.icon
+            return (
+              <button
+                key={item.key} type="button"
+                className={`metadata-nav-item${item.key === selected ? ' is-active' : ''}`}
+                aria-current={item.key === selected ? 'page' : undefined}
+                onClick={() => setSelected(item.key)}
+              >
+                <span className="metadata-nav-label">
+                  <Icon className="metadata-nav-icon" />
+                  <span>{item.label}</span>
+                </span>
+                <span className="metadata-nav-count">{counts[item.kind ?? item.key] ?? 0}</span>
+              </button>
+            )
+          })}
         </nav>
       </aside>
       <div className="metadata-divider" aria-hidden="true" />
@@ -71,7 +80,7 @@ export function MetadataView({ page, editable, onSessionError, onGroupsChanged, 
           <GroupManager editable={editable} onSessionError={onSessionError} onChanged={groups => { onGroupsChanged(groups); void loadCounts() }} />
         )}
         {selected === 'services' && (
-          <ServiceManager editable={editable} onSessionError={onSessionError} />
+          <ServiceManager editable={editable} onSessionError={onSessionError} onChanged={() => void loadCounts()} />
         )}
         {selected === 'tags' && (
           <TagManager editable={editable} onSessionError={onSessionError} onChanged={tags => { onTagsChanged(tags); void loadCounts() }} />
