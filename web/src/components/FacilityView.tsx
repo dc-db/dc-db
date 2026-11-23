@@ -7,7 +7,7 @@ import { Card, CardContent } from './ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu'
 import { Input } from './ui/input'
-import { Progress } from './ui/progress'
+import { UsageBar } from './UsageBar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { api, APIError } from '../api'
 import type { Asset, Link } from '../api'
@@ -579,7 +579,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                                 <td>{item.heightU}U</td>
                                 <td>{used}U</td>
                                 <td>{free}U</td>
-                                <td>{rate}%</td>
+                                <td><UsageBar value={rate} label={`${item.name} 机柜占用率`} /></td>
                                 <td>{placements.length}</td>
                                 <td className="text-right"><Button size="sm" variant="outline" onClick={event => { event.stopPropagation(); editRack(item) }}>编辑</Button></td>
                               </tr>
