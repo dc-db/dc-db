@@ -150,6 +150,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   const rooms = layout.rooms
   const activeRoomId = roomId ?? rooms[0]?.id ?? null
   const room = rooms.find(item => item.id === activeRoomId)
+  const editingRoom = rooms.find(item => item.id === roomDraft?.id)
   const sortedRooms = useMemo(() => rooms.slice().sort((left, right) => left.name.localeCompare(right.name, 'zh-CN')), [rooms])
   const filteredRooms = roomSearch.trim()
     ? sortedRooms.filter(item => item.name.toLowerCase().includes(roomSearch.trim().toLowerCase()))
@@ -526,7 +527,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
           </div>
           <div className="facility-sidebar-search">
             <Input type="search" placeholder="搜索数据中心" aria-label="搜索数据中心" value={roomSearch} onChange={event => setRoomSearch(event.target.value)} />
-            {editable && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="数据中心操作"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => editRegion()}><Plus />新增区域</DropdownMenuItem><DropdownMenuItem onSelect={() => editRoom()}><Plus />新增数据中心</DropdownMenuItem><DropdownMenuItem disabled={!room} onSelect={() => { if (room) editRoom(room) }}><Pencil />编辑当前数据中心</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
+            {editable && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="数据中心操作"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => editRegion()}><Plus />新增区域</DropdownMenuItem><DropdownMenuItem onSelect={() => editRoom()}><Plus />新增数据中心</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
           </div>
           <div className="facility-tree">
             {groupedRooms.map(group => (
@@ -542,7 +543,10 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                 {group.rooms.length > 0 && (
                   <div className="facility-tree-children">
                     {group.rooms.map(item => (
-                      <button key={item.id} type="button" className={`facility-tree-item${item.id === activeRoomId ? ' active' : ''}`} title={item.name} onClick={() => selectRoom(item.id)}><span className="facility-tree-name">{item.name}</span></button>
+                      <div key={item.id} className="facility-tree-room">
+                        <button type="button" className={`facility-tree-item${item.id === activeRoomId ? ' active' : ''}`} title={item.name} onClick={() => selectRoom(item.id)}><span className="facility-tree-name">{item.name}</span></button>
+                        {editable && <button type="button" className="facility-tree-room-action" aria-label={`编辑数据中心 ${item.name}`} title={`编辑 ${item.name}`} onClick={() => editRoom(item)}><Pencil size={14} aria-hidden="true" /></button>}
+                      </div>
                     ))}
                   </div>
                 )}
@@ -707,7 +711,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
       )}
       <Dialog open={!!roomDraft} onOpenChange={open => { if (!open) setRoomDraft(null) }}>
         <DialogContent><DialogHeader><DialogTitle>{roomDraft?.id ? '编辑数据中心' : '新增数据中心'}</DialogTitle><DialogDescription>维护数据中心名称。</DialogDescription></DialogHeader>
-          {roomDraft && <form className="space-y-4" onSubmit={event => { event.preventDefault(); saveRoom() }}><Field label="数据中心名称"><Input required value={roomDraft.name} placeholder="例如：北京数据中心" maxLength={160} onChange={event => setRoomDraft({ ...roomDraft, name: event.target.value })} /></Field><Field label="所属区域（可选）"><Select value={roomDraft.regionId ? String(roomDraft.regionId) : 'none'} onValueChange={value => setRoomDraft({ ...roomDraft, regionId: value === 'none' ? 0 : Number(value) })}><SelectTrigger><SelectValue placeholder="不归入区域" /></SelectTrigger><SelectContent><SelectItem value="none">不归入区域</SelectItem>{layout.regions.map(region => <SelectItem key={region.id} value={String(region.id)}>{region.name}</SelectItem>)}</SelectContent></Select></Field><div className="room-modal-actions flex flex-wrap gap-2"><Button type="submit" disabled={busy}>保存数据中心</Button><Button type="button" variant="outline" onClick={() => setRoomDraft(null)}>取消</Button>{roomDraft.id && room?.id === roomDraft.id && !racks.length && <ConfirmDelete title="删除该空数据中心？" disabled={busy} onConfirm={() => removeRoom(room)}>删除空数据中心</ConfirmDelete>}</div></form>}
+          {roomDraft && <form className="space-y-4" onSubmit={event => { event.preventDefault(); saveRoom() }}><Field label="数据中心名称"><Input required value={roomDraft.name} placeholder="例如：北京数据中心" maxLength={160} onChange={event => setRoomDraft({ ...roomDraft, name: event.target.value })} /></Field><Field label="所属区域（可选）"><Select value={roomDraft.regionId ? String(roomDraft.regionId) : 'none'} onValueChange={value => setRoomDraft({ ...roomDraft, regionId: value === 'none' ? 0 : Number(value) })}><SelectTrigger><SelectValue placeholder="不归入区域" /></SelectTrigger><SelectContent><SelectItem value="none">不归入区域</SelectItem>{layout.regions.map(region => <SelectItem key={region.id} value={String(region.id)}>{region.name}</SelectItem>)}</SelectContent></Select></Field><div className="room-modal-actions flex flex-wrap gap-2"><Button type="submit" disabled={busy}>保存数据中心</Button><Button type="button" variant="outline" onClick={() => setRoomDraft(null)}>取消</Button>{editingRoom && !layout.racks.some(item => item.roomId === editingRoom.id) && <ConfirmDelete title="删除该空数据中心？" disabled={busy} onConfirm={() => removeRoom(editingRoom)}>删除空数据中心</ConfirmDelete>}</div></form>}
         </DialogContent>
       </Dialog>
       <Dialog open={!!regionDraft} onOpenChange={open => { if (!open) setRegionDraft(null) }}>
