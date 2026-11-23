@@ -325,7 +325,9 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       facilities={facilities}
       value={roomFilter}
       onChange={onRoomFilterChange}
+      editable={editable}
       counts={roomCounts}
+      onSessionError={onSessionError}
     >
     <PageHeader
       title={hideTitle ? undefined : '网段'}

@@ -417,6 +417,14 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   }, [])
 
   useEffect(() => {
+    const refreshFacilities = () => {
+      void api<Facilities>('/facilities').then(setFacilities).catch(() => {})
+    }
+    window.addEventListener('dc-db-facilities-changed', refreshFacilities)
+    return () => window.removeEventListener('dc-db-facilities-changed', refreshFacilities)
+  }, [])
+
+  useEffect(() => {
     setPagination(1)
   }, [keyword, roomFilter, networkKindFilter, platformFilter, page])
 
@@ -1579,8 +1587,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               facilities={facilities}
               value={roomFilter}
               onChange={setRoomFilter}
+              editable={editable}
               unassignedLabel={page === 'vm' ? '未关联机房' : '未上架'}
               counts={assetRoomCounts}
+              onSessionError={e => handleError(e)}
             >
             <Card variant="borderless">
               <PageHeader

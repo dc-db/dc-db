@@ -635,8 +635,10 @@ export function ServiceManager({
       facilities={facilities}
       value={roomFilter}
       onChange={onRoomFilterChange}
+      editable={editable}
       unassignedLabel="未部署"
       counts={roomCounts}
+      onSessionError={onSessionError}
     >
       <PageHeader
         title="服务"

@@ -245,7 +245,9 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
         facilities={facilities}
         value={roomFilter}
         onChange={onRoomFilterChange}
+        editable={editable}
         counts={roomCounts}
+        onSessionError={onSessionError}
       >
         {content}
       </RoomTreeLayout>

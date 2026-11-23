@@ -148,7 +148,9 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       facilities={facilities}
       value={roomFilter}
       onChange={onRoomFilterChange}
+      editable={editable}
       counts={roomCounts}
+      onSessionError={onSessionError}
     >
     <PageHeader
       title={hideTitle ? undefined : 'IP 地址'}
