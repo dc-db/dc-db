@@ -39,12 +39,12 @@ interface Props {
 
 const rackColumns = [
   { key: 'name', label: '机柜' },
+  { key: 'devices', label: '设备数' },
   { key: 'zone', label: '区域 / 排' },
   { key: 'height', label: 'U 位总数' },
   { key: 'used', label: '已用' },
   { key: 'free', label: '空闲' },
   { key: 'usage', label: '占用率' },
-  { key: 'devices', label: '设备数' },
 ] as const
 
 type RackColumn = typeof rackColumns[number]['key']
@@ -673,12 +673,12 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                             return (
                               <tr key={item.id} onClick={() => openRack(item.id)}>
                                 {visibleRackColumns.includes('name') && <td><strong>{item.name}</strong></td>}
+                                {visibleRackColumns.includes('devices') && <td>{deviceCount}</td>}
                                 {visibleRackColumns.includes('zone') && <td>{item.zone || '—'}</td>}
                                 {visibleRackColumns.includes('height') && <td>{item.heightU}U</td>}
                                 {visibleRackColumns.includes('used') && <td>{used}U</td>}
                                 {visibleRackColumns.includes('free') && <td>{free}U</td>}
                                 {visibleRackColumns.includes('usage') && <td><UsageBar value={rate} label={`${item.name} 机柜占用率`} /></td>}
-                                {visibleRackColumns.includes('devices') && <td>{deviceCount}</td>}
                                 <td><Button size="sm" variant="outline" onClick={event => { event.stopPropagation(); editRack(item) }}>编辑</Button></td>
                               </tr>
                             )
