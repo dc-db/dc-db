@@ -3,6 +3,7 @@ import '@fontsource-variable/geist'
 import '@fontsource-variable/space-grotesk'
 import './shadcn.css'
 import './styles.css'
+import './shared-table.css'
 import App from './App'
 
 const root = ReactDOM.createRoot(document.getElementById('app')!)

@@ -335,8 +335,8 @@ export function IpamView({ editable, hideTitle, openSubnetId, onSubnetOpened, on
     </div><div className="mt-4 flex gap-2"><Button type="submit" disabled={busy}>保存网段</Button><Button type="button" variant="outline" onClick={() => setDraft(null)}>取消</Button></div></form></CardContent></Card>}
     {!subnets.length ? <div className="py-12 text-center text-muted-foreground">{loading ? '正在加载 IPAM 数据…' : '暂无网段，新增一个网段开始管理 IP 地址'}</div> : <>
 
-      <div className="facility-table-wrap">
-        <table className="facility-table ipam-subnet-table">
+      <div className="shared-table-wrap">
+        <table className="shared-table ipam-subnet-table">
           <thead><tr><th>网段名称</th><th>CIDR</th><th>VLAN</th><th>网关</th><th>地址数</th><th>已用</th><th>空闲</th><th>利用率</th><th className="text-right">操作</th></tr></thead>
           <tbody>
             {visibleSubnetRows.length ? visibleSubnetRows.map(({ subnet: item, depth, children }) => {

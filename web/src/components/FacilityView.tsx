@@ -626,8 +626,8 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                     </div>
                   </div>
                   {view === 'table' ? (
-                    <div className="facility-table-wrap">
-                      <table className="facility-table facility-table-clickable">
+                    <div className="shared-table-wrap">
+                      <table className="shared-table facility-table-clickable">
                         <thead><tr>{rackColumns.filter(column => visibleRackColumns.includes(column.key)).map(column => {
                           const sortKey = isRackSortColumn(column.key) ? column.key : null
                           const direction = sortKey && rackSort?.key === sortKey ? rackSort.direction : null
