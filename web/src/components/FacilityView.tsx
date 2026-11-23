@@ -536,9 +536,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
       ) : (
       <div className="facility-layout" style={{ gridTemplateColumns: `${treeWidth}px 6px minmax(0, 1fr)` }}>
         <aside className="facility-sidebar">
-          <div className="facility-sidebar-head">
-            <div className="facility-sidebar-title"><strong>数据中心</strong></div>
-          </div>
           <div className="facility-sidebar-search">
             <Input type="search" placeholder="搜索数据中心" aria-label="搜索数据中心" value={roomSearch} onChange={event => setRoomSearch(event.target.value)} />
             {editable && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="数据中心操作"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => editRegion()}><Plus />新增区域</DropdownMenuItem><DropdownMenuItem onSelect={() => editRoom()}><Plus />新增数据中心</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
