@@ -325,6 +325,8 @@ html[data-theme="dark"] .rack-board-figure svg .slot-add, html[data-theme="dark"
 html[data-theme] .rack-board-figure svg .slot-row:hover .slot, html[data-theme] .rack-board-figure svg .slot-row:focus-visible .slot,
 html[data-theme] .rack-detail-face-figure svg .slot-row:hover .slot, html[data-theme] .rack-detail-face-figure svg .slot-row:focus-visible .slot { fill: color-mix(in srgb, var(--primary) 22%, var(--subtle)); }
 .rack-board-figure svg .slot-row:focus-visible .slot-add, .rack-detail-face-figure svg .slot-row:hover .slot-add, .rack-detail-face-figure svg .slot-row:focus-visible .slot-add { opacity: 1; }
+.rack-board-figure svg .slot-row:focus:not(:focus-visible), .rack-board-figure svg .device-bar:focus:not(:focus-visible),
+.rack-detail-face-figure svg .slot-row:focus:not(:focus-visible), .rack-detail-face-figure svg .device-bar:focus:not(:focus-visible) { outline: none; }
 .rack-board-figure svg .slot-row:focus-visible, .rack-board-figure svg .device-bar:focus-visible,
 .rack-detail-face-figure svg .slot-row:focus-visible, .rack-detail-face-figure svg .device-bar:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
 .rack-board-figure svg, .rack-detail-face-figure svg { --hatch-bg: #f7f7f7; --hatch-line: #ffc0c0; --hatch-text: #1a1a1a; }
