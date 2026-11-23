@@ -66,9 +66,10 @@ export function rackElevationSvg(
   devices: Placement[],
   assets: Map<number, Asset>,
   face: RackFace,
-  options: { interactive?: boolean } = {},
+  options: { interactive?: boolean; allowMount?: boolean } = {},
 ): RackSvg {
   const interactive = options.interactive === true
+  const allowMount = interactive && options.allowMount !== false
   const visible = devices.filter(device => device.depth === 'full' || device.face === face)
   // A device mounted on the other face is drawn hatched, whatever its depth.
   const isOpposite = (device: Placement) => device.face !== face
@@ -89,11 +90,11 @@ export function rackElevationSvg(
     const unit = rack.heightU - index
     const y = BORDER + index * UNIT_HEIGHT
     const slot =
-      `<rect class="slot${interactive && !taken.has(unit) ? ' free' : ''}" x="${rackX}" y="${y}" ` +
+      `<rect class="slot${allowMount && !taken.has(unit) ? ' free' : ''}" x="${rackX}" y="${y}" ` +
       `width="${UNIT_WIDTH}" height="${UNIT_HEIGHT}" fill="${LIGHT.slot}" stroke="${LIGHT.slotBorder}" stroke-width="1"/>`
-    if (interactive && !taken.has(unit)) {
+    if (allowMount && !taken.has(unit)) {
       body.push(
-        `<g class="slot-row" data-unit="${unit}">${slot}` +
+        `<g class="slot-row" data-unit="${unit}" tabindex="0" role="button" aria-label="在 U${unit} 添加设备">${slot}` +
         `<text class="slot-add" x="${rackX + UNIT_WIDTH / 2}" y="${y + UNIT_HEIGHT / 2}" font-size="12" ` +
         `fill="${LIGHT.unit}" text-anchor="middle" dominant-baseline="middle">＋ 添加设备</text></g>`,
       )
@@ -114,7 +115,7 @@ export function rackElevationSvg(
     const top = BORDER + (rack.heightU - (device.startU + device.units - 1)) * UNIT_HEIGHT
     const blockHeight = device.units * UNIT_HEIGHT
     body.push(
-      `<g class="device-bar${isOpposite(device) ? ' opposite' : ''}"${interactive ? ` data-asset="${device.assetId}"` : ''}><title>${esc(`${label} · ${uRange(device)}`)}</title>` +
+      `<g class="device-bar${isOpposite(device) ? ' opposite' : ''}"${interactive ? ` data-asset="${device.assetId}" tabindex="0" role="button" aria-label="查看 ${esc(label)}"` : ''}><title>${esc(`${label} · ${uRange(device)}`)}</title>` +
       `<rect x="${rackX}" y="${top}" width="${UNIT_WIDTH}" height="${blockHeight}" fill="${isOpposite(device) ? 'url(#rack-hatch)' : style.fill}"/>` +
       `<text class="device" x="${rackX + UNIT_WIDTH / 2}" y="${top + blockHeight / 2}" font-size="14" ` +
       `text-anchor="middle" dominant-baseline="middle" fill="${isOpposite(device) ? 'var(--hatch-text, #5c1a1a)' : '#ffffff'}">` +
