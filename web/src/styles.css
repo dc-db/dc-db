@@ -889,8 +889,8 @@ html:not([data-theme="dark"]) [data-slot="button"][data-variant="outline"]:hover
 .rack-detail-faces { display: flex; justify-content: center; align-items: flex-start; gap: 30px; min-width: 0; }
 .rack-detail-face { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; min-width: 0; }
 .rack-detail-face-label { color: var(--muted); font-size: var(--fs-label); }
-.rack-detail-face-figure { height: min(72vh, 760px); }
-.rack-detail-face-figure svg { display: block; width: auto; height: 100%; }
+.rack-detail-face-figure { max-width: 100%; }
+.rack-detail-face-figure svg { display: block; max-width: 100%; height: auto; }
 .rack-side-devices { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .rack-side-devices li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
 .rack-side-device-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
