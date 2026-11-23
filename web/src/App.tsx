@@ -1615,7 +1615,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                   {editable && <Button type="primary" onClick={() => startNew()}><PlusOutlined /> 新增{pageLabel}</Button>}
                 </Space>}
               />
-              {editable && selectedAssetIds.length > 0 && (
+              {editable && page === 'network_devices' && selectedAssetIds.length > 0 && (
                 <div className="bulk-bar">
                   <span>已选择 <strong>{selectedAssetIds.length}</strong> 条资产</span>
                   <Space>
@@ -1635,7 +1635,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                   if ((event.target as HTMLElement).closest('button, a, input, label, [role="checkbox"]')) return
                   void openAsset(asset.id)
                 }}
-                rowSelection={editable ? {
+                sharedStyle={page === 'host' || page === 'vm'}
+                rowSelection={editable && page === 'network_devices' ? {
                   selectedRowKeys: selectedAssetIds,
                   preserveSelectedRowKeys: true,
                   onChange: keys => setSelectedAssetIds(keys.map(Number)),

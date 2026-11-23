@@ -136,8 +136,8 @@ export const Layout = Object.assign(LayoutBase, { Header: ({ children, className
 export function Menu({ items, selectedKeys, onClick, className }: Common) { return <nav className={`control-nav ${className ?? ''}`} aria-label="主导航">{items.map((item: any) => item.children ? <details key={item.key} open><summary>{item.icon}{item.label}<ChevronDown className="nav-chevron" aria-hidden="true" /></summary>{item.children.map((child: any) => <button key={child.key} type="button" className={selectedKeys.includes(child.key) ? 'selected' : ''} onClick={() => onClick({ key: child.key })}>{child.icon}{child.label}</button>)}</details> : <button key={item.key} type="button" className={selectedKeys.includes(item.key) ? 'selected' : ''} onClick={() => onClick({ key: item.key })}>{item.icon}{item.label}</button>)}</nav> }
 
 export type TableColumnsType<T> = { title?: ReactNode; key?: string; dataIndex?: keyof T; width?: number; sorter?: (a: T, b: T) => number; render?: (value: any, item: T) => ReactNode }[]
-type TableProps<T> = { columns: TableColumnsType<T>; dataSource: T[]; rowKey: keyof T; loading?: boolean; rowSelection?: { selectedRowKeys: (string | number)[]; preserveSelectedRowKeys?: boolean; onChange: (keys: (string | number)[]) => void }; pagination?: false | { current: number; pageSize: number; total: number; showSizeChanger?: boolean; pageSizeOptions?: string[]; showTotal?: (n: number) => ReactNode; onChange: (page: number, size: number) => void }; locale?: { emptyText?: ReactNode }; onRowClick?: (record: T, event: React.MouseEvent<HTMLTableRowElement>) => void; rowClassName?: (record: T) => string; [key: string]: any }
-export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, pagination, locale, onRowClick, rowClassName }: TableProps<T>) {
+type TableProps<T> = { sharedStyle?: boolean; columns: TableColumnsType<T>; dataSource: T[]; rowKey: keyof T; loading?: boolean; rowSelection?: { selectedRowKeys: (string | number)[]; preserveSelectedRowKeys?: boolean; onChange: (keys: (string | number)[]) => void }; pagination?: false | { current: number; pageSize: number; total: number; showSizeChanger?: boolean; pageSizeOptions?: string[]; showTotal?: (n: number) => ReactNode; onChange: (page: number, size: number) => void }; locale?: { emptyText?: ReactNode }; onRowClick?: (record: T, event: React.MouseEvent<HTMLTableRowElement>) => void; rowClassName?: (record: T) => string; [key: string]: any }
+export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, pagination, locale, onRowClick, rowClassName, sharedStyle }: TableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const defs: ColumnDef<T, any>[] = columns.map((c, i) => ({ id: c.key ?? String(c.dataIndex ?? i), header: () => c.title, accessorFn: row => c.dataIndex ? row[c.dataIndex] : undefined, enableSorting: !!c.sorter, sortDescFirst: false, size: c.width, sortingFn: c.sorter ? (a, b) => c.sorter!(a.original, b.original) : undefined, cell: info => c.render ? c.render(info.getValue(), info.row.original) : info.getValue() as ReactNode }))
   React.useEffect(() => { setSorting(current => current.filter(item => defs.some(col => col.id === item.id))) }, [columns.map(c => c.key ?? String(c.dataIndex)).join('|')])
@@ -169,8 +169,8 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, p
   React.useEffect(() => { if (pagination && pagination.current !== current) pagination.onChange(current, pageSize) }, [pagination && pagination.current, current, pageSize])
   return <div className="control-table-area" aria-busy={loading}>
     {loading && <div className="control-table-loading" role="status"><LoaderCircle className="animate-spin" size={18} />加载中</div>}
-    <div className="control-table-wrap" inert={loading || undefined}>
-      <table className="control-table"><thead>{table.getHeaderGroups().map(group => <tr key={group.id}>
+    <div className={`control-table-wrap${sharedStyle ? ' shared-table-wrap' : ''}`} inert={loading || undefined}>
+      <table className={`control-table${sharedStyle ? ' shared-table' : ''}`}><thead>{table.getHeaderGroups().map(group => <tr key={group.id}>
         {rowSelection ? (<>
           <th className="control-th-select">
             <span className="control-th-select-inner">
