@@ -103,7 +103,9 @@ CREATE TABLE racks (
     name TEXT NOT NULL CHECK (length(name) BETWEEN 1 AND 80),
     zone TEXT NOT NULL DEFAULT '' CHECK (length(zone) <= 40),
     height_u INTEGER NOT NULL CHECK (height_u BETWEEN 1 AND 80),
-    version INTEGER NOT NULL DEFAULT 1
+    version INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE UNIQUE INDEX racks_room_name_idx ON racks (room_id, lower(name));

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -38,9 +39,11 @@ type RackFields struct {
 
 type Rack struct {
 	RackFields
-	ID      int64 `json:"id"`
-	RoomID  int64 `json:"roomId"`
-	Version int   `json:"version"`
+	ID        int64      `json:"id"`
+	RoomID    int64      `json:"roomId"`
+	Version   int        `json:"version"`
+	CreatedAt *time.Time `json:"createdAt"`
+	UpdatedAt *time.Time `json:"updatedAt"`
 }
 
 type PlacementFields struct {
@@ -66,7 +69,7 @@ type Facilities struct {
 
 const regionColumns = "id,name,version"
 const roomColumns = "id,name,COALESCE(region_id,0),version"
-const rackColumns = "id,room_id,name,zone,height_u,version"
+const rackColumns = "id,room_id,name,zone,height_u,version,created_at,updated_at"
 const placementColumns = "asset_id,rack_id,start_u,units,face,depth,version"
 
 func readRegion(row scanner) (Region, error) {
@@ -83,7 +86,7 @@ func readRoom(row scanner) (Room, error) {
 
 func readRack(row scanner) (Rack, error) {
 	var rack Rack
-	err := row.Scan(&rack.ID, &rack.RoomID, &rack.Name, &rack.Zone, &rack.HeightU, &rack.Version)
+	err := row.Scan(&rack.ID, &rack.RoomID, &rack.Name, &rack.Zone, &rack.HeightU, &rack.Version, &rack.CreatedAt, &rack.UpdatedAt)
 	return rack, err
 }
 
@@ -337,7 +340,7 @@ func SaveRack(ctx context.Context, db *sql.DB, id, roomID int64, fields RackFiel
 			}
 		}
 		rack, err = readRack(tx.QueryRowContext(ctx, `UPDATE racks SET name=$2,zone=$3,height_u=$4,
-			version=version+1 WHERE id=$1 RETURNING `+rackColumns,
+			updated_at=now(),version=version+1 WHERE id=$1 RETURNING `+rackColumns,
 			id, fields.Name, fields.Zone, fields.HeightU))
 	}
 	if err != nil {
