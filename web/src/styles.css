@@ -293,9 +293,6 @@ a { color: var(--info); }
 .facility-tree-region { display: flex; align-items: center; gap: 6px; padding: 10px 6px 5px; color: var(--muted); font-size: var(--fs-body); font-weight: 600; }
 .facility-tree-region-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .facility-tree-region .facility-tree-count { font-weight: 500; }
-.facility-tree-region-action { display: inline-flex; padding: 2px; border: 0; border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; opacity: 0; }
-.facility-tree-region:hover .facility-tree-region-action { opacity: 1; }
-.facility-tree-region-action:hover { background: var(--subtle); color: var(--text); }
 
 /* Rack table view. */
 .rack-board { display: flex; gap: 14px; align-items: stretch; overflow-x: auto; padding: 6px 0 10px; }
@@ -653,9 +650,12 @@ html[data-theme="dark"] .import-error-row strong { color: #ff7875; }
 .facility-tree-children::before { content: ''; position: absolute; left: 0; top: -2px; bottom: 8px; border-left: 1px dashed var(--line); }
 .facility-tree-room { position: relative; }
 .facility-tree-room .facility-tree-item { padding-right: 38px; }
-.facility-tree-room-action { position: absolute; top: 50%; right: 4px; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; transform: translateY(-50%); border: 0; border-radius: 5px; background: transparent; color: var(--muted); cursor: pointer; }
-.facility-tree-room-action:hover { background: var(--hover); color: var(--text); }
-.facility-tree-room-action:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.facility-tree-region-action, .facility-tree-room-action { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 30px; width: 30px; height: 30px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); cursor: pointer; opacity: 0; }
+.facility-tree-room-action { position: absolute; top: 50%; right: 4px; transform: translateY(-50%); }
+.facility-tree-region:hover .facility-tree-region-action, .facility-tree-region:focus-within .facility-tree-region-action,
+.facility-tree-room:hover .facility-tree-room-action, .facility-tree-room:focus-within .facility-tree-room-action { opacity: 1; }
+.facility-tree-region-action:hover, .facility-tree-room-action:hover { background: var(--hover); color: var(--text); }
+.facility-tree-region-action:focus-visible, .facility-tree-room-action:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
 .facility-tree-children .facility-tree-item::before { content: ''; position: absolute; left: -13px; top: 50%; width: 11px; border-top: 1px dashed var(--line); }
 .facility-tree-empty { padding: 10px 8px 8px; color: var(--muted); font-size: 11px; }
 .facility-main { min-width: 0; padding: 0 24px 20px; border-radius: 12px; background: transparent; }

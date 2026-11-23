@@ -536,7 +536,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                   <span className="facility-tree-region-name">{group.region ? group.region.name : '未分组'}</span>
                   {editable && group.region && (
                     <button type="button" className="facility-tree-region-action" aria-label={`编辑区域 ${group.region.name}`} onClick={() => editRegion(group.region)}>
-                      <Pencil size={12} aria-hidden="true" />
+                      <Pencil size={14} aria-hidden="true" />
                     </button>
                   )}
                 </div>
