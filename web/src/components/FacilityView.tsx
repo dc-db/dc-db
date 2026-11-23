@@ -565,7 +565,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                   {view === 'table' ? (
                     <div className="facility-table-wrap">
                       <table className="facility-table facility-table-clickable">
-                        <thead><tr><th>机柜</th><th>区域 / 排</th><th>U 位总数</th><th>已用</th><th>空闲</th><th>占用率</th><th>设备数</th><th className="text-right">操作</th></tr></thead>
+                        <thead><tr><th>机柜</th><th>区域 / 排</th><th>U 位总数</th><th>已用</th><th>空闲</th><th>占用率</th><th>设备数</th><th>操作</th></tr></thead>
                         <tbody>
                           {rackRows.map(item => {
                             const placements = roomPlacements.filter(entry => entry.rackId === item.id)
@@ -581,7 +581,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                                 <td>{free}U</td>
                                 <td><UsageBar value={rate} label={`${item.name} 机柜占用率`} /></td>
                                 <td>{placements.length}</td>
-                                <td className="text-right"><Button size="sm" variant="outline" onClick={event => { event.stopPropagation(); editRack(item) }}>编辑</Button></td>
+                                <td><Button size="sm" variant="outline" onClick={event => { event.stopPropagation(); editRack(item) }}>编辑</Button></td>
                               </tr>
                             )
                           })}
