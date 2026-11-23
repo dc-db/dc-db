@@ -873,11 +873,11 @@ html:not([data-theme="dark"]) [data-slot="button"][data-variant="outline"]:hover
 .rack-detail-page { display: flex; flex-direction: column; gap: 14px; height: 100%; min-height: 0; }
 .breadcrumbs { color: var(--muted); font-size: var(--fs-body); line-height: 1.5; }
 .breadcrumbs ol { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.breadcrumbs button { border: 0; padding: 2px; background: transparent; color: var(--info); font: inherit; cursor: pointer; }
-.breadcrumbs button:hover { text-decoration: underline; }
+.breadcrumbs button { border: 0; padding: 2px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.breadcrumbs button:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
 .breadcrumbs button:focus-visible, .rack-device-count:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .breadcrumbs-separator { color: var(--muted); }
-.breadcrumbs [aria-current="page"] { color: var(--text); }
+.breadcrumbs [aria-current="page"] { color: var(--text); font-weight: 600; }
 .rack-detail-navigation { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .rack-device-count { border: 0; padding: 0; background: transparent; color: var(--info); cursor: pointer; }
 .rack-device-count:hover { text-decoration: underline; }
