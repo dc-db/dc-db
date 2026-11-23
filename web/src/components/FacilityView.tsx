@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Download, MoreHorizontal, Pencil, Plus, Settings2, Upload } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronsUpDown, Download, MoreHorizontal, Pencil, Plus, Settings2, Upload } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
@@ -48,6 +48,11 @@ const rackColumns = [
 ] as const
 
 type RackColumn = typeof rackColumns[number]['key']
+type RackSortColumn = Exclude<RackColumn, 'name' | 'zone'>
+
+function isRackSortColumn(key: RackColumn): key is RackSortColumn {
+  return key !== 'name' && key !== 'zone'
+}
 const defaultRackColumns: RackColumn[] = rackColumns.map(column => column.key)
 const rackColumnsStorageKey = 'dc-db-columns:racks'
 
@@ -96,6 +101,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   const [focused, setFocused] = useState<number | null>(null)
   const [view, setView] = useState<'table' | 'elevations'>('table')
   const [visibleRackColumns, setVisibleRackColumns] = useState<RackColumn[]>(loadRackColumns)
+  const [rackSort, setRackSort] = useState<{ key: RackSortColumn; direction: 'asc' | 'desc' } | null>(null)
   const [face, setFace] = useState<RackFace>('front')
   const [roomDraft, setRoomDraft] = useState<RoomDraft | null>(null)
   const [regionDraft, setRegionDraft] = useState<{ id?: number; version: number; name: string } | null>(null)
@@ -121,6 +127,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   function updateRackColumns(columns: RackColumn[]) {
     if (!columns.length) return
     setVisibleRackColumns(columns)
+    setRackSort(current => current && !columns.includes(current.key) ? null : current)
     try {
       localStorage.setItem(rackColumnsStorageKey, JSON.stringify(columns))
     } catch {
@@ -173,6 +180,30 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
     const needle = rackKeyword.trim().toLowerCase()
     return needle ? racks.filter(item => item.name.toLowerCase().includes(needle) || item.zone.toLowerCase().includes(needle)) : racks
   }, [racks, rackKeyword])
+  const rackMetrics = useMemo(() => {
+    const placementsByRack = new Map<number, Placement[]>()
+    for (const placement of roomPlacements) {
+      const entries = placementsByRack.get(placement.rackId) ?? []
+      entries.push(placement)
+      placementsByRack.set(placement.rackId, entries)
+    }
+    return new Map(rackRows.map(item => {
+      const placements = placementsByRack.get(item.id) ?? []
+      const used = occupiedUnits(placements).size
+      return [item.id, {
+        height: item.heightU,
+        used,
+        free: Math.max(0, item.heightU - used),
+        usage: item.heightU > 0 ? Math.round(used / item.heightU * 100) : 0,
+        devices: placements.length,
+      }]
+    }))
+  }, [rackRows, roomPlacements])
+  const sortedRackRows = useMemo(() => {
+    if (!rackSort) return rackRows
+    const factor = rackSort.direction === 'asc' ? 1 : -1
+    return [...rackRows].sort((a, b) => factor * (rackMetrics.get(a.id)![rackSort.key] - rackMetrics.get(b.id)![rackSort.key]))
+  }, [rackRows, rackMetrics, rackSort])
   const devices = roomPlacements.filter(item => item.rackId === rackId)
   const totalRoomU = racks.reduce((sum, item) => sum + item.heightU, 0)
   const usedRoomU = racks.reduce((sum, item) =>
@@ -329,7 +360,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   function exportRacks() {
     if (!room) return
     const rows: (string | number)[][] = [['机柜编号', '区域/排', '高度（U）', '已用U位', '空闲U位', '占用率', '设备数']]
-    for (const item of rackRows) {
+    for (const item of view === 'table' ? sortedRackRows : rackRows) {
       const placements = roomPlacements.filter(entry => entry.rackId === item.id)
       const used = occupiedUnits(placements).size
       const rate = item.heightU > 0 ? Math.round((used / item.heightU) * 100) : 0
@@ -627,13 +658,18 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                   {view === 'table' ? (
                     <div className="facility-table-wrap">
                       <table className="facility-table facility-table-clickable">
-                        <thead><tr>{rackColumns.filter(column => visibleRackColumns.includes(column.key)).map(column => <th key={column.key}>{column.label}</th>)}<th>操作</th></tr></thead>
+                        <thead><tr>{rackColumns.filter(column => visibleRackColumns.includes(column.key)).map(column => {
+                          const sortKey = isRackSortColumn(column.key) ? column.key : null
+                          const direction = sortKey && rackSort?.key === sortKey ? rackSort.direction : null
+                          return <th key={column.key} aria-sort={direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : undefined}>
+                            {sortKey ? <button type="button" className={`data-table-sort${direction ? ' is-sorted' : ''}`} onClick={() => setRackSort(current => ({ key: sortKey, direction: current?.key === sortKey && current.direction === 'asc' ? 'desc' : 'asc' }))}>
+                              <span>{column.label}</span><span className="data-table-sort-icon" aria-hidden="true">{direction === 'asc' ? <ArrowUp size={14} /> : direction === 'desc' ? <ArrowDown size={14} /> : <ChevronsUpDown size={14} />}</span>
+                            </button> : column.label}
+                          </th>
+                        })}<th>操作</th></tr></thead>
                         <tbody>
-                          {rackRows.map(item => {
-                            const placements = roomPlacements.filter(entry => entry.rackId === item.id)
-                            const used = occupiedUnits(placements).size
-                            const free = Math.max(0, item.heightU - used)
-                            const rate = item.heightU > 0 ? Math.round((used / item.heightU) * 100) : 0
+                          {sortedRackRows.map(item => {
+                            const { used, free, usage: rate, devices: deviceCount } = rackMetrics.get(item.id)!
                             return (
                               <tr key={item.id} onClick={() => openRack(item.id)}>
                                 {visibleRackColumns.includes('name') && <td><strong>{item.name}</strong></td>}
@@ -642,7 +678,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                                 {visibleRackColumns.includes('used') && <td>{used}U</td>}
                                 {visibleRackColumns.includes('free') && <td>{free}U</td>}
                                 {visibleRackColumns.includes('usage') && <td><UsageBar value={rate} label={`${item.name} 机柜占用率`} /></td>}
-                                {visibleRackColumns.includes('devices') && <td>{placements.length}</td>}
+                                {visibleRackColumns.includes('devices') && <td>{deviceCount}</td>}
                                 <td><Button size="sm" variant="outline" onClick={event => { event.stopPropagation(); editRack(item) }}>编辑</Button></td>
                               </tr>
                             )
