@@ -290,7 +290,7 @@ a { color: var(--info); }
 .app-layout { height: 100vh; overflow: hidden; --sider-width: 200px; }
 
 .facility-tree-group { display: flex; flex-direction: column; gap: 2px; }
-.facility-tree-region { display: flex; align-items: center; gap: 6px; padding: 10px 6px 5px; color: var(--muted); font-size: var(--fs-label); font-weight: 600; }
+.facility-tree-region { display: flex; align-items: center; gap: 6px; padding: 10px 6px 5px; color: var(--muted); font-size: var(--fs-body); font-weight: 600; }
 .facility-tree-region-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .facility-tree-region .facility-tree-count { font-weight: 500; }
 .facility-tree-region-action { display: inline-flex; padding: 2px; border: 0; border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; opacity: 0; }
