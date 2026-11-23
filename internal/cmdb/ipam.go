@@ -16,9 +16,10 @@ import (
 )
 
 const (
-	subnetColumns = `s.id,s.name,s.cidr,s.gateway,s.vlan,s.notes,s.status,s.role,s.version,
+	subnetColumns = `s.id,s.name,s.cidr,s.gateway,s.vlan,s.notes,s.status,s.role,
+		COALESCE(s.room_id,v.room_id,0),COALESCE(r.name,''),s.version,
 		COALESCE(v.name,''),COALESCE(v.status,'')`
-	subnetFrom  = `subnets s LEFT JOIN vlans v ON v.vid::text = s.vlan`
+	subnetFrom  = `subnets s LEFT JOIN vlans v ON v.vid::text = s.vlan LEFT JOIN rooms r ON r.id = COALESCE(s.room_id,v.room_id)`
 	freeIPLimit = 50
 )
 
@@ -44,12 +45,14 @@ type SubnetFields struct {
 	Notes   string `json:"notes"`
 	Status  string `json:"status"`
 	Role    string `json:"role"`
+	RoomID  int64  `json:"roomId,omitempty"`
 }
 
 type Subnet struct {
 	SubnetFields
 	ID         int64  `json:"id"`
 	Version    int    `json:"version"`
+	RoomName   string `json:"roomName,omitempty"`
 	VLANName   string `json:"vlanName,omitempty"`
 	VLANStatus string `json:"vlanStatus,omitempty"`
 	Usable     int64  `json:"usable"`
@@ -109,7 +112,8 @@ type queryer interface {
 func readSubnet(row scanner) (Subnet, error) {
 	var subnet Subnet
 	err := row.Scan(&subnet.ID, &subnet.Name, &subnet.CIDR, &subnet.Gateway, &subnet.VLAN,
-		&subnet.Notes, &subnet.Status, &subnet.Role, &subnet.Version, &subnet.VLANName, &subnet.VLANStatus)
+		&subnet.Notes, &subnet.Status, &subnet.Role, &subnet.RoomID, &subnet.RoomName,
+		&subnet.Version, &subnet.VLANName, &subnet.VLANStatus)
 	return subnet, err
 }
 
@@ -235,16 +239,25 @@ func SaveSubnet(ctx context.Context, db *sql.DB, id int64, fields SubnetFields, 
 		return Subnet{}, err
 	}
 	fields.VLAN = vlan
+	if fields.RoomID != 0 {
+		var exists bool
+		if err := tx.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM rooms WHERE id=$1)", fields.RoomID).Scan(&exists); err != nil {
+			return Subnet{}, err
+		}
+		if !exists {
+			return Subnet{}, invalidFacility("所属数据中心不存在")
+		}
+	}
 
 	var before Subnet
 	action := "subnet_create"
 	subnet := Subnet{SubnetFields: fields, Usable: usableCount(prefix)}
 	if id == 0 {
 		err = tx.QueryRowContext(ctx, `
-			INSERT INTO subnets (name,cidr,gateway,vlan,notes,status,role)
-			VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id,version`,
+			INSERT INTO subnets (name,cidr,gateway,vlan,notes,status,role,room_id)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,version`,
 			fields.Name, fields.CIDR, fields.Gateway, fields.VLAN, fields.Notes,
-			fields.Status, fields.Role).Scan(&subnet.ID, &subnet.Version)
+			fields.Status, fields.Role, nullID(fields.RoomID)).Scan(&subnet.ID, &subnet.Version)
 	} else {
 		before, err = readSubnet(tx.QueryRowContext(ctx,
 			"SELECT "+subnetColumns+" FROM "+subnetFrom+" WHERE s.id=$1", id))
@@ -265,11 +278,11 @@ func SaveSubnet(ctx context.Context, db *sql.DB, id int64, fields SubnetFields, 
 		}
 		action = "subnet_update"
 		err = tx.QueryRowContext(ctx, `
-			UPDATE subnets SET name=$2,cidr=$3,gateway=$4,vlan=$5,notes=$6,status=$7,role=$8,
+			UPDATE subnets SET name=$2,cidr=$3,gateway=$4,vlan=$5,notes=$6,status=$7,role=$8,room_id=$9,
 				version=version+1
 			WHERE id=$1 RETURNING version`,
 			id, fields.Name, fields.CIDR, fields.Gateway, fields.VLAN, fields.Notes,
-			fields.Status, fields.Role).Scan(&subnet.Version)
+			fields.Status, fields.Role, nullID(fields.RoomID)).Scan(&subnet.Version)
 		subnet.ID = id
 	}
 	if err != nil {
@@ -292,6 +305,7 @@ func SaveSubnet(ctx context.Context, db *sql.DB, id int64, fields SubnetFields, 
 		return Subnet{}, err
 	}
 	if detail, detailErr := GetSubnet(ctx, db, subnet.ID); detailErr == nil {
+		subnet.RoomID, subnet.RoomName = detail.RoomID, detail.RoomName
 		subnet.Usable, subnet.Used, subnet.Free = detail.Usable, detail.Used, detail.Free
 	}
 	return subnet, nil

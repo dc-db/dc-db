@@ -184,10 +184,10 @@ SELECT v.* FROM (
     SELECT 1::bigint, 100::int, 'demo-management'::text, 'active'::text, '虚构管理网络'::text, 1::bigint
     UNION ALL SELECT 2, 200, 'demo-workload', 'active', '虚构业务网络', 1
 ) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
-INSERT INTO subnets (id, name, cidr, gateway, vlan, notes, status, role)
+INSERT INTO subnets (id, name, cidr, gateway, vlan, notes, status, role, room_id)
 SELECT v.* FROM (
-    SELECT 1::bigint, '示例管理网'::text, '192.0.2.0/24'::text, '192.0.2.1'::text, '100'::text, '文档专用地址'::text, 'active'::text, '管理'::text
-    UNION ALL SELECT 2, '示例业务网', '198.51.100.0/24', '198.51.100.1', '200', '文档专用地址', 'active', '业务'
+    SELECT 1::bigint, '示例管理网'::text, '192.0.2.0/24'::text, '192.0.2.1'::text, '100'::text, '文档专用地址'::text, 'active'::text, '管理'::text, 1::bigint
+    UNION ALL SELECT 2, '示例业务网', '198.51.100.0/24', '198.51.100.1', '200', '文档专用地址', 'active', '业务', 1
 ) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 INSERT INTO ip_allocations (subnet_id, ip, asset_id, label, notes, status, dns_name, role)
 SELECT v.* FROM (

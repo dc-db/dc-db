@@ -14,19 +14,21 @@ type MetadataFields struct {
 	Kind        string `json:"kind"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	RoomID      int64  `json:"roomId,omitempty"`
 }
 
 type MetadataEntry struct {
 	MetadataFields
-	ID         int64 `json:"id"`
-	AssetCount int64 `json:"assetCount"`
+	ID         int64  `json:"id"`
+	RoomName   string `json:"roomName,omitempty"`
+	AssetCount int64  `json:"assetCount"`
 }
 
-const metadataColumns = "id,kind,name,description"
+const metadataColumns = "id,kind,name,description,COALESCE(room_id,0)"
 
 func readMetadata(row scanner) (MetadataEntry, error) {
 	var entry MetadataEntry
-	err := row.Scan(&entry.ID, &entry.Kind, &entry.Name, &entry.Description)
+	err := row.Scan(&entry.ID, &entry.Kind, &entry.Name, &entry.Description, &entry.RoomID)
 	return entry, err
 }
 
@@ -50,12 +52,13 @@ func normalizeMetadataFields(fields *MetadataFields) error {
 // empty, so the page can show counts per category without extra requests.
 func ListMetadata(ctx context.Context, db *sql.DB, kind string) ([]MetadataEntry, error) {
 	query := `
-		SELECT m.id, m.kind, m.name, m.description,
+		SELECT m.id, m.kind, m.name, m.description, COALESCE(m.room_id, 0), COALESCE(r.name, ''),
 			CASE WHEN m.kind = 'owner'
 				THEN (SELECT count(*) FROM assets a WHERE lower(a.owner) = lower(m.name))
 				ELSE 0
 			END
-		FROM metadata_entries m`
+		FROM metadata_entries m
+		LEFT JOIN rooms r ON r.id = m.room_id`
 	args := []any{}
 	if strings.TrimSpace(kind) != "" {
 		query += " WHERE m.kind=$1"
@@ -70,7 +73,7 @@ func ListMetadata(ctx context.Context, db *sql.DB, kind string) ([]MetadataEntry
 	entries := make([]MetadataEntry, 0)
 	for rows.Next() {
 		var entry MetadataEntry
-		if err := rows.Scan(&entry.ID, &entry.Kind, &entry.Name, &entry.Description, &entry.AssetCount); err != nil {
+		if err := rows.Scan(&entry.ID, &entry.Kind, &entry.Name, &entry.Description, &entry.RoomID, &entry.RoomName, &entry.AssetCount); err != nil {
 			return nil, err
 		}
 		entries = append(entries, entry)
@@ -82,22 +85,34 @@ func SaveMetadata(ctx context.Context, db *sql.DB, id int64, fields MetadataFiel
 	if err := normalizeMetadataFields(&fields); err != nil {
 		return MetadataEntry{}, err
 	}
+	if fields.RoomID != 0 {
+		var exists bool
+		if err := db.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM rooms WHERE id=$1)", fields.RoomID).Scan(&exists); err != nil {
+			return MetadataEntry{}, err
+		}
+		if !exists {
+			return MetadataEntry{}, invalidFacility("所属数据中心不存在")
+		}
+	}
 	var entry MetadataEntry
 	var err error
 	if id == 0 {
 		entry, err = readMetadata(db.QueryRowContext(ctx, `
-			INSERT INTO metadata_entries (kind,name,description) VALUES ($1,$2,$3)
-			RETURNING `+metadataColumns, fields.Kind, fields.Name, fields.Description))
+			INSERT INTO metadata_entries (kind,name,description,room_id) VALUES ($1,$2,$3,$4)
+			RETURNING `+metadataColumns, fields.Kind, fields.Name, fields.Description, nullID(fields.RoomID)))
 	} else {
 		entry, err = readMetadata(db.QueryRowContext(ctx, `
-			UPDATE metadata_entries SET kind=$2, name=$3, description=$4 WHERE id=$1
-			RETURNING `+metadataColumns, id, fields.Kind, fields.Name, fields.Description))
+			UPDATE metadata_entries SET kind=$2, name=$3, description=$4, room_id=$5 WHERE id=$1
+			RETURNING `+metadataColumns, id, fields.Kind, fields.Name, fields.Description, nullID(fields.RoomID)))
 	}
 	if err != nil {
 		if isUniqueViolation(err) {
 			return MetadataEntry{}, fmt.Errorf("%w: 名称已存在", ErrInvalid)
 		}
 		return MetadataEntry{}, err
+	}
+	if entry.RoomID != 0 {
+		_ = db.QueryRowContext(ctx, "SELECT name FROM rooms WHERE id=$1", entry.RoomID).Scan(&entry.RoomName)
 	}
 	return entry, nil
 }

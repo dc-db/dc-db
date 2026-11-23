@@ -157,6 +157,7 @@ CREATE TABLE subnets (
     notes TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('container','active','reserved','deprecated')),
     role TEXT NOT NULL DEFAULT '',
+    room_id BIGINT REFERENCES rooms ON DELETE SET NULL,
     version INTEGER NOT NULL DEFAULT 1
 );
 
@@ -279,6 +280,7 @@ CREATE TABLE metadata_entries (
     kind TEXT NOT NULL CHECK (length(kind) BETWEEN 1 AND 40),
     name TEXT NOT NULL CHECK (length(name) BETWEEN 1 AND 80),
     description TEXT NOT NULL DEFAULT '' CHECK (length(description) <= 200),
+    room_id BIGINT REFERENCES rooms ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
