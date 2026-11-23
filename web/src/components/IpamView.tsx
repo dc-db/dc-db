@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { PageHeader } from './PageHeader'
 import { Input } from './ui/input'
-import { Progress } from './ui/progress'
+import { UsageBar } from './UsageBar'
 import { Textarea } from './ui/textarea'
 import { SearchableSelect } from './SearchableSelect'
 import { Select } from './AppControls'
@@ -365,7 +365,7 @@ export function IpamView({ editable, hideTitle, openSubnetId, onSubnetOpened, on
                   <td>{count(item.usable)}</td>
                   <td>{count(item.used)}</td>
                   <td>{count(item.free)}</td>
-                  <td><span className="ipam-util"><Progress value={usedPct} aria-label={`${item.name} 地址使用率`} /><span>{usedPct}%</span></span></td>
+                  <td><UsageBar value={usedPct} label={`${item.name} 地址使用率`} /></td>
                   <td><div className="ipam-row-actions">
                     <Button variant="ghost" size="sm" aria-label={bookmarkedSubnets.includes(item.id) ? `取消收藏 ${item.name}` : `收藏 ${item.name}`} onClick={() => onToggleSubnetBookmark(item.id)}><Star className={bookmarkedSubnets.includes(item.id) ? 'fill-current' : ''} /></Button>
                     {editable && <Button variant="ghost" size="sm" onClick={() => editSubnet(item)}>编辑</Button>}

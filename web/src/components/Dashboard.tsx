@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Building2, Globe, HardDrive, List, Monitor, Server, Star } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
-import { Progress } from './ui/progress'
+import { UsageBar } from './UsageBar'
 import type { EChartsOption } from 'echarts'
 import type { Asset, Change, Subnet, Tag } from '../api'
 import type { Facilities } from '../facilities'
@@ -357,7 +357,7 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
           <DashboardCard title="网段使用率">
             {subnets.length ? <Chart option={subnetOption} height={280} dark={dark} /> : <div className="dashboard-chart-empty"><Empty description="暂无网段" /></div>}
             <div style={{ marginTop: 12 }}>
-              <div className="mb-1 flex items-center gap-2"><Progress value={Math.min(100, Math.max(0, ipPercent))} aria-label="IP 使用率" className={ipPercent > 85 ? '[&>div]:bg-destructive' : undefined} /><span>{ipPercent}%</span></div>
+              <UsageBar value={ipPercent} label="IP 使用率" className="mb-1 w-full" barClassName={ipPercent > 85 ? 'min-w-0 flex-1 [&>div]:bg-destructive' : 'min-w-0 flex-1'} />
               <div className="muted">可用 {stats.usable.toLocaleString()} · 已用 {stats.used.toLocaleString()} · 空闲 {stats.free.toLocaleString()}</div>
             </div>
           </DashboardCard>

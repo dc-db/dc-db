@@ -11,7 +11,7 @@ import { RowIconBox } from './ServiceIcon'
 import { TopologyCanvas, type TopoEdgeInput, type TopoItem, type TopoTier } from './TopologyCanvas'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
-import { Progress } from './ui/progress'
+import { UsageBar } from './UsageBar'
 
 const subnetStatusMeta: Record<string, { label: string; className: string }> = {
   container: { label: '聚合', className: 'border-border bg-muted text-muted-foreground' },
@@ -326,8 +326,7 @@ export function SubnetDetailView({
             <div><span>空闲</span><strong>{current.free}</strong></div>
             <div className="min-w-[160px] flex-1 items-center">
               <span>利用率</span>
-              <Progress value={usedPct} className="max-w-[140px]" aria-label="网段地址利用率" />
-              <strong className="text-base">{usedPct}%</strong>
+              <UsageBar value={usedPct} label="网段地址利用率" className="w-full" barClassName="min-w-0 max-w-[140px] flex-1" />
             </div>
           </div>
 

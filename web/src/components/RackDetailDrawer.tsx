@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { ArrowLeft, Plus, Settings, Star, Trash2 } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
-import { Progress } from './ui/progress'
+import { UsageBar } from './UsageBar'
 import type { Asset } from '../api'
 import { mountKinds, occupiedUnits, placementFaceLabel, uRange } from '../facilities'
 import type { MountKind, Placement, Rack, RackFace, Room } from '../facilities'
@@ -93,7 +93,7 @@ export function RackDetailDrawer({
             <div><dt>设备数</dt><dd>{devices.length}</dd></div>
             <div><dt>前 / 后视占用</dt><dd>{frontUsed}U / {rearUsed}U</dd></div>
             <div><dt>安装深度</dt><dd>全深 {fullDepthCount} · 半深 {halfDepthCount}</dd></div>
-            <div className="rack-facts-usage"><dt>利用率</dt><dd><Progress value={percent} aria-label="机柜利用率" /><span>{percent}%</span></dd></div>
+            <div className="rack-facts-usage"><dt>利用率</dt><dd><UsageBar value={percent} label="机柜利用率" className="w-full" barClassName="min-w-0 flex-1" /></dd></div>
           </dl>
           <h3 className="rack-facts-subtitle">机柜内设备 <span>{devices.length}</span></h3>
           {devices.length ? (
