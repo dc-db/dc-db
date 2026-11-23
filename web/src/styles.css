@@ -290,7 +290,8 @@ a { color: var(--info); }
 .app-layout { height: 100vh; overflow: hidden; --sider-width: 200px; }
 
 .facility-tree-group { display: flex; flex-direction: column; gap: 2px; }
-.facility-tree-region { display: flex; align-items: center; gap: 6px; padding: 10px 6px 5px; color: var(--muted); font-size: var(--fs-body); font-weight: 600; }
+.facility-tree-region { display: flex; align-items: center; gap: 6px; height: calc(1.55em + 16px); box-sizing: border-box; padding: 0 6px; color: var(--muted); font-size: var(--fs-body); font-weight: 600; }
+.facility-tree-region:hover, .facility-tree-region:focus-within { border-radius: 5px; background: var(--hover); }
 .facility-tree-region-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .facility-tree-region .facility-tree-count { font-weight: 500; }
 
