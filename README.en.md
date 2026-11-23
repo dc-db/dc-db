@@ -79,6 +79,10 @@ The first start creates the schema automatically. Without configuration the prog
 
 The service binds to `127.0.0.1:8080` by default. Before the first start of a network-accessible installation, copy `config.example.yaml` to `config.yaml` and set `admin.password` to a unique password of at least 12 bytes. Set `cookie_secure: true` when serving the application through an HTTPS reverse proxy. The database holds password hashes and all asset data, so restrict the connection string, backups, and asset exports, and enable disk encryption where appropriate. Accounts are created from the configuration on first start; existing accounts use their stored passwords.
 
+### Reachability checks
+
+For a server, VM, or network device with a single IP address, enable Ping checks in the asset editor. An administrator can set the interval under System Management → Reachability Settings (10–86400 seconds; default 300). Results indicate ICMP reachability, not whether a device or service is running; retired assets are skipped. The Docker image includes Ping and probes from the application container network through the host. When running directly on Linux, install iputils `ping` and allow the application user to send ICMP.
+
 ### Example data
 
 The repository's `demo-data.sql` contains fictional assets and related records for an isolated development environment. It is not imported automatically. Run it against an empty inventory:

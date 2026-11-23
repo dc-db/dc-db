@@ -23,7 +23,8 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/dc-db ./cmd/dc-db
 
 # ---- runtime ----
 FROM alpine:3.22
-RUN apk add --no-cache ca-certificates tzdata \
+RUN apk add --no-cache ca-certificates tzdata iputils-ping \
+    && chmod u-s /bin/ping \
     && addgroup -g 10001 -S dc-db \
     && adduser -u 10001 -S -G dc-db -H dc-db
 WORKDIR /app
