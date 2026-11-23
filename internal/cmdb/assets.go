@@ -13,32 +13,35 @@ import (
 var ErrConflict = errors.New("记录已被更新，请刷新后重试")
 
 type Fields struct {
-	Kind        string          `json:"kind"`
-	Name        string          `json:"name"`
-	Platform    string          `json:"platform"`
-	Status      string          `json:"status"`
-	Lifecycle   string          `json:"lifecycle"`
-	Owner       string          `json:"owner"`
-	Environment string          `json:"environment"`
-	Address     string          `json:"address"`
-	CPU         int             `json:"cpu"`
-	MemoryMiB   int64           `json:"memoryMiB"`
-	GroupID     int64           `json:"groupId"`
-	Notes       string          `json:"notes"`
-	Attributes  json.RawMessage `json:"attributes"`
+	Kind         string          `json:"kind"`
+	Name         string          `json:"name"`
+	Platform     string          `json:"platform"`
+	Status       string          `json:"status"`
+	Lifecycle    string          `json:"lifecycle"`
+	Owner        string          `json:"owner"`
+	Environment  string          `json:"environment"`
+	Address      string          `json:"address"`
+	ProbeEnabled bool            `json:"probeEnabled"`
+	CPU          int             `json:"cpu"`
+	MemoryMiB    int64           `json:"memoryMiB"`
+	GroupID      int64           `json:"groupId"`
+	Notes        string          `json:"notes"`
+	Attributes   json.RawMessage `json:"attributes"`
 }
 
 type Asset struct {
 	Fields
-	ID           int64           `json:"id"`
-	Version      int             `json:"version"`
-	UpdatedAt    time.Time       `json:"updatedAt"`
-	SourceKey    string          `json:"sourceKey,omitempty"`
-	ExternalKey  string          `json:"externalKey,omitempty"`
-	LastSeenAt   *time.Time      `json:"lastSeenAt,omitempty"`
-	MissingCount int             `json:"missingCount"`
-	Observed     json.RawMessage `json:"observed"`
-	Tags         []Tag           `json:"tags"`
+	ID             int64           `json:"id"`
+	Version        int             `json:"version"`
+	UpdatedAt      time.Time       `json:"updatedAt"`
+	ProbeStatus    string          `json:"probeStatus"`
+	ProbeCheckedAt *time.Time      `json:"probeCheckedAt"`
+	SourceKey      string          `json:"sourceKey,omitempty"`
+	ExternalKey    string          `json:"externalKey,omitempty"`
+	LastSeenAt     *time.Time      `json:"lastSeenAt,omitempty"`
+	MissingCount   int             `json:"missingCount"`
+	Observed       json.RawMessage `json:"observed"`
+	Tags           []Tag           `json:"tags"`
 }
 
 type Link struct {
@@ -64,7 +67,8 @@ type Change struct {
 
 const assetColumns = `id, kind, name, platform, status, lifecycle, owner, environment, address, cpu,
 	memory_mib, notes, attributes, version, updated_at, COALESCE(source_key, ''),
-	COALESCE(external_key, ''), last_seen_at, missing_count, observed, COALESCE(group_id, 0)`
+	COALESCE(external_key, ''), last_seen_at, missing_count, observed, COALESCE(group_id, 0),
+	probe_enabled, probe_status, probe_checked_at`
 
 type scanner interface{ Scan(...any) error }
 
@@ -74,7 +78,7 @@ func readAsset(row scanner) (Asset, error) {
 	err := row.Scan(&a.ID, &a.Kind, &a.Name, &a.Platform, &a.Status, &a.Lifecycle, &a.Owner,
 		&a.Environment, &a.Address, &a.CPU, &a.MemoryMiB, &a.Notes, &attributes,
 		&a.Version, &a.UpdatedAt, &a.SourceKey, &a.ExternalKey, &a.LastSeenAt, &a.MissingCount, &observed,
-		&a.GroupID)
+		&a.GroupID, &a.ProbeEnabled, &a.ProbeStatus, &a.ProbeCheckedAt)
 	a.Attributes = json.RawMessage(attributes)
 	a.Observed = json.RawMessage(observed)
 	return a, err
@@ -199,10 +203,13 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 	asset, err := readAsset(tx.QueryRowContext(ctx, `
 		UPDATE assets SET name=$2, platform=$3, status=$4, lifecycle=$5, owner=$6, environment=$7,
 			address=$8, cpu=$9, memory_mib=$10, notes=$11, attributes=$12,
-			group_id=NULLIF($13,0), version=version+1, updated_at=$14
+			group_id=NULLIF($13,0), version=version+1, updated_at=$14,
+			probe_status=CASE WHEN address IS DISTINCT FROM $8 OR probe_enabled IS DISTINCT FROM $15 OR lifecycle IS DISTINCT FROM $5 THEN 'unknown' ELSE probe_status END,
+			probe_checked_at=CASE WHEN address IS DISTINCT FROM $8 OR probe_enabled IS DISTINCT FROM $15 OR lifecycle IS DISTINCT FROM $5 THEN NULL ELSE probe_checked_at END,
+			probe_enabled=$15
 		WHERE id=$1 RETURNING `+assetColumns, id, fields.Name, fields.Platform, fields.Status,
 		fields.Lifecycle, fields.Owner, fields.Environment, fields.Address, fields.CPU, fields.MemoryMiB,
-		fields.Notes, string(fields.Attributes), fields.GroupID, nowText()))
+		fields.Notes, string(fields.Attributes), fields.GroupID, nowText(), fields.ProbeEnabled))
 	if err != nil {
 		return Asset{}, err
 	}
@@ -215,11 +222,11 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 func createAsset(ctx context.Context, tx *sql.Tx, fields Fields, actor string) (Asset, error) {
 	asset, err := readAsset(tx.QueryRowContext(ctx, `
 		INSERT INTO assets (kind, name, platform, status, lifecycle, owner, environment, address,
-			cpu, memory_mib, notes, attributes, group_id, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NULLIF($13,0),$14) RETURNING `+assetColumns,
+			cpu, memory_mib, notes, attributes, group_id, updated_at, probe_enabled)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NULLIF($13,0),$14,$15) RETURNING `+assetColumns,
 		fields.Kind, fields.Name, fields.Platform, fields.Status, fields.Lifecycle, fields.Owner,
 		fields.Environment, fields.Address, fields.CPU, fields.MemoryMiB, fields.Notes,
-		string(fields.Attributes), fields.GroupID, nowText()))
+		string(fields.Attributes), fields.GroupID, nowText(), fields.ProbeEnabled))
 	if err != nil {
 		return Asset{}, err
 	}

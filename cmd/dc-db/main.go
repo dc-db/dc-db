@@ -67,6 +67,7 @@ func run(ctx context.Context, args []string) error {
 	if _, err := os.Stat(filepath.Join(webDir, "index.html")); err != nil {
 		return fmt.Errorf("前端构建产物不可用，请先运行 npm run build: %w", err)
 	}
+	go cmdb.RunProbeWorker(ctx, db)
 	return serve(ctx, cfg.Listen, cmdb.NewServer(db, cfg.CookieSecure, http.FileServer(http.Dir(webDir))))
 }
 

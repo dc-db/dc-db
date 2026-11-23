@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"mime"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -39,6 +40,9 @@ func NewServer(db *sql.DB, secureCookie bool, frontend http.Handler) http.Handle
 	mux.HandleFunc("GET /api/me", s.requireUser(false, func(w http.ResponseWriter, r *http.Request) {
 		respond(w, http.StatusOK, currentUser(r))
 	}))
+	mux.HandleFunc("GET /api/probe-results", s.requireUser(false, s.listProbeResults))
+	mux.HandleFunc("GET /api/probe-settings", s.requireAdmin(s.getProbeSettings))
+	mux.HandleFunc("PUT /api/probe-settings", s.requireAdmin(s.updateProbeSettings))
 	mux.HandleFunc("GET /api/users", s.requireAdmin(s.listUsers))
 	mux.HandleFunc("POST /api/users", s.requireAdmin(s.createUser))
 	mux.HandleFunc("PUT /api/users/{username}", s.requireAdmin(s.updateUser))
@@ -326,6 +330,11 @@ func validateFields(fields *Fields) error {
 	}
 	if fields.CPU < 0 || fields.CPU > 65536 || fields.MemoryMiB < 0 || fields.MemoryMiB > 1073741824 {
 		return errors.New("CPU 或内存超出允许范围")
+	}
+	if fields.ProbeEnabled {
+		if ip, err := netip.ParseAddr(fields.Address); err != nil || ip.Zone() != "" {
+			return errors.New("开启存活探测需要填写有效的 IP 地址")
+		}
 	}
 	if len(fields.Address) > 512 || len(fields.Owner) > 512 || len(fields.Environment) > 128 || len(fields.Notes) > 8192 {
 		return errors.New("地址、负责人、环境或备注超出长度限制")

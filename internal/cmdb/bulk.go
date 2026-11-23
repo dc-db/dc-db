@@ -66,7 +66,9 @@ func BulkUpdateAssets(ctx context.Context, db *sql.DB, ids []int64, patch BulkAs
 
 		after, err := readAsset(tx.QueryRowContext(ctx, `
 			UPDATE assets
-			SET status=$2, platform=$3, lifecycle=$4, owner=$5, environment=$6, version=version+1, updated_at=$7
+			SET status=$2, platform=$3, lifecycle=$4, owner=$5, environment=$6, version=version+1, updated_at=$7,
+			    probe_status=CASE WHEN lifecycle IS DISTINCT FROM $4 THEN 'unknown' ELSE probe_status END,
+			    probe_checked_at=CASE WHEN lifecycle IS DISTINCT FROM $4 THEN NULL ELSE probe_checked_at END
 			WHERE id=$1
 			RETURNING `+assetColumns,
 			id, fields.Status, fields.Platform, fields.Lifecycle, fields.Owner, fields.Environment, nowText(),
