@@ -38,7 +38,7 @@ export function GuidePage({ onGo, onStartAsset }: Props) {
               <HardDrive aria-hidden />
               <strong>我有机房和机柜</strong>
               <p>先建数据中心，再加机柜，然后把设备上架到 U 位。</p>
-              <Button size="sm" onClick={() => onGo('facilities')}>去数据中心</Button>
+              <Button size="sm" onClick={() => onGo('facilities')}>去机柜</Button>
             </div>
             <div className="guide-path">
               <Server aria-hidden />
@@ -135,7 +135,7 @@ export function GuidePage({ onGo, onStartAsset }: Props) {
       </Card>
 
       <div className="guide-footer">
-        <Space><Button variant="outline" onClick={() => onGo('facilities')}><Boxes className="size-4" />数据中心</Button>
+        <Space><Button variant="outline" onClick={() => onGo('facilities')}><Boxes className="size-4" />机柜</Button>
           <Button variant="outline" onClick={() => onGo('subnets')}><Network className="size-4" />网络</Button>
           <Button variant="outline" onClick={() => onGo('host')}><Upload className="size-4" />资产列表</Button></Space>
       </div>

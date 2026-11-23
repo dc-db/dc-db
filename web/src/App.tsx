@@ -308,7 +308,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   }
   const navigation: (NavLeaf | NavGroup)[] = [
     { key: 'home', label: '首页', icon: <HomeOutlined /> },
-    { key: 'facilities', label: '数据中心', icon: <BuildingOutlined /> },
+    { key: 'facilities', label: '机柜', icon: <BuildingOutlined /> },
     { key: 'host', label: '服务器', icon: <CloudServerOutlined /> },
     { key: 'vm', label: '虚拟机', icon: <DesktopOutlined /> },
     { key: 'services', label: '服务', icon: <ServiceNodeIcon /> },

@@ -106,7 +106,7 @@ export function RackDetailDrawer({
           <div className="rack-detail-navigation">
             <Button variant="outline" size="sm" onClick={onClose}><ArrowLeft />返回</Button>
             <Breadcrumbs items={[
-              { label: '数据中心', onClick: onClose },
+              { label: '机柜', onClick: onClose },
               ...(regionName ? [{ label: regionName }] : []),
               ...(room ? [{ label: room.name, onClick: onClose }] : []),
               { label: rack.name, current: true },
