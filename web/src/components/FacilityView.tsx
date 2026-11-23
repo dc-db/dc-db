@@ -20,6 +20,7 @@ import type { AssetLocation, Facilities, MountKind, Placement, PlacementDepth, R
 import { rackElevationSvg } from '../rackExport'
 import { formatDateTime } from '../lib/date'
 import { downloadCSV } from '../csv'
+import { PageHeader } from './PageHeader'
 import { RackDetailDrawer } from './RackDetailDrawer'
 
 interface Props {
@@ -205,10 +206,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
     return [...rackRows].sort((a, b) => factor * (rackMetrics.get(a.id)![rackSort.key] - rackMetrics.get(b.id)![rackSort.key]))
   }, [rackRows, rackMetrics, rackSort])
   const devices = roomPlacements.filter(item => item.rackId === rackId)
-  const totalRoomU = racks.reduce((sum, item) => sum + item.heightU, 0)
-  const usedRoomU = racks.reduce((sum, item) =>
-    sum + occupiedUnits(roomPlacements.filter(placement => placement.rackId === item.id)).size, 0)
-  const roomUtilization = totalRoomU ? Math.round(usedRoomU / totalRoomU * 100) : 0
   const byId = useMemo(() => new Map(assets.map(asset => [asset.id, asset])), [assets])
   const locations = useMemo(() => assetLocations(layout, links), [layout, links])
   const mounted = useMemo(() => new Map(layout.placements.map(placement => [placement.assetId, placement])), [layout.placements])
@@ -594,69 +591,62 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
           {feedback && <div role="status" className="mb-3 rounded-md border border-border p-3">{feedback}</div>}
           {!room ? <Card><CardContent className="p-6 text-center text-muted-foreground"><p>暂无数据中心</p>{editable && <Button onClick={() => editRoom()}>新增数据中心</Button>}</CardContent></Card> : (
             <div className="facility-workspace">
-              <div className="dc-summary">
-                <div className="dc-heading">
-                  <h2 className="dc-title">{room.name}</h2>
-                </div>
-                <div className="dc-stat"><span className="dc-stat-label">机柜</span><strong className="dc-stat-value">{racks.length}</strong></div>
-                <div className="dc-stat"><span className="dc-stat-label">设备</span><strong className="dc-stat-value">{roomPlacements.length}</strong></div>
-                <div className="dc-stat"><span className="dc-stat-label">利用率</span><strong className="dc-stat-value">{roomUtilization}%</strong></div>
-              </div>
+              <PageHeader
+                title="机柜"
+                filters={<>
+                  <Input type="search" className="w-[200px]" aria-label="搜索机柜" placeholder="搜索机柜…" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />
+                  <div className="view-toggle view-switch" role="tablist" aria-label="机柜视图">
+                    <button
+                      type="button" role="tab" aria-selected={view === 'table'}
+                      className={view === 'table' ? 'is-active' : ''}
+                      onClick={() => setView('table')}
+                    >列表</button>
+                    <button
+                      type="button" role="tab" aria-selected={view === 'elevations'}
+                      className={view === 'elevations' ? 'is-active' : ''}
+                      onClick={() => setView('elevations')}
+                    >立面图</button>
+                  </div>
+                  {view === 'elevations' && (
+                    <div className="view-switch view-switch-face" role="group" aria-label="安装面">
+                      <button
+                        type="button" aria-pressed={face === 'front'} aria-label="前视图" title="前视图"
+                        className={face === 'front' ? 'is-active' : ''}
+                        onClick={() => setFace('front')}
+                      >前</button>
+                      <button
+                        type="button" aria-pressed={face === 'rear'} aria-label="后视图" title="后视图"
+                        className={face === 'rear' ? 'is-active' : ''}
+                        onClick={() => setFace('rear')}
+                      >后</button>
+                    </div>
+                  )}
+                  {view === 'table' && <Popover>
+                    <PopoverTrigger asChild><Button size="sm" variant="outline" aria-label="选择机柜表格列"><Settings2 />列</Button></PopoverTrigger>
+                    <PopoverContent align="end" className="w-44">
+                      <div className="column-options">
+                        {rackColumns.map(column => <label key={column.key} className="flex cursor-pointer items-center gap-2 text-sm">
+                          <Checkbox checked={visibleRackColumns.includes(column.key)} disabled={visibleRackColumns.length === 1 && visibleRackColumns.includes(column.key)} onCheckedChange={checked => {
+                            const selected = checked === true
+                              ? [...visibleRackColumns, column.key]
+                              : visibleRackColumns.filter(key => key !== column.key)
+                            updateRackColumns(selected)
+                          }} />
+                          {column.label}
+                        </label>)}
+                        <Button variant="link" size="sm" onClick={() => updateRackColumns(defaultRackColumns)}>恢复默认</Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>}
+                </>}
+                actions={<>
+                  {editable && <Button variant="outline" onClick={() => { setImportOpen(true); setImportFile(null); setImportError('') }}><Download />导入</Button>}
+                  <Button variant="outline" disabled={!rackRows.length} onClick={exportRacks}><Upload />导出</Button>
+                  {editable && <Button disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
+                </>}
+              />
               <Card className="floor-panel">
                 <CardContent>
-                  <div className="floor-toolbar">
-                    <div className="floor-toolbar-search">
-                      <Input type="search" className="w-[320px]" aria-label="搜索机柜名称" placeholder="搜索机柜名称…" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />
-                      <div className="view-toggle view-switch" role="tablist" aria-label="机柜视图">
-                        <button
-                          type="button" role="tab" aria-selected={view === 'table'}
-                          className={view === 'table' ? 'is-active' : ''}
-                          onClick={() => setView('table')}
-                        >列表</button>
-                        <button
-                          type="button" role="tab" aria-selected={view === 'elevations'}
-                          className={view === 'elevations' ? 'is-active' : ''}
-                          onClick={() => setView('elevations')}
-                        >立面图</button>
-                      </div>
-                      {view === 'elevations' && (
-                        <div className="view-switch view-switch-face" role="group" aria-label="安装面">
-                          <button
-                            type="button" aria-pressed={face === 'front'} aria-label="前视图" title="前视图"
-                            className={face === 'front' ? 'is-active' : ''}
-                            onClick={() => setFace('front')}
-                          >前</button>
-                          <button
-                            type="button" aria-pressed={face === 'rear'} aria-label="后视图" title="后视图"
-                            className={face === 'rear' ? 'is-active' : ''}
-                            onClick={() => setFace('rear')}
-                          >后</button>
-                        </div>
-                      )}
-                    </div>
-                    <div className="floor-toolbar-actions">
-                      {view === 'table' && <Popover>
-                        <PopoverTrigger asChild><Button size="sm" variant="outline" aria-label="选择机柜表格列"><Settings2 />列</Button></PopoverTrigger>
-                        <PopoverContent align="end" className="w-44">
-                          <div className="column-options">
-                            {rackColumns.map(column => <label key={column.key} className="flex cursor-pointer items-center gap-2 text-sm">
-                              <Checkbox checked={visibleRackColumns.includes(column.key)} disabled={visibleRackColumns.length === 1 && visibleRackColumns.includes(column.key)} onCheckedChange={checked => {
-                                const selected = checked === true
-                                  ? [...visibleRackColumns, column.key]
-                                  : visibleRackColumns.filter(key => key !== column.key)
-                                updateRackColumns(selected)
-                              }} />
-                              {column.label}
-                            </label>)}
-                            <Button variant="link" size="sm" onClick={() => updateRackColumns(defaultRackColumns)}>恢复默认</Button>
-                          </div>
-                        </PopoverContent>
-                      </Popover>}
-                      {editable && <Button size="sm" variant="outline" onClick={() => { setImportOpen(true); setImportFile(null); setImportError('') }}><Download />导入</Button>}
-                      <Button size="sm" variant="outline" disabled={!rackRows.length} onClick={exportRacks}><Upload />导出</Button>
-                      {editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
-                    </div>
-                  </div>
                   {view === 'table' ? (
                     <div className="shared-table-wrap">
                       <table className="shared-table facility-table-clickable">
