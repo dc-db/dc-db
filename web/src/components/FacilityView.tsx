@@ -10,11 +10,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu'
 import { Input } from './ui/input'
 import { UsageBar } from './UsageBar'
+import { SearchableSelect } from './SearchableSelect'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { api, APIError } from '../api'
 import type { Asset, Link } from '../api'
 import { assetLocations, isMountKind, locationLabel, mountKinds, occupiedUnits, placementsConflict } from '../facilities'
-import { isNetworkKind } from '../kinds'
 import type { AssetLocation, Facilities, MountKind, Placement, PlacementDepth, Rack, RackFace, RackFields, Region, Room, RoomFields } from '../facilities'
 import { rackElevationSvg } from '../rackExport'
 import { formatDateTime } from '../lib/date'
@@ -77,12 +77,8 @@ function loadRackColumns(): RackColumn[] {
 type RoomDraft = RoomFields & { id?: number; version: number }
 type RackDraft = RackFields & { id?: number; version: number }
 interface MountDraft {
-  mode: 'existing' | 'new'
   assetId: number
   version: number
-  kind: MountKind
-  name: string
-  address: string
   startU: number
   units: number
   face: RackFace
@@ -91,10 +87,6 @@ interface MountDraft {
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label className="flex flex-col gap-1 text-sm"><span>{label}</span>{children}</label>
-}
-
-function Choice<T extends string | number>({ label, value, options, onChange, disabled, className }: { label: string; value?: T; options: { value: T; label: string }[]; onChange: (value: T) => void; disabled?: boolean; className?: string }) {
-  return <Select value={value === undefined ? undefined : String(value)} onValueChange={selected => { const option = options.find(item => String(item.value) === selected); if (option) onChange(option.value) }} disabled={disabled}><SelectTrigger aria-label={label} className={className}><SelectValue placeholder="请选择" /></SelectTrigger><SelectContent>{options.map(option => <SelectItem key={String(option.value)} value={String(option.value)}>{option.label}</SelectItem>)}</SelectContent></Select>
 }
 
 function ConfirmDelete({ title, disabled, onConfirm, children }: { title: string; disabled: boolean; onConfirm: () => void; children: ReactNode }) {
@@ -431,12 +423,8 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
     const face = value?.face ?? 'front'
     const depth = value?.depth ?? 'full'
     setMountDraft({
-      mode: value || candidates.length ? 'existing' : 'new',
       assetId: value?.assetId ?? 0,
       version: value?.version ?? 0,
-      kind: 'host',
-      name: '',
-      address: '',
       startU: value?.startU ?? freePosition(1, 0, face, depth),
       units: value?.units ?? 1,
       face,
@@ -449,12 +437,8 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
     const units = 1
     const safeStart = rack ? Math.max(1, Math.min(startU, rack.heightU - units + 1)) : startU
     setMountDraft({
-      mode: candidates.length ? 'existing' : 'new',
       assetId: 0,
       version: 0,
-      kind: 'host',
-      name: '',
-      address: '',
       startU: safeStart,
       units,
       face,
@@ -469,12 +453,8 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
     onRackChange(target.id)
     const units = 1
     setMountDraft({
-      mode: candidates.length ? 'existing' : 'new',
       assetId: 0,
       version: 0,
-      kind: 'host',
-      name: '',
-      address: '',
       startU: Math.max(1, Math.min(startU, target.heightU - units + 1)),
       units,
       face,
@@ -485,7 +465,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   function changeDevice(next = mountDraft) {
     if (!next) return
     const previous = mounted.get(next.assetId)
-    const face = previous?.face ?? next.face
+    const face = previous?.rackId === rackId ? previous.face : next.face
     const depth = previous?.depth ?? next.depth
     const units = previous?.units ?? next.units
     const startU = previous?.rackId === rackId
@@ -501,28 +481,15 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
     })
   }
 
-  function changeMountMode(next = mountDraft) {
-    if (!next) return
-    if (next.mode === 'existing') {
-      changeDevice(next)
-    } else {
-      const units = isNetworkKind(next.kind) ? 1 : 2
-      setMountDraft({ ...next, units, startU: freePosition(units, 0, next.face, next.depth) })
-    }
-  }
-
   function saveMount() {
     if (!mountDraft || !rack) return
-    const { startU, units, mode, assetId, version, kind, name, address, face, depth } = mountDraft
+    const { startU, units, assetId, version, face, depth } = mountDraft
+    if (!assetId) return
     const fields = { rackId: rack.id, startU, units, face, depth }
-    const create = mode === 'new'
-    if (!create && !assetId) return
-    void mutate(() => create
-      ? api<Placement>('/placements', 'POST', { ...fields, newAsset: { kind, name, address } })
-      : api<Placement>('/assets/' + assetId + '/placement', 'PUT', { ...fields, version }), placed => {
+    void mutate(() => api<Placement>('/assets/' + assetId + '/placement', 'PUT', { ...fields, version }), placed => {
       setMountDraft(null)
       setFocused(placed.assetId)
-    }, create || !version ? '设备已上架' : '设备位置已更新')
+    }, !version ? '设备已上架' : '设备位置已更新')
   }
 
   function unmountDevice(value: Placement) {
@@ -540,21 +507,16 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   }
 
   const mountForm = rack && mountDraft ? (
-    <form className="facility-form mount-form flex flex-wrap items-end gap-3" onSubmit={event => { event.preventDefault(); saveMount() }}>
-      <Field label="录入方式"><Choice label="录入方式" value={mountDraft.mode} onChange={mode => changeMountMode({ ...mountDraft, mode })} options={[{ value: 'existing', label: '关联已有资产' }, { value: 'new', label: '新建资产并上架' }]} /></Field>
-      {mountDraft.mode === 'existing' ? <>
-        <Field label="选择设备"><Choice label="选择设备" value={mountDraft.assetId} onChange={assetId => changeDevice({ ...mountDraft, assetId })} options={[{ value: 0, label: '请选择资产' }, ...candidates.map(asset => ({ value: asset.id, label: `${asset.name} · ${mountKinds[asset.kind as MountKind]} #${asset.id}${mounted.has(asset.id) ? ' · 已上架' : ''}` }))]} /></Field>
-        {mountLocation && <div className="text-sm">当前位置：{locationLabel(mountLocation)}</div>}
-      </> : <>
-        <Field label="设备类型"><Choice label="设备类型" value={mountDraft.kind} onChange={kind => changeMountMode({ ...mountDraft, kind })} options={Object.entries(mountKinds).map(([value, label]) => ({ value: value as MountKind, label }))} /></Field>
-        <Field label="设备名称"><Input value={mountDraft.name} maxLength={160} onChange={event => setMountDraft({ ...mountDraft, name: event.target.value })} /></Field>
-        <Field label="管理地址 / IP"><Input value={mountDraft.address} maxLength={160} onChange={event => setMountDraft({ ...mountDraft, address: event.target.value })} /></Field>
-      </>}
-      <Field label="起始 U 位"><Input type="number" className="w-24" min={1} max={rack.heightU} value={mountDraft.startU} onChange={event => setMountDraft({ ...mountDraft, startU: Number(event.target.value) || 1 })} /></Field>
-      <Field label="占用 U 数"><Input type="number" className="w-24" min={1} max={rack.heightU} value={mountDraft.units} onChange={event => setMountDraft({ ...mountDraft, units: Number(event.target.value) || 1 })} /></Field>
-      <Field label="安装面"><Choice label="安装面" value={mountDraft.face} onChange={face => setMountDraft({ ...mountDraft, face })} options={[{ value: 'front', label: '前面' }, { value: 'rear', label: '后面' }]} /></Field>
-      <Field label="深度"><Choice label="深度" value={mountDraft.depth} onChange={depth => setMountDraft({ ...mountDraft, depth })} options={[{ value: 'full', label: '全深设备' }, { value: 'half', label: '半深设备' }]} /></Field>
-      <div className="flex gap-2"><Button type="submit" disabled={busy || (mountDraft.mode === 'existing' && !mountDraft.assetId)}>{mountDraft.mode === 'existing' && mountDraft.version ? '保存位置' : '保存上架'}</Button><Button type="button" variant="outline" onClick={() => setMountDraft(null)}>取消</Button></div>
+    <form className="mount-device-form" onSubmit={event => { event.preventDefault(); saveMount() }}>
+      <Field label="关联设备"><SearchableSelect label="关联设备" value={mountDraft.assetId ? String(mountDraft.assetId) : ''} placeholder="搜索并选择设备" allowClear={false} onChange={value => changeDevice({ ...mountDraft, assetId: Number(value) })} options={candidates.map(asset => ({ value: String(asset.id), label: `${asset.name} · ${mountKinds[asset.kind as MountKind]}${mounted.has(asset.id) ? ' · 已上架' : ''}` }))} /></Field>
+      {mountLocation && <p className="mount-device-hint">当前位置：{locationLabel(mountLocation)}</p>}
+      {!candidates.length && <p className="mount-device-hint">暂无可关联的设备，请先添加设备。</p>}
+      <div className="mount-device-grid">
+        <Field label="起始 U 位"><Input required type="number" min={1} max={rack.heightU} value={mountDraft.startU} onChange={event => setMountDraft({ ...mountDraft, startU: Number(event.target.value) || 1 })} /></Field>
+        <Field label="结束 U 位"><Input required type="number" min={mountDraft.startU} max={rack.heightU} value={mountDraft.startU + mountDraft.units - 1} onChange={event => setMountDraft({ ...mountDraft, units: Number(event.target.value) - mountDraft.startU + 1 })} /></Field>
+      </div>
+      <p className="mount-device-hint">{mountDraft.units > 0 ? `共占用 ${mountDraft.units}U，包含起始和结束 U 位。` : '结束 U 位不能小于起始 U 位。'}</p>
+      <div className="mount-device-actions"><Button type="button" variant="outline" onClick={() => setMountDraft(null)}>取消</Button><Button type="submit" disabled={busy || !mountDraft.assetId || mountDraft.units < 1 || mountDraft.startU + mountDraft.units - 1 > rack.heightU}>{mountDraft.version ? '保存位置' : '保存上架'}</Button></div>
     </form>
   ) : null
 

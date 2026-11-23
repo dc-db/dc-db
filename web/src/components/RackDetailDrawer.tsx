@@ -63,6 +63,7 @@ export function RackDetailDrawer({
       <Dialog open={!!mountForm} onOpenChange={open => { if (!open) onCancelMount() }}>
         <DialogContent>
           <DialogHeader><DialogTitle>上架设备</DialogTitle><DialogDescription>选择设备并设置机柜位置。</DialogDescription></DialogHeader>
+          {error && <div role="alert" className="rounded-md border border-destructive p-3 text-destructive">{error}</div>}
           {mountForm}
         </DialogContent>
       </Dialog>

@@ -639,6 +639,10 @@ html[data-theme="dark"] .import-error-row strong { color: #ff7875; }
 .location-result { display: flex; justify-content: space-between; text-align: left; gap: 8px; flex-wrap: wrap; }
 .facility-form { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; }
 .mount-form { border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+.mount-device-form { display: flex; flex-direction: column; gap: 20px; }
+.mount-device-hint { margin: 0; color: var(--muted); font-size: var(--fs-label); }
+.mount-device-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.mount-device-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 16px; border-top: 1px solid var(--line); }
 .facility-layout { display: grid; grid-template-columns: 260px 6px minmax(0, 1fr); gap: 0; align-items: stretch; min-height: calc(100vh - 100px); }
 .facility-sidebar { position: sticky; top: 16px; align-self: start; display: flex; flex-direction: column; gap: 10px; padding: 4px 14px 4px 0; border: 0; border-radius: 0; background: transparent; }
 .facility-resizer { position: relative; align-self: stretch; cursor: col-resize; }
