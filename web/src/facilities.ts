@@ -121,3 +121,44 @@ export function assetLocations(layout: Facilities, links: Link[]) {
 export function locationLabel(location: AssetLocation) {
   return [location.room.name, location.rack.name, uRange(location.placement)].join(' / ')
 }
+
+export function assetRoomId(
+  asset: Asset,
+  locations: Map<number, AssetLocation>,
+  byId?: Map<number, Asset>,
+  links?: Link[],
+): number | null {
+  const loc = locations.get(asset.id)
+  if (loc) return loc.room.id
+  const attrRoomId = Number(asset.attributes?.roomId)
+  if (Number.isInteger(attrRoomId) && attrRoomId > 0) return attrRoomId
+  if (asset.kind === 'vm' && byId && links) {
+    const hostLink = links.find(link => link.kind === 'hosts' && link.toId === asset.id)
+    if (hostLink) {
+      const host = byId.get(hostLink.fromId)
+      const hostAttrRoomId = Number(host?.attributes?.roomId)
+      if (Number.isInteger(hostAttrRoomId) && hostAttrRoomId > 0) return hostAttrRoomId
+    }
+  }
+  return null
+}
+
+export function matchesRoomFilter(roomId: number | null | undefined, filter: 'all' | 'unassigned' | number) {
+  if (filter === 'all') return true
+  if (filter === 'unassigned') return !roomId
+  return roomId === filter
+}
+
+export function buildRoomCounts<T>(items: T[], getRoomId: (item: T) => number | null | undefined) {
+  const byRoom = new Map<number, number>()
+  let unassigned = 0
+  for (const item of items) {
+    const rid = getRoomId(item)
+    if (rid) {
+      byRoom.set(rid, (byRoom.get(rid) ?? 0) + 1)
+    } else {
+      unassigned++
+    }
+  }
+  return { all: items.length, unassigned, byRoom }
+}

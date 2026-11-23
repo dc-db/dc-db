@@ -67,11 +67,13 @@ export interface SubnetFields {
   notes: string
   status: string
   role: string
+  roomId?: number
 }
 
 export interface Subnet extends SubnetFields {
   id: number
   version: number
+  roomName?: string
   vlanName?: string
   vlanStatus?: string
   usable: number
@@ -226,10 +228,12 @@ export interface MetadataFields {
   kind: string
   name: string
   description: string
+  roomId?: number
 }
 
 export interface MetadataEntry extends MetadataFields {
   id: number
+  roomName?: string
   assetCount?: number
 }
 
