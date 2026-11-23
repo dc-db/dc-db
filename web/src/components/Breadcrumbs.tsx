@@ -1,6 +1,6 @@
 import { Fragment } from 'react'
 
-type BreadcrumbItem = { label: string; onClick?: () => void }
+type BreadcrumbItem = { label: string; onClick?: () => void; current?: boolean }
 
 export function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
   return (
@@ -9,7 +9,7 @@ export function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
         {items.map((item, index) => (
           <Fragment key={index}>
             {index > 0 && <li className="breadcrumbs-separator" aria-hidden="true">/</li>}
-            <li>{item.onClick ? <button type="button" onClick={item.onClick}>{item.label}</button> : <span>{item.label}</span>}</li>
+            <li>{item.onClick ? <button type="button" onClick={item.onClick}>{item.label}</button> : <span aria-current={item.current ? "page" : undefined}>{item.label}</span>}</li>
           </Fragment>
         ))}
       </ol>

@@ -5,6 +5,7 @@ import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
 import { UsageBar } from './UsageBar'
 import { Breadcrumbs } from './Breadcrumbs'
+import { SearchableSelect } from './SearchableSelect'
 import type { Asset } from '../api'
 import { mountKinds, occupiedUnits, placementFaceLabel, uRange } from '../facilities'
 import type { MountKind, Placement, Rack, RackFace, Room } from '../facilities'
@@ -13,6 +14,7 @@ import { formatDateTime } from '../lib/date'
 
 interface Props {
   rack: Rack | null
+  racks: Rack[]
   room: Room | null
   regionName?: string
   devices: Placement[]
@@ -24,6 +26,7 @@ interface Props {
   error?: string
   mountForm?: ReactNode
   onClose: () => void
+  onSelectRack: (id: number) => void
   onOpenAsset: (assetId: number) => void
   onEditRack: (rack: Rack) => void
   onCancelMount: () => void
@@ -48,8 +51,8 @@ function statusLabel(status?: string) {
 }
 
 export function RackDetailDrawer({
-  rack, room, regionName, devices, assets, editable, busy, focused, feedback, error, mountForm,
-  onClose, onOpenAsset, onEditRack, onCancelMount, onEditPlacement, onUnmount, onMove, onMountAt,
+  rack, racks, room, regionName, devices, assets, editable, busy, focused, feedback, error, mountForm,
+  onClose, onSelectRack, onOpenAsset, onEditRack, onCancelMount, onEditPlacement, onUnmount, onMove, onMountAt,
   bookmarked, onToggleBookmark,
 }: Props) {
   const [devicesOpen, setDevicesOpen] = useState(false)
@@ -106,10 +109,11 @@ export function RackDetailDrawer({
               { label: '数据中心', onClick: onClose },
               ...(regionName ? [{ label: regionName }] : []),
               ...(room ? [{ label: room.name, onClick: onClose }] : []),
+              { label: rack.name, current: true },
             ]} />
           </div>
           <header className="rack-detail-head">
-            <div className="rack-detail-title"><strong>{rack.name}</strong></div>
+            <div className="rack-detail-title"><SearchableSelect label="选择机柜" value={String(rack.id)} onChange={value => onSelectRack(Number(value))} options={racks.map(item => ({ value: String(item.id), label: item.name }))} allowClear={false} triggerVariant="ghost" triggerClassName="rack-picker" indicator="down" /></div>
             <div className="rack-detail-actions">
               <Button variant="outline" size="sm" onClick={onToggleBookmark}><Star fill={bookmarked ? 'currentColor' : 'none'} />{bookmarked ? '已收藏' : '收藏'}</Button>
               {editable && <Button variant="outline" size="sm" disabled={busy} onClick={() => onEditRack(rack)}><Settings />编辑机柜</Button>}
