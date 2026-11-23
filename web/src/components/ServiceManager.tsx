@@ -6,12 +6,14 @@ import {
 import { ArrowLeft, Building2, Link2, List, Network, Pencil, Plus, Trash2, Unlink } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Asset, Link, Service, ServiceFields } from '../api'
+import { assetLocations, assetRoomId } from '../facilities'
 import type { Facilities } from '../facilities'
 import { isNetworkKind, kindLabel } from '../kinds'
 import { Select } from './AppControls'
 import { DataTable } from './DataTable'
 import { AssetKindIcon } from './MetadataIcons'
 import { PageHeader } from './PageHeader'
+import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
 import { ServiceIcon } from './ServiceIcon'
 import { ServiceTopologyGraph, buildTopologySummary } from './ServiceTopologyGraph'
 import { Badge } from './ui/badge'
@@ -27,6 +29,8 @@ interface Props {
   assets: Asset[]
   links: Link[]
   facilities: Facilities
+  roomFilter: RoomFilter
+  onRoomFilterChange: (next: RoomFilter) => void
   openServiceId?: number | null
   onServiceOpened?: () => void
   onOpenAsset: (assetId: number) => void
@@ -56,6 +60,8 @@ export function ServiceManager({
   assets,
   links,
   facilities,
+  roomFilter,
+  onRoomFilterChange,
   openServiceId,
   onServiceOpened,
   onOpenAsset,
@@ -117,6 +123,30 @@ export function ServiceManager({
     [selectedId, services],
   )
 
+  const byId = useMemo(() => new Map(assets.map(item => [item.id, item])), [assets])
+  const locations = useMemo(() => assetLocations(facilities, links), [facilities, links])
+
+  const roomCounts = useMemo(() => {
+    const byRoom = new Map<number, number>()
+    let unassigned = 0
+    for (const service of services) {
+      const ids = service.assetIds ?? []
+      const roomsForService = new Set<number>()
+      let hasUnassigned = ids.length === 0
+      for (const id of ids) {
+        const asset = byId.get(id)
+        const rid = asset ? assetRoomId(asset, locations, byId, links) : null
+        if (rid) roomsForService.add(rid)
+        else hasUnassigned = true
+      }
+      for (const rid of roomsForService) {
+        byRoom.set(rid, (byRoom.get(rid) ?? 0) + 1)
+      }
+      if (hasUnassigned) unassigned++
+    }
+    return { all: services.length, unassigned, byRoom }
+  }, [byId, links, locations, services])
+
   const categories = useMemo(
     () => [...new Set(services.map(item => item.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'zh-CN')),
     [services],
@@ -124,10 +154,33 @@ export function ServiceManager({
 
   const visible = useMemo(() => {
     const query = keyword.trim().toLowerCase()
-    return services.filter(item =>
-      (!category || item.category === category) &&
-      (!query || [item.name, item.category, item.description].some(value => value.toLowerCase().includes(query))))
-  }, [services, keyword, category])
+    const result: Service[] = []
+    for (const item of services) {
+      if (category && item.category !== category) continue
+      if (query && ![item.name, item.category, item.description].some(value => value.toLowerCase().includes(query))) continue
+      if (roomFilter === 'all') {
+        result.push(item)
+      } else if (roomFilter === 'unassigned') {
+        const ids = item.assetIds ?? []
+        const unassignedIds = ids.filter(id => {
+          const asset = byId.get(id)
+          return !(asset && assetRoomId(asset, locations, byId, links))
+        })
+        if (ids.length === 0 || unassignedIds.length > 0) {
+          result.push({ ...item, assetCount: unassignedIds.length })
+        }
+      } else {
+        const matchingIds = (item.assetIds ?? []).filter(id => {
+          const asset = byId.get(id)
+          return asset && assetRoomId(asset, locations, byId, links) === roomFilter
+        })
+        if (matchingIds.length > 0) {
+          result.push({ ...item, assetCount: matchingIds.length })
+        }
+      }
+    }
+    return result
+  }, [byId, category, keyword, links, locations, roomFilter, services])
 
   function showForm(service: Service | null) {
     setEditing(service)
@@ -577,36 +630,44 @@ export function ServiceManager({
     )
   }
 
-  return <>
-    <PageHeader
-      title="服务"
-      filters={<>
-        <Input className="max-w-sm" placeholder="搜索服务名称、分类或备注" value={keyword} onChange={event => setKeyword(event.target.value)} />
-        <Select
-          style={{ width: 140 }} allowClear searchable={false} placeholder="全部分类"
-          value={category || undefined}
-          onChange={(value: string | undefined) => setCategory(value ?? '')}
-          options={categories.map(item => ({ value: item, label: item }))}
-        />
-      </>}
-      actions={editable && <Button onClick={() => showForm(null)}><Plus />新增服务</Button>}
-    />
-    {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-    <DataTable
-      table={table}
-      loading={loading}
-      onRowClick={(service, event) => {
-        if ((event.target as HTMLElement).closest('button, a')) return
-        setSelectedId(service.id)
-        setDetailView('details')
-      }}
-      emptyMessage={keyword || category ? '没有匹配的服务' : '还没有服务，新增一个开始维护'}
-      pagerExtra={
-        <span>
-          点击任一服务查看详情与部署拓扑 · 开源图标基于 <a href="/licenses/simple-icons.txt" target="_blank" rel="noreferrer">Simple Icons (CC0 1.0)</a>
-        </span>
-      }
-    />
-    {editAndDeleteDialogs}
-  </>
+  return (
+    <RoomTreeLayout
+      facilities={facilities}
+      value={roomFilter}
+      onChange={onRoomFilterChange}
+      unassignedLabel="未部署"
+      counts={roomCounts}
+    >
+      <PageHeader
+        title="服务"
+        filters={<>
+          <Input className="max-w-sm" placeholder="搜索服务名称、分类或备注" value={keyword} onChange={event => setKeyword(event.target.value)} />
+          <Select
+            style={{ width: 140 }} allowClear searchable={false} placeholder="全部分类"
+            value={category || undefined}
+            onChange={(value: string | undefined) => setCategory(value ?? '')}
+            options={categories.map(item => ({ value: item, label: item }))}
+          />
+        </>}
+        actions={editable && <Button onClick={() => showForm(null)}><Plus />新增服务</Button>}
+      />
+      {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      <DataTable
+        table={table}
+        loading={loading}
+        onRowClick={(service, event) => {
+          if ((event.target as HTMLElement).closest('button, a')) return
+          setSelectedId(service.id)
+          setDetailView('details')
+        }}
+        emptyMessage={keyword || category || roomFilter !== 'all' ? '没有匹配的服务' : '还没有服务，新增一个开始维护'}
+        pagerExtra={
+          <span>
+            点击任一服务查看详情与部署拓扑 · 开源图标基于 <a href="/licenses/simple-icons.txt" target="_blank" rel="noreferrer">Simple Icons (CC0 1.0)</a>
+          </span>
+        }
+      />
+      {editAndDeleteDialogs}
+    </RoomTreeLayout>
+  )
 }

@@ -3,7 +3,9 @@ import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTabl
 import { Download, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
-import type { Asset, IPAddress, Subnet } from '../api'
+import type { Asset, IPAddress, Link, Subnet } from '../api'
+import { assetLocations, assetRoomId, buildRoomCounts, matchesRoomFilter } from '../facilities'
+import type { Facilities } from '../facilities'
 import { kindLabel } from '../kinds'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -13,6 +15,7 @@ import { Textarea } from './ui/textarea'
 import { SearchableSelect } from './SearchableSelect'
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
+import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
 import { Select } from './AppControls'
 
 interface Props {
@@ -21,6 +24,10 @@ interface Props {
   initialSubnetId?: number | null
   onInitialSubnetConsumed?: () => void
   assets: Asset[]
+  links: Link[]
+  facilities: Facilities
+  roomFilter: RoomFilter
+  onRoomFilterChange: (next: RoomFilter) => void
   subnets: Subnet[]
   onOpenAsset: (id: number) => void
   onOpenSubnet: (id: number) => void
@@ -35,7 +42,7 @@ interface AddressFields { subnetId?: number; ip: string; status: string; dnsName
 const emptyFields: AddressFields = { ip: '', status: 'active', dnsName: '', role: '', label: '', notes: '' }
 const assetLabel = (asset: Asset) => `${asset.name}（${kindLabel(asset.kind)}）`
 
-export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialSubnetConsumed, assets, subnets, onOpenAsset, onOpenSubnet, onSessionError, onChanged }: Props) {
+export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialSubnetConsumed, assets, links, facilities, roomFilter, onRoomFilterChange, subnets, onOpenAsset, onOpenSubnet, onSessionError, onChanged }: Props) {
   const [addresses, setAddresses] = useState<IPAddress[]>([])
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -82,10 +89,28 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
     try { await api(`/allocations/${address.allocationId}?version=${address.version ?? 0}`, 'DELETE'); setReleasing(null); await load(); setFeedback('IP 地址已释放'); onChanged() }
     catch (e) { setReleasing(null); report(e) } finally { setBusy(false) }
   }
+  const subnetById = useMemo(() => new Map(subnets.map(item => [item.id, item])), [subnets])
+  const assetById = useMemo(() => new Map(assets.map(item => [item.id, item])), [assets])
+  const locations = useMemo(() => assetLocations(facilities, links), [facilities, links])
+  const resolveAddressRoomId = useMemo(
+    () => (address: IPAddress): number | null => {
+      if (address.assetId) {
+        const asset = assetById.get(address.assetId)
+        const rid = asset ? assetRoomId(asset, locations, assetById, links) : null
+        if (rid) return rid
+      }
+      return subnetById.get(address.subnetId)?.roomId || null
+    },
+    [assetById, links, locations, subnetById],
+  )
+  const roomCounts = useMemo(
+    () => buildRoomCounts(addresses, resolveAddressRoomId),
+    [addresses, resolveAddressRoomId],
+  )
   const visible = useMemo(() => {
     const query = keyword.trim().toLowerCase()
-    return addresses.filter(address => (!source || address.source === source) && (!state || address.state === state) && (!subnetId || address.subnetId === Number(subnetId)) && (!query || [address.ip, address.dnsName, address.assetName, address.label, address.notes, address.subnetName, stateMeta[address.state], sourceMeta[address.source]].some(value => value?.toLowerCase().includes(query))))
-  }, [addresses, keyword, source, state, subnetId])
+    return addresses.filter(address => matchesRoomFilter(resolveAddressRoomId(address), roomFilter) && (!source || address.source === source) && (!state || address.state === state) && (!subnetId || address.subnetId === Number(subnetId)) && (!query || [address.ip, address.dnsName, address.assetName, address.label, address.notes, address.subnetName, stateMeta[address.state], sourceMeta[address.source]].some(value => value?.toLowerCase().includes(query))))
+  }, [addresses, keyword, resolveAddressRoomId, roomFilter, source, state, subnetId])
   const stats = [['全部地址', addresses.length], ['手工分配', addresses.filter(a => a.source === 'allocated').length], ['资产地址', addresses.filter(a => a.source === 'asset').length], ['网关', addresses.filter(a => a.source === 'gateway').length]] as const
   const columns: ColumnDef<IPAddress>[] = [
     { accessorKey: 'ip', header: 'IP 地址', sortingFn: (a, b) => a.original.ip.localeCompare(b.original.ip, undefined, { numeric: true }), meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <span className="font-mono text-xs font-medium tabular-nums">{row.original.ip}</span> },
@@ -118,7 +143,13 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
     ])
   }
 
-  return <>
+  return (
+    <RoomTreeLayout
+      facilities={facilities}
+      value={roomFilter}
+      onChange={onRoomFilterChange}
+      counts={roomCounts}
+    >
     <PageHeader
       title={hideTitle ? undefined : 'IP 地址'}
       filters={<>
@@ -165,5 +196,6 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       <div className="col-span-2 space-y-2"><label htmlFor="address-notes" className="text-sm font-medium">备注</label><Textarea id="address-notes" rows={2} maxLength={2000} placeholder="可选" value={fields.notes} onChange={event => setFields({ ...fields, notes: event.target.value })} /></div>
     </div><DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={() => setModalOpen(false)}>取消</Button><Button type="submit" disabled={busy}>{busy ? '保存中...' : '保存'}</Button></DialogFooter></form></DialogContent></Dialog>
     <Dialog open={!!releasing} onOpenChange={next => { if (!next && !busy) setReleasing(null) }}><DialogContent><DialogHeader><DialogTitle>释放该 IP？</DialogTitle><DialogDescription>确认释放 {releasing?.ip}。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setReleasing(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (releasing) void release(releasing) }}>释放</Button></DialogFooter></DialogContent></Dialog>
-  </>
+    </RoomTreeLayout>
+  )
 }

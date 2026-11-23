@@ -4,6 +4,8 @@ import { Download, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
 import type { VLAN, VLANFields } from '../api'
+import { buildRoomCounts, matchesRoomFilter } from '../facilities'
+import type { Facilities } from '../facilities'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
@@ -12,9 +14,18 @@ import { Textarea } from './ui/textarea'
 import { Select } from './AppControls'
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
+import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
 
-interface RoomOption { id: number; name: string }
-interface Props { editable: boolean; hideTitle?: boolean; rooms: RoomOption[]; onSelectVLAN?: (vlan: VLAN) => void; onSessionError: (error: unknown) => void; onChanged: () => void }
+interface Props {
+  editable: boolean
+  hideTitle?: boolean
+  facilities: Facilities
+  roomFilter: RoomFilter
+  onRoomFilterChange: (next: RoomFilter) => void
+  onSelectVLAN?: (vlan: VLAN) => void
+  onSessionError: (error: unknown) => void
+  onChanged: () => void
+}
 const statusMeta: Record<string, { label: string; className: string }> = {
   active: { label: '启用', className: 'border-success-border bg-success-soft text-success' },
   reserved: { label: '预留', className: 'border-warning-border bg-warning-soft text-warning' },
@@ -23,7 +34,8 @@ const statusMeta: Record<string, { label: string; className: string }> = {
 const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
 const emptyFields: VLANFields = { vid: 0, name: '', status: 'active', description: '', roomId: undefined }
 
-export function VLANView({ editable, hideTitle, rooms, onSelectVLAN, onSessionError, onChanged }: Props) {
+export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFilterChange, onSelectVLAN, onSessionError, onChanged }: Props) {
+  const rooms = facilities.rooms
   const [vlans, setVlans] = useState<VLAN[]>([])
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -49,7 +61,11 @@ export function VLANView({ editable, hideTitle, rooms, onSelectVLAN, onSessionEr
   }
   function showForm(vlan: VLAN | null) {
     setEditing(vlan); setFeedback(''); setError(''); setModalError('')
-    setFields(vlan ? { vid: vlan.vid, name: vlan.name, status: vlan.status, description: vlan.description, roomId: vlan.roomId || undefined } : emptyFields)
+    setFields(
+      vlan
+        ? { vid: vlan.vid, name: vlan.name, status: vlan.status, description: vlan.description, roomId: vlan.roomId || undefined }
+        : { ...emptyFields, roomId: typeof roomFilter === 'number' ? roomFilter : undefined },
+    )
     setModalOpen(true)
   }
   async function save() {
@@ -73,10 +89,11 @@ export function VLANView({ editable, hideTitle, rooms, onSelectVLAN, onSessionEr
     try { await api(`/vlans/${vlan.id}?version=${vlan.version}`, 'DELETE'); setDeleting(null); await load(); setFeedback('VLAN 已删除'); onChanged() }
     catch (e) { setDeleting(null); report(e) } finally { setBusy(false) }
   }
+  const roomCounts = useMemo(() => buildRoomCounts(vlans, vlan => vlan.roomId || null), [vlans])
   const visible = useMemo(() => {
     const query = keyword.trim().toLowerCase()
-    return vlans.filter(vlan => (!status || vlan.status === status) && (!query || [String(vlan.vid), vlan.name, vlan.description, vlan.roomName].some(value => value?.toLowerCase().includes(query))))
-  }, [keyword, status, vlans])
+    return vlans.filter(vlan => matchesRoomFilter(vlan.roomId || null, roomFilter) && (!status || vlan.status === status) && (!query || [String(vlan.vid), vlan.name, vlan.description, vlan.roomName].some(value => value?.toLowerCase().includes(query))))
+  }, [keyword, roomFilter, status, vlans])
 
   const columns: ColumnDef<VLAN>[] = [
     { accessorKey: 'vid', header: 'VLAN ID', meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <span className="font-mono text-xs font-medium tabular-nums">{row.original.vid}</span> },
@@ -110,7 +127,13 @@ export function VLANView({ editable, hideTitle, rooms, onSelectVLAN, onSessionEr
     ])
   }
 
-  return <>
+  return (
+    <RoomTreeLayout
+      facilities={facilities}
+      value={roomFilter}
+      onChange={onRoomFilterChange}
+      counts={roomCounts}
+    >
     <PageHeader
       title={hideTitle ? undefined : 'VLAN'}
       filters={<>
@@ -137,7 +160,7 @@ export function VLANView({ editable, hideTitle, rooms, onSelectVLAN, onSessionEr
         if ((event.target as HTMLElement).closest('button, a')) return
         onSelectVLAN(vlan)
       } : undefined}
-      emptyMessage={keyword || status ? '没有匹配的 VLAN' : '暂无 VLAN，新增一个开始规划二层网络'}
+      emptyMessage={keyword || status || roomFilter !== 'all' ? '没有匹配的 VLAN' : '暂无 VLAN，新增一个开始规划二层网络'}
     />
     <Dialog open={modalOpen} onOpenChange={next => { if (!busy) { setModalOpen(next); if (!next) setEditing(null) } }}><DialogContent><DialogHeader><DialogTitle>{editing ? `编辑 VLAN ${editing.vid}` : '新增 VLAN'}</DialogTitle></DialogHeader>
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
@@ -150,5 +173,6 @@ export function VLANView({ editable, hideTitle, rooms, onSelectVLAN, onSessionEr
       </form>
     </DialogContent></Dialog>
     <Dialog open={!!deleting} onOpenChange={next => { if (!next && !busy) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>删除该 VLAN？</DialogTitle><DialogDescription>仍有网段使用时不能删除。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (deleting) void remove(deleting) }}>删除</Button></DialogFooter></DialogContent></Dialog>
-  </>
+    </RoomTreeLayout>
+  )
 }

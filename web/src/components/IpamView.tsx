@@ -13,10 +13,16 @@ import { Select } from './AppControls'
 import { api, apiCSV, APIError } from '../api'
 import { downloadCSV } from '../csv'
 import type { Subnet, SubnetFields, VLAN } from '../api'
+import { buildRoomCounts, matchesRoomFilter } from '../facilities'
+import type { Facilities } from '../facilities'
+import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
 
 interface Props {
   editable: boolean
   hideTitle?: boolean
+  facilities: Facilities
+  roomFilter: RoomFilter
+  onRoomFilterChange: (next: RoomFilter) => void
   openSubnetId: number | null
   onSubnetOpened: () => void
   onSelectSubnet?: (subnetId: number) => void
@@ -128,7 +134,7 @@ function flattenSubnetTree(nodes: SubnetNode[], collapsed: Set<number>): SubnetR
   return rows
 }
 
-export function IpamView({ editable, hideTitle, openSubnetId, onSubnetOpened, onSelectSubnet, bookmarkedSubnets, onToggleSubnetBookmark, onSessionError, onChanged }: Props) {
+export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFilterChange, openSubnetId, onSubnetOpened, onSelectSubnet, bookmarkedSubnets, onToggleSubnetBookmark, onSessionError, onChanged }: Props) {
   const [subnets, setSubnets] = useState<Subnet[]>([])
   const [vlans, setVLANs] = useState<VLAN[]>([])
   const [draft, setDraft] = useState<SubnetDraft | null>(null)
@@ -146,7 +152,12 @@ export function IpamView({ editable, hideTitle, openSubnetId, onSubnetOpened, on
   const importRef = useRef<HTMLInputElement>(null)
   const [importError, setImportError] = useState('')
 
-  const subnetTree = useMemo(() => buildSubnetTree(subnets), [subnets])
+  const roomCounts = useMemo(() => buildRoomCounts(subnets, subnet => subnet.roomId || null), [subnets])
+  const scopedSubnets = useMemo(
+    () => subnets.filter(subnet => matchesRoomFilter(subnet.roomId || null, roomFilter)),
+    [roomFilter, subnets],
+  )
+  const subnetTree = useMemo(() => buildSubnetTree(scopedSubnets), [scopedSubnets])
   const subnetRows = useMemo(() => flattenSubnetTree(subnetTree, collapsed), [subnetTree, collapsed])
   const visibleSubnetRows = useMemo(() => {
     const query = subnetSearch.trim().toLowerCase()
@@ -209,7 +220,10 @@ export function IpamView({ editable, hideTitle, openSubnetId, onSubnetOpened, on
   }
 
   function addSubnet() {
-    setDraft({ name: '', cidr: '', gateway: '', vlan: '', notes: '', status: 'active', role: '' })
+    setDraft({
+      name: '', cidr: '', gateway: '', vlan: '', notes: '', status: 'active', role: '',
+      roomId: typeof roomFilter === 'number' ? roomFilter : undefined,
+    })
     setFeedback('')
   }
 
@@ -217,7 +231,7 @@ export function IpamView({ editable, hideTitle, openSubnetId, onSubnetOpened, on
     setDraft({
       id: subnet.id, version: subnet.version, name: subnet.name, cidr: subnet.cidr,
       gateway: subnet.gateway, vlan: subnet.vlan, notes: subnet.notes,
-      status: subnet.status, role: subnet.role,
+      status: subnet.status, role: subnet.role, roomId: subnet.roomId || undefined,
     })
   }
 
@@ -229,7 +243,8 @@ export function IpamView({ editable, hideTitle, openSubnetId, onSubnetOpened, on
     try {
       const body = {
         name: draft.name, cidr: draft.cidr, gateway: draft.gateway, vlan: draft.vlan,
-        notes: draft.notes, status: draft.status, role: draft.role, version: draft.version ?? 0,
+        notes: draft.notes, status: draft.status, role: draft.role, roomId: draft.roomId ?? 0,
+        version: draft.version ?? 0,
       }
       const saved = draft.id
         ? await api<Subnet>(`/subnets/${draft.id}`, 'PUT', body)
@@ -305,7 +320,13 @@ export function IpamView({ editable, hideTitle, openSubnetId, onSubnetOpened, on
     ])
   }
 
-  return <>
+  return (
+    <RoomTreeLayout
+      facilities={facilities}
+      value={roomFilter}
+      onChange={onRoomFilterChange}
+      counts={roomCounts}
+    >
     <PageHeader
       title={hideTitle ? undefined : '网段'}
       filters={<>
@@ -331,6 +352,7 @@ export function IpamView({ editable, hideTitle, openSubnetId, onSubnetOpened, on
       <label className={labelClass}>用途 / 角色<Input value={draft.role} maxLength={80} placeholder="例如：办公、服务器、互联" onChange={event => setDraft({ ...draft, role: event.target.value })} /></label>
       <div className={labelClass}><span>VLAN</span><SearchableSelect label="VLAN" placeholder="可选" value={draft.vlan} onChange={value => setDraft({ ...draft, vlan: value })} options={vlanOptions} />{!vlans.length && <span className="text-xs font-normal text-muted-foreground">请先在「VLAN」页面登记 VLAN</span>}</div>
       <label className={labelClass}>网关<Input value={draft.gateway} maxLength={64} placeholder="例如：192.0.2.1" onChange={event => setDraft({ ...draft, gateway: event.target.value })} /></label>
+      <label className={`${labelClass} col-span-2`}>所属数据中心<select className={selectClass} value={draft.roomId ?? ''} onChange={event => setDraft({ ...draft, roomId: event.target.value ? Number(event.target.value) : undefined })}><option value="">未分配</option>{facilities.rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}</select></label>
       <label className={`${labelClass} col-span-2`}>备注<Textarea rows={2} maxLength={2000} value={draft.notes} onChange={event => setDraft({ ...draft, notes: event.target.value })} /></label>
     </div><div className="mt-4 flex gap-2"><Button type="submit" disabled={busy}>保存网段</Button><Button type="button" variant="outline" onClick={() => setDraft(null)}>取消</Button></div></form></CardContent></Card>}
     {!subnets.length ? <div className="py-12 text-center text-muted-foreground">{loading ? '正在加载 IPAM 数据…' : '暂无网段，新增一个网段开始管理 IP 地址'}</div> : <>
@@ -396,5 +418,6 @@ export function IpamView({ editable, hideTitle, openSubnetId, onSubnetOpened, on
       <DialogFooter><Button variant="outline" disabled={importBusy} onClick={() => setImportOpen(false)}>取消</Button><Button disabled={importBusy || !importFile} onClick={() => void importSubnets()}>{importBusy ? '正在导入…' : '导入'}</Button></DialogFooter>
     </DialogContent></Dialog>
     <Dialog open={!!deleting} onOpenChange={next => { if (!busy) setDeleting(next ? deleting : null) }}><DialogContent><DialogHeader><DialogTitle>确定删除该网段？</DialogTitle><DialogDescription>确认删除 {deleting?.name}。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (deleting) void deleteSubnet(deleting) }}>删除</Button></DialogFooter></DialogContent></Dialog>
-  </>
+    </RoomTreeLayout>
+  )
 }

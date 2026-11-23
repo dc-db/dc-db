@@ -6,9 +6,12 @@ import {
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { MetadataEntry, MetadataFields } from '../api'
+import { buildRoomCounts, matchesRoomFilter } from '../facilities'
+import type { Facilities } from '../facilities'
 import { DataTable } from './DataTable'
 import { OperatorTowerIcon, OwnerBadgeIcon, TagMarkIcon } from './MetadataIcons'
 import { PageHeader } from './PageHeader'
+import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
 import { RowIconBox } from './ServiceIcon'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -16,11 +19,16 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 
+const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
+
 interface Props {
   kind: string
   title: string
   hideTitle?: boolean
   editable: boolean
+  facilities?: Facilities
+  roomFilter?: RoomFilter
+  onRoomFilterChange?: (next: RoomFilter) => void
   onSessionError: (error: unknown) => void
   onChanged?: () => void
 }
@@ -32,7 +40,7 @@ function kindIcon(kind: string) {
 }
 
 // Generic dictionary category (负责人, 运营商, …): name plus an optional note.
-export function MetadataManager({ kind, title, hideTitle, editable, onSessionError, onChanged }: Props) {
+export function MetadataManager({ kind, title, hideTitle, editable, facilities, roomFilter, onRoomFilterChange, onSessionError, onChanged }: Props) {
   const [entries, setEntries] = useState<MetadataEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -43,7 +51,8 @@ export function MetadataManager({ kind, title, hideTitle, editable, onSessionErr
   const [deleting, setDeleting] = useState<MetadataEntry | null>(null)
   const [saving, setSaving] = useState(false)
   const [modalError, setModalError] = useState('')
-  const [fields, setFields] = useState({ name: '', description: '' })
+  const [fields, setFields] = useState<{ name: string; description: string; roomId?: number }>({ name: '', description: '' })
+  const withRoomTree = !!(facilities && roomFilter !== undefined && onRoomFilterChange)
 
   useEffect(() => {
     setKeyword('')
@@ -63,14 +72,26 @@ export function MetadataManager({ kind, title, hideTitle, editable, onSessionErr
     catch (value) { report(value) } finally { setLoading(false) }
   }
 
+  const roomCounts = useMemo(
+    () => (withRoomTree ? buildRoomCounts(entries, item => item.roomId || null) : undefined),
+    [entries, withRoomTree],
+  )
+
   const visible = useMemo(() => {
     const query = keyword.trim().toLowerCase()
-    return query ? entries.filter(item => [item.name, item.description].some(value => value.toLowerCase().includes(query))) : entries
-  }, [entries, keyword])
+    return entries.filter(item => {
+      if (withRoomTree && roomFilter !== undefined && !matchesRoomFilter(item.roomId || null, roomFilter)) return false
+      return !query || [item.name, item.description, item.roomName].some(value => value?.toLowerCase().includes(query))
+    })
+  }, [entries, keyword, roomFilter, withRoomTree])
 
   function showForm(entry: MetadataEntry | null) {
     setEditing(entry)
-    setFields({ name: entry?.name ?? '', description: entry?.description ?? '' })
+    setFields({
+      name: entry?.name ?? '',
+      description: entry?.description ?? '',
+      roomId: entry ? (entry.roomId || undefined) : (withRoomTree && typeof roomFilter === 'number' ? roomFilter : undefined),
+    })
     setModalError('')
     setOpen(true)
   }
@@ -79,7 +100,12 @@ export function MetadataManager({ kind, title, hideTitle, editable, onSessionErr
     if (!fields.name.trim()) { setModalError('请填写名称'); return }
     setSaving(true)
     setModalError('')
-    const body: MetadataFields = { kind, name: fields.name, description: fields.description }
+    const body: MetadataFields = {
+      kind,
+      name: fields.name,
+      description: fields.description,
+      roomId: withRoomTree ? (fields.roomId ?? 0) : 0,
+    }
     try {
       if (editing) await api<MetadataEntry>(`/metadata/${editing.id}`, 'PUT', body)
       else await api<MetadataEntry>('/metadata', 'POST', body)
@@ -118,6 +144,13 @@ export function MetadataManager({ kind, title, hideTitle, editable, onSessionErr
         </div>
       ),
     },
+    ...(withRoomTree ? [{
+      accessorKey: 'roomName',
+      header: '所属数据中心',
+      enableSorting: false,
+      meta: { headerClassName: 'w-[18%]', cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }: { row: { original: MetadataEntry } }) => row.original.roomName || <span className="text-muted-foreground">—</span>,
+    }] : []),
     {
       accessorKey: 'assetCount',
       header: '关联资产',
@@ -146,7 +179,7 @@ export function MetadataManager({ kind, title, hideTitle, editable, onSessionErr
         </div>
       ),
     }] : []),
-  ], [editable, kind])
+  ], [editable, kind, withRoomTree])
 
   const table = useReactTable({
     data: visible,
@@ -159,34 +192,65 @@ export function MetadataManager({ kind, title, hideTitle, editable, onSessionErr
     getPaginationRowModel: getPaginationRowModel(),
   })
 
-  return <>
-    <PageHeader
-      title={hideTitle ? undefined : title}
-      filters={<Input className="max-w-sm" placeholder={`搜索${title}名称或备注`} value={keyword} onChange={event => setKeyword(event.target.value)} />}
-      actions={editable && <Button onClick={() => showForm(null)}><Plus />新增{title}</Button>}
-    />
-    {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-    <DataTable
-      table={table}
-      loading={loading}
-      emptyMessage={keyword ? `没有匹配的${title}` : `还没有${title}，新增一个开始归类`}
-    />
-    <Dialog open={open} onOpenChange={next => { if (!saving) setOpen(next) }}><DialogContent>
-      <DialogHeader><DialogTitle>{editing ? `编辑${title}` : `新增${title}`}</DialogTitle></DialogHeader>
-      {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
-      <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save() }}>
-        <div className="space-y-2"><label htmlFor="metadata-name" className="text-sm font-medium">名称</label><Input id="metadata-name" required maxLength={80} value={fields.name} onChange={event => setFields({ ...fields, name: event.target.value })} /></div>
-        <div className="space-y-2"><label htmlFor="metadata-description" className="text-sm font-medium">备注</label><Textarea id="metadata-description" maxLength={200} rows={3} placeholder="可选" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /></div>
-        <DialogFooter>
-          {editing && <Button type="button" variant="destructive" className="mr-auto" disabled={saving} onClick={() => { setOpen(false); setDeleting(editing) }}><Trash2 />删除</Button>}
-          <Button type="button" variant="outline" disabled={saving} onClick={() => setOpen(false)}>取消</Button>
-          <Button type="submit" disabled={saving}>{saving ? '保存中…' : '保存'}</Button>
-        </DialogFooter>
-      </form>
-    </DialogContent></Dialog>
-    <Dialog open={!!deleting} onOpenChange={next => { if (!next && !saving) setDeleting(null) }}><DialogContent>
-      <DialogHeader><DialogTitle>删除「{deleting?.name}」？</DialogTitle><DialogDescription>只从参考数据里移除，不影响资产。</DialogDescription></DialogHeader>
-      <DialogFooter><Button variant="outline" disabled={saving} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={saving} onClick={() => { if (deleting) void remove(deleting) }}>删除</Button></DialogFooter>
-    </DialogContent></Dialog>
-  </>
+  const content = (
+    <>
+      <PageHeader
+        title={hideTitle ? undefined : title}
+        filters={<Input className="max-w-sm" placeholder={`搜索${title}名称或备注`} value={keyword} onChange={event => setKeyword(event.target.value)} />}
+        actions={editable && <Button onClick={() => showForm(null)}><Plus />新增{title}</Button>}
+      />
+      {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      <DataTable
+        table={table}
+        loading={loading}
+        emptyMessage={keyword || (withRoomTree && roomFilter !== 'all') ? `没有匹配的${title}` : `还没有${title}，新增一个开始归类`}
+      />
+      <Dialog open={open} onOpenChange={next => { if (!saving) setOpen(next) }}><DialogContent>
+        <DialogHeader><DialogTitle>{editing ? `编辑${title}` : `新增${title}`}</DialogTitle></DialogHeader>
+        {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
+        <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save() }}>
+          <div className="space-y-2"><label htmlFor="metadata-name" className="text-sm font-medium">名称</label><Input id="metadata-name" required maxLength={80} value={fields.name} onChange={event => setFields({ ...fields, name: event.target.value })} /></div>
+          {withRoomTree && facilities && (
+            <div className="space-y-2">
+              <label htmlFor="metadata-room" className="text-sm font-medium">所属数据中心</label>
+              <select
+                id="metadata-room"
+                className={selectClass}
+                value={fields.roomId ?? ''}
+                onChange={event => setFields({ ...fields, roomId: event.target.value ? Number(event.target.value) : undefined })}
+              >
+                <option value="">可选</option>
+                {facilities.rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}
+              </select>
+            </div>
+          )}
+          <div className="space-y-2"><label htmlFor="metadata-description" className="text-sm font-medium">备注</label><Textarea id="metadata-description" maxLength={200} rows={3} placeholder="可选" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /></div>
+          <DialogFooter>
+            {editing && <Button type="button" variant="destructive" className="mr-auto" disabled={saving} onClick={() => { setOpen(false); setDeleting(editing) }}><Trash2 />删除</Button>}
+            <Button type="button" variant="outline" disabled={saving} onClick={() => setOpen(false)}>取消</Button>
+            <Button type="submit" disabled={saving}>{saving ? '保存中…' : '保存'}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent></Dialog>
+      <Dialog open={!!deleting} onOpenChange={next => { if (!next && !saving) setDeleting(null) }}><DialogContent>
+        <DialogHeader><DialogTitle>删除「{deleting?.name}」？</DialogTitle><DialogDescription>只从参考数据里移除，不影响资产。</DialogDescription></DialogHeader>
+        <DialogFooter><Button variant="outline" disabled={saving} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={saving} onClick={() => { if (deleting) void remove(deleting) }}>删除</Button></DialogFooter>
+      </DialogContent></Dialog>
+    </>
+  )
+
+  if (withRoomTree && facilities && roomFilter !== undefined && onRoomFilterChange) {
+    return (
+      <RoomTreeLayout
+        facilities={facilities}
+        value={roomFilter}
+        onChange={onRoomFilterChange}
+        counts={roomCounts}
+      >
+        {content}
+      </RoomTreeLayout>
+    )
+  }
+
+  return content
 }
