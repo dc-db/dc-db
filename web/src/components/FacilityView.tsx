@@ -12,6 +12,7 @@ import { Input } from './ui/input'
 import { UsageBar } from './UsageBar'
 import { SearchableSelect } from './SearchableSelect'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
 import { api, APIError } from '../api'
 import type { Asset, Link } from '../api'
 import { assetLocations, isMountKind, locationLabel, mountKinds, occupiedUnits, placementsConflict } from '../facilities'
@@ -118,8 +119,10 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
     const saved = Number(window.localStorage.getItem('dc-db-tree-width'))
     return saved >= 180 && saved <= 420 ? saved : 260
   })
+  const [treeCollapsed, setTreeCollapsed] = useState(() => window.localStorage.getItem('dc-db-tree-collapsed') === '1')
 
   useEffect(() => { window.localStorage.setItem('dc-db-tree-width', String(treeWidth)) }, [treeWidth])
+  useEffect(() => { window.localStorage.setItem('dc-db-tree-collapsed', treeCollapsed ? '1' : '0') }, [treeCollapsed])
 
   function updateRackColumns(columns: RackColumn[]) {
     if (!columns.length) return
@@ -534,8 +537,11 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
       {rackDrawerOpen && rack ? (
       <RackDetailDrawer rack={rack ?? null} racks={racks} onSelectRack={openRack} room={room ?? null} regionName={layout.regions.find(item => item.id === room?.regionId)?.name} devices={devices} assets={byId} editable={editable} busy={busy} bookmarked={!!rack && bookmarkedRacks.includes(rack.id)} onToggleBookmark={() => { if (rack) onToggleRackBookmark(rack.id) }} focused={focused} feedback={feedback} error={error} mountForm={mountForm} onClose={closeRackDrawer} onOpenAsset={onOpenAsset} onEditRack={value => editRack(value)} onCancelMount={() => setMountDraft(null)} onEditPlacement={value => editMount(value)} onUnmount={unmountDevice} onMove={moveDevice} onMountAt={editMountAt} />
       ) : (
-      <div className="facility-layout" style={{ gridTemplateColumns: `${treeWidth}px 6px minmax(0, 1fr)` }}>
-        <aside className="facility-sidebar">
+      <div
+        className={treeCollapsed ? 'facility-layout is-collapsed' : 'facility-layout'}
+        style={{ gridTemplateColumns: `${treeCollapsed ? 0 : treeWidth}px 6px minmax(0, 1fr)` }}
+      >
+        <aside className="facility-sidebar" aria-hidden={treeCollapsed}>
           <div className="facility-sidebar-search">
             <Input type="search" placeholder="搜索数据中心" aria-label="搜索数据中心" value={roomSearch} onChange={event => setRoomSearch(event.target.value)} />
             {editable && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="数据中心操作"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => editRegion()}><Plus />新增区域</DropdownMenuItem><DropdownMenuItem onSelect={() => editRoom()}><Plus />新增数据中心</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
@@ -553,7 +559,36 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
             {!filteredRooms.length && <div className="facility-tree-empty">暂无匹配的数据中心</div>}
           </div>
         </aside>
-        <div className="facility-resizer" role="separator" aria-orientation="vertical" aria-label="拖动调整导航宽度" onMouseDown={startResize} />
+        <div
+          className="facility-resizer"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="拖动调整导航宽度"
+          onMouseDown={treeCollapsed ? undefined : startResize}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className={treeCollapsed ? 'sider-handle is-collapsed' : 'sider-handle'}
+                aria-label={treeCollapsed ? '展开' : '收起'}
+                onMouseDown={event => event.stopPropagation()}
+                onClick={() => setTreeCollapsed(current => !current)}
+              >
+                <svg viewBox="0 0 10 16" aria-hidden="true" focusable="false">
+                  <path
+                    d={treeCollapsed ? 'M2.5 2.5 L7.5 8 L2.5 13.5' : 'M7.5 2.5 L2.5 8 L7.5 13.5'}
+                    fill="none" stroke="currentColor" strokeWidth="1.6"
+                    strokeLinecap="round" strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={6}>
+              {treeCollapsed ? '展开' : '收起'}
+            </TooltipContent>
+          </Tooltip>
+        </div>
         <div className="facility-main">
           {error && <div role="alert" className="mb-3 rounded-md border border-destructive p-3 text-destructive">{error}</div>}
           {feedback && <div role="status" className="mb-3 rounded-md border border-border p-3">{feedback}</div>}

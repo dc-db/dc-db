@@ -213,7 +213,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [selectedVLAN, setSelectedVLAN] = useState<VLAN | null>(null)
   const [ipFilterSubnetId, setIpFilterSubnetId] = useState<number | null>(null)
   const [openServiceId, setOpenServiceId] = useState<number | null>(null)
-  const [collapsed, setCollapsed] = useState(false)
 
   const [assets, setAssets] = useState<Asset[]>([])
   const [links, setLinks] = useState<Link[]>([])
@@ -630,7 +629,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     if (next !== 'facilities') setFacilityRackId(null)
     if (next !== 'subnets') setSelectedSubnetId(null)
     if (next !== 'vlans') setSelectedVLAN(null)
-    if (window.innerWidth < 992) setCollapsed(true)
     setKeyword('')
     setNetworkKindFilter('')
     setPlatformFilter(undefined)
@@ -1230,10 +1228,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   return (
     <Layout className="app-layout">
-      <Sider
-        className="app-sider" width={200} collapsedWidth={0} collapsed={collapsed}
-        breakpoint="lg" trigger={null} onCollapse={setCollapsed}
-      >
+      <Sider className="app-sider" width={200}>
         <div className="brand">
           <span className="brand-word" onClick={() => goTo('home')}><Wordmark /></span>
         </div>
@@ -1251,22 +1246,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           }}
         />
       </Sider>
-
-      <button
-        type="button"
-        className={collapsed ? 'sider-handle is-collapsed' : 'sider-handle'}
-        aria-label={collapsed ? "展开菜单" : "收起菜单"}
-        title={collapsed ? "展开菜单" : "收起菜单"}
-        onClick={() => setCollapsed(!collapsed)}
-      >
-        <svg viewBox="0 0 10 16" aria-hidden="true" focusable="false">
-          <path
-            d={collapsed ? 'M2.5 2.5 L7.5 8 L2.5 13.5' : 'M7.5 2.5 L2.5 8 L7.5 13.5'}
-            fill="none" stroke="currentColor" strokeWidth="1.6"
-            strokeLinecap="round" strokeLinejoin="round"
-          />
-        </svg>
-      </button>
 
       <Layout className="app-main">
         <Header className="app-header">
