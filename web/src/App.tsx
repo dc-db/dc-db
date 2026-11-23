@@ -17,11 +17,12 @@ import {
 import { api, apiCSV, APIError } from './api'
 import { downloadCSV } from './csv'
 import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, NetworkKind, Service, Subnet, Tag as TagItem, User, VLAN } from './api'
-import { assetLocations, locationLabel } from './facilities'
+import { assetLocations, assetRoomId, buildRoomCounts, locationLabel, matchesRoomFilter } from './facilities'
 import type { AssetLocation, Facilities } from './facilities'
 import { isNetworkKind, KIND_LABELS, kindLabel, NETWORK_KINDS } from './kinds'
 import type { Page } from './types'
 import { AssetEditor } from './components/AssetEditor'
+import { RoomTreeLayout, type RoomFilter } from './components/RoomTreeLayout'
 import { AssetInterfaces } from './components/AssetInterfaces'
 import { AssetRelationGraph } from './components/AssetRelationGraph'
 import { ChangeList } from './components/ChangeList'
@@ -221,6 +222,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [subnets, setSubnets] = useState<Subnet[]>([])
 
   const [keyword, setKeyword] = useState('')
+  const [roomFilter, setRoomFilter] = useState<RoomFilter>('all')
   const [networkKindFilter, setNetworkKindFilter] = useState<'' | NetworkKind>('')
   const [platformFilter, setPlatformFilter] = useState<string | undefined>()
   const [tagFilter, setTagFilter] = useState<number[]>([])
@@ -359,9 +361,14 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     if (page === 'network_devices') return assets.filter(asset => isNetworkKind(asset.kind))
     return []
   }, [assets, page])
+  const assetRoomCounts = useMemo(
+    () => buildRoomCounts(scoped, asset => assetRoomId(asset, locations, byId, links)),
+    [byId, links, locations, scoped],
+  )
   const filtered = useMemo(() => {
     const query = keyword.trim().toLowerCase()
     return scoped.filter(asset => {
+      if (!matchesRoomFilter(assetRoomId(asset, locations, byId, links), roomFilter)) return false
       if (page === 'network_devices' && networkKindFilter && asset.kind !== networkKindFilter) return false
       if (platformFilter && asset.platform !== platformFilter) return false
       if (tagFilter.length) {
@@ -374,7 +381,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       return !query || [asset.name, asset.address, asset.owner, asset.environment, ...(asset.tags?.map(tag => tag.name) ?? []), ...(vmRelations.get(asset.id) ?? [])]
         .some(value => value?.toLowerCase().includes(query))
     })
-  }, [scoped, page, networkKindFilter, platformFilter, tagFilter, tagFilterMode, keyword, vmRelations])
+  }, [scoped, byId, links, locations, roomFilter, page, networkKindFilter, platformFilter, tagFilter, tagFilterMode, keyword, vmRelations])
 
   const relationOptions = useMemo(() => {
     if (!selected) return []
@@ -411,7 +418,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   useEffect(() => {
     setPagination(1)
-  }, [keyword, networkKindFilter, platformFilter, page])
+  }, [keyword, roomFilter, networkKindFilter, platformFilter, page])
 
   useEffect(() => {
     try {
@@ -440,7 +447,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   useEffect(() => {
     setSelectedAssetIds([])
-  }, [page, keyword, networkKindFilter, platformFilter, tagFilter, tagFilterMode])
+  }, [page, keyword, roomFilter, networkKindFilter, platformFilter, tagFilter, tagFilterMode])
 
   useEffect(() => {
     if (!assetPage) return
@@ -1294,6 +1301,9 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         {editor ? (
           <AssetEditor
             asset={selected} defaultKind={newKind} busy={saving} error={drawerError} groups={groups} owners={owners}
+            rooms={facilities.rooms}
+            defaultRoomId={typeof roomFilter === 'number' ? roomFilter : undefined}
+            mountedRoomId={selectedLocation?.room.id}
             onSave={fields => void saveAsset(fields)}
             onCancel={() => { setEditor(false); if (!selectedId) closeDrawer() }}
           />
@@ -1443,6 +1453,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             <ServiceManager
               editable={editable} dark={dark}
               assets={assets} links={links} facilities={facilities}
+              roomFilter={roomFilter} onRoomFilterChange={setRoomFilter}
               openServiceId={openServiceId} onServiceOpened={() => setOpenServiceId(null)}
               onOpenAsset={id => void openAsset(id)} onOpenRoom={openRoom}
               onSessionError={e => handleError(e)} onChanged={setServices}
@@ -1510,6 +1521,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             return (
               <IpamView
                 editable={editable}
+                facilities={facilities}
+                roomFilter={roomFilter} onRoomFilterChange={setRoomFilter}
                 openSubnetId={null} onSubnetOpened={() => {}}
                 onSelectSubnet={id => setSelectedSubnetId(id)}
                 bookmarkedSubnets={subnetBookmarks} onToggleSubnetBookmark={toggleSubnetBookmark}
@@ -1524,7 +1537,9 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               editable={editable}
               initialSubnetId={ipFilterSubnetId}
               onInitialSubnetConsumed={() => setIpFilterSubnetId(null)}
-              assets={assets} subnets={subnets}
+              assets={assets} links={links} facilities={facilities}
+              roomFilter={roomFilter} onRoomFilterChange={setRoomFilter}
+              subnets={subnets}
               onOpenAsset={id => void openAsset(id)} onOpenSubnet={openSubnet}
               onSessionError={e => handleError(e)} onChanged={() => void loadAll()}
             />
@@ -1540,7 +1555,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             />
           ) : (
             <VLANView
-              editable={editable} rooms={facilities.rooms}
+              editable={editable} facilities={facilities}
+              roomFilter={roomFilter} onRoomFilterChange={setRoomFilter}
               onSelectVLAN={vlan => setSelectedVLAN(vlan)}
               onSessionError={e => handleError(e)} onChanged={() => void loadAll()}
             />
@@ -1549,6 +1565,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           {page === 'operators' && (
             <MetadataManager
               kind="operator" title="运营商" editable={editable}
+              facilities={facilities}
+              roomFilter={roomFilter} onRoomFilterChange={setRoomFilter}
               onSessionError={e => handleError(e)}
             />
           )}
@@ -1557,6 +1575,13 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             const pageLabel = page === 'vm' ? '虚拟机' : page === 'network_devices' ? '网络设备' : '服务器'
             const defaultCols = page === 'network_devices' ? defaultNetworkDeviceColumns : defaultAssetColumns
             return (
+            <RoomTreeLayout
+              facilities={facilities}
+              value={roomFilter}
+              onChange={setRoomFilter}
+              unassignedLabel={page === 'vm' ? '未关联机房' : '未上架'}
+              counts={assetRoomCounts}
+            >
             <Card variant="borderless">
               <PageHeader
                 title={pageLabel}
@@ -1665,6 +1690,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                 }}
               />
             </Card>
+            </RoomTreeLayout>
             )
           })()}
           </>)}

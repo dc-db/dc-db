@@ -15,6 +15,9 @@ interface Props {
   error: string
   groups: Group[]
   owners: string[]
+  rooms?: { id: number; name: string }[]
+  defaultRoomId?: number
+  mountedRoomId?: number
   onSave: (fields: AssetFields & { version: number }) => void
   onCancel: () => void
 }
@@ -46,7 +49,7 @@ function Choice({ value, options, onChange, disabled, className }: {
 }
 
 function attributesToRows(attributes: Record<string, unknown>): AttributeRow[] {
-  return Object.entries(attributes).map(([key, value], index) => {
+  return Object.entries(attributes).filter(([key]) => key !== 'roomId').map(([key, value], index) => {
     if (typeof value === 'string') {
       return { id: index + 1, key, value, type: 'string' as const }
     }
@@ -95,7 +98,7 @@ function parseAttributeRows(rows: AttributeRow[]): Record<string, unknown> {
   return attributes
 }
 
-export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, onSave, onCancel }: Props) {
+export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, rooms, defaultRoomId, mountedRoomId, onSave, onCancel }: Props) {
   const [fields, setFields] = useState<AssetFields>({
     kind: asset?.kind ?? defaultKind,
     name: asset?.name ?? '',
@@ -112,6 +115,9 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, o
     notes: asset?.notes ?? '',
     attributes: asset?.attributes ?? {},
   })
+  const [roomId, setRoomId] = useState<number>(() =>
+    mountedRoomId ?? (Number(asset?.attributes?.roomId) || (asset ? 0 : (defaultRoomId ?? 0))),
+  )
   const [attributeRows, setAttributeRows] = useState<AttributeRow[]>(() => attributesToRows(asset?.attributes ?? {}))
   const [nextAttributeId, setNextAttributeId] = useState(() => Object.keys(asset?.attributes ?? {}).length + 1)
   const [validation, setValidation] = useState('')
@@ -160,6 +166,9 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, o
       return
     }
     setValidation('')
+    if (!mountedRoomId && roomId > 0) {
+      attributes.roomId = roomId
+    }
     const networkDevice = isNetworkKind(fields.kind)
     onSave({
       ...fields,
@@ -185,6 +194,17 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, o
       <label className="grid gap-2">负责人<Input list="asset-owner-options" value={fields.owner} maxLength={160} placeholder="姓名或团队" onChange={event => update('owner', event.target.value)} /><datalist id="asset-owner-options">{owners.map(name => <option key={name} value={name} />)}</datalist></label>
       <label className="grid gap-2">环境<Input value={fields.environment} maxLength={40} placeholder="例如：生产" onChange={event => update('environment', event.target.value)} /></label>
       <label className="grid gap-2">所属群组<Choice value={fields.groupId ? String(fields.groupId) : ''} onChange={value => update('groupId', Number(value || 0))} options={[{ value: '', label: '未归属' }, ...groups.map(group => ({ value: String(group.id), label: group.name }))]} /></label>
+      {rooms && (
+        <label className="grid gap-2">
+          所属数据中心
+          <Choice
+            value={roomId ? String(roomId) : ''}
+            disabled={!!mountedRoomId}
+            onChange={value => setRoomId(Number(value || 0))}
+            options={[{ value: '', label: '未分配' }, ...rooms.map(room => ({ value: String(room.id), label: room.name }))]}
+          />
+        </label>
+      )}
       <label className="col-span-2 grid gap-2">管理地址 / IP<Input value={fields.address} maxLength={160} placeholder="例如：192.0.2.11" onChange={event => { const address = event.target.value; setFields(current => ({ ...current, address, probeEnabled: address.trim() ? current.probeEnabled : false })) }} /></label>
       <div className="col-span-2 flex flex-col gap-1"><label className="flex items-center gap-2 text-sm"><Checkbox checked={fields.probeEnabled} disabled={!fields.address.trim()} onCheckedChange={checked => update('probeEnabled', checked === true)} />开启 Ping 存活探测</label><span className="text-sm text-muted-foreground">需填写单个有效 IP 地址；探测结果表示网络可达性。</span></div>
       {!networkDevice && <>
