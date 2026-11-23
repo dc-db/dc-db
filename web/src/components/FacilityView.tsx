@@ -1,27 +1,25 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { ArrowDown, ArrowUp, ChevronsUpDown, Download, MoreHorizontal, Pencil, Plus, Settings2, Upload } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronsUpDown, Download, Plus, Settings2, Upload } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
 import { Checkbox } from './ui/checkbox'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { UsageBar } from './UsageBar'
 import { SearchableSelect } from './SearchableSelect'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
 import { api, APIError } from '../api'
 import type { Asset, Link } from '../api'
-import { assetLocations, isMountKind, locationLabel, mountKinds, occupiedUnits, placementsConflict } from '../facilities'
-import type { AssetLocation, Facilities, MountKind, Placement, PlacementDepth, Rack, RackFace, RackFields, Region, Room, RoomFields } from '../facilities'
+import { assetLocations, buildRoomCounts, isMountKind, locationLabel, mountKinds, occupiedUnits, placementsConflict } from '../facilities'
+import type { AssetLocation, Facilities, MountKind, Placement, PlacementDepth, Rack, RackFace, RackFields } from '../facilities'
 import { rackElevationSvg } from '../rackExport'
 import { formatDateTime } from '../lib/date'
 import { downloadCSV } from '../csv'
 import { PageHeader } from './PageHeader'
 import { RackDetailDrawer } from './RackDetailDrawer'
+import { RoomTreeLayout } from './RoomTreeLayout'
 
 interface Props {
   roomId: number | null
@@ -76,7 +74,6 @@ function loadRackColumns(): RackColumn[] {
   return defaultRackColumns
 }
 
-type RoomDraft = RoomFields & { id?: number; version: number }
 type RackDraft = RackFields & { id?: number; version: number }
 interface MountDraft {
   assetId: number
@@ -102,28 +99,17 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   const [visibleRackColumns, setVisibleRackColumns] = useState<RackColumn[]>(loadRackColumns)
   const [rackSort, setRackSort] = useState<{ key: RackSortColumn; direction: 'asc' | 'desc' } | null>(null)
   const [face, setFace] = useState<RackFace>('front')
-  const [roomDraft, setRoomDraft] = useState<RoomDraft | null>(null)
-  const [regionDraft, setRegionDraft] = useState<{ id?: number; version: number; name: string } | null>(null)
   const [rackDraft, setRackDraft] = useState<RackDraft | null>(null)
   const [mountDraft, setMountDraft] = useState<MountDraft | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
-  const [roomSearch, setRoomSearch] = useState('')
   const [rackKeyword, setRackKeyword] = useState('')
   const [importOpen, setImportOpen] = useState(false)
   const [importFile, setImportFile] = useState<File | null>(null)
   const [importError, setImportError] = useState('')
   const [importBusy, setImportBusy] = useState(false)
   const [rackDrawerOpen, setRackDrawerOpen] = useState(false)
-  const [treeWidth, setTreeWidth] = useState(() => {
-    const saved = Number(window.localStorage.getItem('dc-db-tree-width'))
-    return saved >= 180 && saved <= 420 ? saved : 260
-  })
-  const [treeCollapsed, setTreeCollapsed] = useState(() => window.localStorage.getItem('dc-db-tree-collapsed') === '1')
-
-  useEffect(() => { window.localStorage.setItem('dc-db-tree-width', String(treeWidth)) }, [treeWidth])
-  useEffect(() => { window.localStorage.setItem('dc-db-tree-collapsed', treeCollapsed ? '1' : '0') }, [treeCollapsed])
 
   function updateRackColumns(columns: RackColumn[]) {
     if (!columns.length) return
@@ -136,43 +122,10 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
     }
   }
 
-
-  function startResize(event: React.MouseEvent) {
-    event.preventDefault()
-    const startX = event.clientX
-    const startWidth = treeWidth
-    const handle = event.currentTarget as HTMLElement
-    handle.classList.add('is-active')
-    const move = (moveEvent: MouseEvent) => {
-      setTreeWidth(Math.min(420, Math.max(180, startWidth + moveEvent.clientX - startX)))
-    }
-    const up = () => {
-      handle.classList.remove('is-active')
-      window.removeEventListener('mousemove', move)
-      window.removeEventListener('mouseup', up)
-    }
-    window.addEventListener('mousemove', move)
-    window.addEventListener('mouseup', up)
-  }
-
   const rooms = layout.rooms
   const activeRoomId = roomId ?? rooms[0]?.id ?? null
   const room = rooms.find(item => item.id === activeRoomId)
-  const editingRoom = rooms.find(item => item.id === roomDraft?.id)
-  const sortedRooms = useMemo(() => rooms.slice().sort((left, right) => left.name.localeCompare(right.name, 'zh-CN')), [rooms])
-  const filteredRooms = roomSearch.trim()
-    ? sortedRooms.filter(item => item.name.toLowerCase().includes(roomSearch.trim().toLowerCase()))
-    : sortedRooms
-  const groupedRooms = useMemo(() => {
-    const groups: { key: string; region?: Region; rooms: Room[] }[] = []
-    for (const region of layout.regions) {
-      const inRegion = filteredRooms.filter(item => item.regionId === region.id)
-      if (inRegion.length) groups.push({ key: 'region-' + region.id, region, rooms: inRegion })
-    }
-    const ungrouped = filteredRooms.filter(item => !layout.regions.some(region => region.id === item.regionId))
-    if (ungrouped.length) groups.push({ key: 'ungrouped', rooms: ungrouped })
-    return groups
-  }, [filteredRooms, layout.regions])
+  const rackRoomCounts = useMemo(() => buildRoomCounts(layout.racks, item => item.roomId), [layout.racks])
   const racks = useMemo(() => layout.racks.filter(item => item.roomId === activeRoomId), [layout.racks, activeRoomId])
   const rack = racks.find(item => item.id === rackId)
   const rackIds = useMemo(() => new Set(racks.map(item => item.id)), [racks])
@@ -239,7 +192,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   }, [focus])
 
   function resetForms() {
-    setRoomDraft(null)
     setRackDraft(null)
     setMountDraft(null)
     setError('')
@@ -301,47 +253,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
     } finally {
       setBusy(false)
     }
-  }
-
-  function editRoom(value?: Room) {
-    resetForms()
-    setRoomDraft(value ? { ...value } : { name: '', regionId: 0, version: 0 })
-  }
-
-  function editRegion(value?: Region) {
-    resetForms()
-    setRegionDraft(value ? { id: value.id, version: value.version, name: value.name } : { name: '', version: 0 })
-  }
-
-  function saveRegion() {
-    if (!regionDraft) return
-    const { id, name, version } = regionDraft
-    void mutate(
-      () => api<Region>(id ? '/regions/' + id : '/regions', id ? 'PUT' : 'POST', { name, version }),
-      () => setRegionDraft(null),
-      '区域已保存',
-    )
-  }
-
-  function removeRegion(value: Region) {
-    void mutate(
-      () => api('/regions/' + value.id + '?version=' + value.version, 'DELETE'),
-      () => { setRegionDraft(null); resetForms() },
-      '区域已删除',
-    )
-  }
-
-  function saveRoom() {
-    if (!roomDraft) return
-    const { id, ...fields } = roomDraft
-    void mutate(() => api<Room>(id ? '/rooms/' + id : '/rooms', id ? 'PUT' : 'POST', fields), saved => {
-      onRoomChange(saved.id)
-      setRoomDraft(null)
-    }, '数据中心已保存')
-  }
-
-  function removeRoom(value: Room) {
-    void mutate(() => api('/rooms/' + value.id + '?version=' + value.version, 'DELETE'), resetForms, '数据中心已删除')
   }
 
   function editRack(value?: Rack) {
@@ -506,15 +417,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
     }), placed => setFocused(placed.assetId), '设备位置已更新')
   }
 
-  function renderRoomTreeItem(item: Room) {
-    return (
-      <div key={item.id} className="facility-tree-room">
-        <button type="button" className={`facility-tree-item${item.id === activeRoomId ? ' active' : ''}`} title={item.name} onClick={() => selectRoom(item.id)}><span className="facility-tree-name">{item.name}</span></button>
-        {editable && <button type="button" className="facility-tree-room-action" aria-label={`编辑数据中心 ${item.name}`} title={`编辑 ${item.name}`} onClick={() => editRoom(item)}><Pencil size={14} aria-hidden="true" /></button>}
-      </div>
-    )
-  }
-
   const mountForm = rack && mountDraft ? (
     <form className="mount-device-form" onSubmit={event => { event.preventDefault(); saveMount() }}>
       <Field label="关联设备"><SearchableSelect label="关联设备" value={mountDraft.assetId ? String(mountDraft.assetId) : ''} placeholder="搜索并选择设备" allowClear={false} onChange={value => changeDevice({ ...mountDraft, assetId: Number(value) })} options={candidates.map(asset => ({ value: String(asset.id), label: `${asset.name} · ${mountKinds[asset.kind as MountKind]}${mounted.has(asset.id) ? ' · 已上架' : ''}` }))} /></Field>
@@ -534,62 +436,20 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
       {rackDrawerOpen && rack ? (
       <RackDetailDrawer rack={rack ?? null} racks={racks} onSelectRack={openRack} room={room ?? null} regionName={layout.regions.find(item => item.id === room?.regionId)?.name} devices={devices} assets={byId} editable={editable} busy={busy} bookmarked={!!rack && bookmarkedRacks.includes(rack.id)} onToggleBookmark={() => { if (rack) onToggleRackBookmark(rack.id) }} focused={focused} feedback={feedback} error={error} mountForm={mountForm} onClose={closeRackDrawer} onOpenAsset={onOpenAsset} onEditRack={value => editRack(value)} onCancelMount={() => setMountDraft(null)} onEditPlacement={value => editMount(value)} onUnmount={unmountDevice} onMove={moveDevice} onMountAt={editMountAt} />
       ) : (
-      <div
-        className={treeCollapsed ? 'facility-layout is-collapsed' : 'facility-layout'}
-        style={{ gridTemplateColumns: `${treeCollapsed ? 0 : treeWidth}px 6px minmax(0, 1fr)` }}
+      <RoomTreeLayout
+        facilities={layout}
+        value={activeRoomId ?? 'all'}
+        onChange={next => { if (typeof next === 'number') selectRoom(next) }}
+        editable={editable}
+        showAll={false}
+        showUnassigned={false}
+        counts={rackRoomCounts}
+        onReload={reload}
+        onSessionError={onSessionError}
       >
-        <aside className="facility-sidebar" aria-hidden={treeCollapsed}>
-          <div className="facility-sidebar-search">
-            <Input type="search" placeholder="搜索数据中心" aria-label="搜索数据中心" value={roomSearch} onChange={event => setRoomSearch(event.target.value)} />
-            {editable && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="数据中心操作"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => editRegion()}><Plus />新增区域</DropdownMenuItem><DropdownMenuItem onSelect={() => editRoom()}><Plus />新增数据中心</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
-          </div>
-          <div className="facility-tree">
-            {groupedRooms.map(group => group.region ? (
-              <div key={group.key} className="facility-tree-group">
-                <div className="facility-tree-region">
-                  <span className="facility-tree-region-name">{group.region.name}</span>
-                  {editable && <button type="button" className="facility-tree-region-action" aria-label={`编辑区域 ${group.region.name}`} onClick={() => editRegion(group.region)}><Pencil size={14} aria-hidden="true" /></button>}
-                </div>
-                <div className="facility-tree-children">{group.rooms.map(renderRoomTreeItem)}</div>
-              </div>
-            ) : group.rooms.map(renderRoomTreeItem))}
-            {!filteredRooms.length && <div className="facility-tree-empty">暂无匹配的数据中心</div>}
-          </div>
-        </aside>
-        <div
-          className="facility-resizer"
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="拖动调整导航宽度"
-          onMouseDown={treeCollapsed ? undefined : startResize}
-        >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className={treeCollapsed ? 'sider-handle is-collapsed' : 'sider-handle'}
-                aria-label={treeCollapsed ? '展开' : '收起'}
-                onMouseDown={event => event.stopPropagation()}
-                onClick={() => setTreeCollapsed(current => !current)}
-              >
-                <svg viewBox="0 0 10 16" aria-hidden="true" focusable="false">
-                  <path
-                    d={treeCollapsed ? 'M2.5 2.5 L7.5 8 L2.5 13.5' : 'M7.5 2.5 L2.5 8 L7.5 13.5'}
-                    fill="none" stroke="currentColor" strokeWidth="1.6"
-                    strokeLinecap="round" strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right" sideOffset={6}>
-              {treeCollapsed ? '展开' : '收起'}
-            </TooltipContent>
-          </Tooltip>
-        </div>
-        <div className="facility-main">
           {error && <div role="alert" className="mb-3 rounded-md border border-destructive p-3 text-destructive">{error}</div>}
           {feedback && <div role="status" className="mb-3 rounded-md border border-border p-3">{feedback}</div>}
-          {!room ? <Card><CardContent className="p-6 text-center text-muted-foreground"><p>暂无数据中心</p>{editable && <Button onClick={() => editRoom()}>新增数据中心</Button>}</CardContent></Card> : (
+          {!room ? <Card><CardContent className="p-6 text-center text-muted-foreground"><p>暂无数据中心，请在左侧数据中心操作中新增</p></CardContent></Card> : (
             <div className="facility-workspace">
               <PageHeader
                 title="机柜"
@@ -741,32 +601,8 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
               </Card>
             </div>
           )}
-        </div>
-      </div>
+      </RoomTreeLayout>
       )}
-      <Dialog open={!!roomDraft} onOpenChange={open => { if (!open) setRoomDraft(null) }}>
-        <DialogContent><DialogHeader><DialogTitle>{roomDraft?.id ? '编辑数据中心' : '新增数据中心'}</DialogTitle><DialogDescription>维护数据中心名称。</DialogDescription></DialogHeader>
-          {roomDraft && <form className="space-y-4" onSubmit={event => { event.preventDefault(); saveRoom() }}><Field label="数据中心名称"><Input required value={roomDraft.name} placeholder="例如：北京数据中心" maxLength={160} onChange={event => setRoomDraft({ ...roomDraft, name: event.target.value })} /></Field><Field label="所属区域（可选）"><Select value={roomDraft.regionId ? String(roomDraft.regionId) : 'none'} onValueChange={value => setRoomDraft({ ...roomDraft, regionId: value === 'none' ? 0 : Number(value) })}><SelectTrigger><SelectValue placeholder="不归入区域" /></SelectTrigger><SelectContent><SelectItem value="none">不归入区域</SelectItem>{layout.regions.map(region => <SelectItem key={region.id} value={String(region.id)}>{region.name}</SelectItem>)}</SelectContent></Select></Field><div className="room-modal-actions flex flex-wrap gap-2"><Button type="submit" disabled={busy}>保存数据中心</Button><Button type="button" variant="outline" onClick={() => setRoomDraft(null)}>取消</Button>{editingRoom && !layout.racks.some(item => item.roomId === editingRoom.id) && <ConfirmDelete title="删除该空数据中心？" disabled={busy} onConfirm={() => removeRoom(editingRoom)}>删除空数据中心</ConfirmDelete>}</div></form>}
-        </DialogContent>
-      </Dialog>
-      <Dialog open={!!regionDraft} onOpenChange={open => { if (!open) setRegionDraft(null) }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{regionDraft?.id ? '编辑区域' : '新增区域'}</DialogTitle>
-            <DialogDescription>区域用于按城市或片区归类数据中心；可以不建区域，直接创建数据中心。</DialogDescription>
-          </DialogHeader>
-          {regionDraft && (
-            <form className="space-y-4" onSubmit={event => { event.preventDefault(); saveRegion() }}>
-              <Field label="区域名称"><Input required value={regionDraft.name} placeholder="例如：华北、北京" maxLength={80} onChange={event => setRegionDraft({ ...regionDraft, name: event.target.value })} /></Field>
-              <div className="room-modal-actions flex flex-wrap gap-2">
-                <Button type="submit" disabled={busy}>保存区域</Button>
-                <Button type="button" variant="outline" onClick={() => setRegionDraft(null)}>取消</Button>
-                {regionDraft.id && <ConfirmDelete title={`删除区域「${regionDraft.name}」？`} disabled={busy} onConfirm={() => removeRegion({ id: regionDraft.id!, name: regionDraft.name, version: regionDraft.version })}>删除区域</ConfirmDelete>}
-              </div>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
       <Dialog open={importOpen} onOpenChange={open => { if (!open) { setImportOpen(false); setImportBusy(false) } }}>
         <DialogContent>
           <DialogHeader>
