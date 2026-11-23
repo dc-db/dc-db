@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Download, MoreHorizontal, Pencil, Plus, Upload } from 'lucide-react'
+import { Download, MoreHorizontal, Pencil, Plus, Settings2, Upload } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
+import { Checkbox } from './ui/checkbox'
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu'
 import { Input } from './ui/input'
@@ -33,6 +35,33 @@ interface Props {
   bookmarkedRacks: number[]
   onToggleRackBookmark: (id: number) => void
   onSessionError: (error: unknown) => void
+}
+
+const rackColumns = [
+  { key: 'name', label: '机柜' },
+  { key: 'zone', label: '区域 / 排' },
+  { key: 'height', label: 'U 位总数' },
+  { key: 'used', label: '已用' },
+  { key: 'free', label: '空闲' },
+  { key: 'usage', label: '占用率' },
+  { key: 'devices', label: '设备数' },
+] as const
+
+type RackColumn = typeof rackColumns[number]['key']
+const defaultRackColumns: RackColumn[] = rackColumns.map(column => column.key)
+const rackColumnsStorageKey = 'dc-db-columns:racks'
+
+function loadRackColumns(): RackColumn[] {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(rackColumnsStorageKey) ?? 'null')
+    if (Array.isArray(stored)) {
+      const selected = defaultRackColumns.filter(key => stored.includes(key))
+      if (selected.length) return selected
+    }
+  } catch {
+    // Use defaults when storage is unavailable or invalid.
+  }
+  return defaultRackColumns
 }
 
 type RoomDraft = RoomFields & { id?: number; version: number }
@@ -66,6 +95,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   const [rackId, setRackId] = useState<number | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
   const [view, setView] = useState<'table' | 'elevations'>('table')
+  const [visibleRackColumns, setVisibleRackColumns] = useState<RackColumn[]>(loadRackColumns)
   const [face, setFace] = useState<RackFace>('front')
   const [roomDraft, setRoomDraft] = useState<RoomDraft | null>(null)
   const [regionDraft, setRegionDraft] = useState<{ id?: number; version: number; name: string } | null>(null)
@@ -87,6 +117,17 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   })
 
   useEffect(() => { window.localStorage.setItem('dc-db-tree-width', String(treeWidth)) }, [treeWidth])
+
+  function updateRackColumns(columns: RackColumn[]) {
+    if (!columns.length) return
+    setVisibleRackColumns(columns)
+    try {
+      localStorage.setItem(rackColumnsStorageKey, JSON.stringify(columns))
+    } catch {
+      // Keep the selection for this session when storage is unavailable.
+    }
+  }
+
 
   function startResize(event: React.MouseEvent) {
     event.preventDefault()
@@ -557,6 +598,23 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                       )}
                     </div>
                     <div className="floor-toolbar-actions">
+                      {view === 'table' && <Popover>
+                        <PopoverTrigger asChild><Button size="sm" variant="outline" aria-label="选择机柜表格列"><Settings2 />列</Button></PopoverTrigger>
+                        <PopoverContent align="end" className="w-44">
+                          <div className="column-options">
+                            {rackColumns.map(column => <label key={column.key} className="flex cursor-pointer items-center gap-2 text-sm">
+                              <Checkbox checked={visibleRackColumns.includes(column.key)} disabled={visibleRackColumns.length === 1 && visibleRackColumns.includes(column.key)} onCheckedChange={checked => {
+                                const selected = checked === true
+                                  ? [...visibleRackColumns, column.key]
+                                  : visibleRackColumns.filter(key => key !== column.key)
+                                updateRackColumns(selected)
+                              }} />
+                              {column.label}
+                            </label>)}
+                            <Button variant="link" size="sm" onClick={() => updateRackColumns(defaultRackColumns)}>恢复默认</Button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>}
                       {editable && <Button size="sm" variant="outline" onClick={() => { setImportOpen(true); setImportFile(null); setImportError('') }}><Download />导入</Button>}
                       <Button size="sm" variant="outline" disabled={!rackRows.length} onClick={exportRacks}><Upload />导出</Button>
                       {editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
@@ -565,7 +623,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                   {view === 'table' ? (
                     <div className="facility-table-wrap">
                       <table className="facility-table facility-table-clickable">
-                        <thead><tr><th>机柜</th><th>区域 / 排</th><th>U 位总数</th><th>已用</th><th>空闲</th><th>占用率</th><th>设备数</th><th>操作</th></tr></thead>
+                        <thead><tr>{rackColumns.filter(column => visibleRackColumns.includes(column.key)).map(column => <th key={column.key}>{column.label}</th>)}<th>操作</th></tr></thead>
                         <tbody>
                           {rackRows.map(item => {
                             const placements = roomPlacements.filter(entry => entry.rackId === item.id)
@@ -574,18 +632,18 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                             const rate = item.heightU > 0 ? Math.round((used / item.heightU) * 100) : 0
                             return (
                               <tr key={item.id} onClick={() => openRack(item.id)}>
-                                <td><strong>{item.name}</strong></td>
-                                <td>{item.zone || '—'}</td>
-                                <td>{item.heightU}U</td>
-                                <td>{used}U</td>
-                                <td>{free}U</td>
-                                <td><UsageBar value={rate} label={`${item.name} 机柜占用率`} /></td>
-                                <td>{placements.length}</td>
+                                {visibleRackColumns.includes('name') && <td><strong>{item.name}</strong></td>}
+                                {visibleRackColumns.includes('zone') && <td>{item.zone || '—'}</td>}
+                                {visibleRackColumns.includes('height') && <td>{item.heightU}U</td>}
+                                {visibleRackColumns.includes('used') && <td>{used}U</td>}
+                                {visibleRackColumns.includes('free') && <td>{free}U</td>}
+                                {visibleRackColumns.includes('usage') && <td><UsageBar value={rate} label={`${item.name} 机柜占用率`} /></td>}
+                                {visibleRackColumns.includes('devices') && <td>{placements.length}</td>}
                                 <td><Button size="sm" variant="outline" onClick={event => { event.stopPropagation(); editRack(item) }}>编辑</Button></td>
                               </tr>
                             )
                           })}
-                          {!rackRows.length && <tr><td colSpan={8} className="facility-table-empty">{rackKeyword ? '没有匹配的机柜' : '还没有机柜，点右上角「新增机柜」开始'}</td></tr>}
+                          {!rackRows.length && <tr><td colSpan={visibleRackColumns.length + 1} className="facility-table-empty">{rackKeyword ? '没有匹配的机柜' : '还没有机柜，点右上角「新增机柜」开始'}</td></tr>}
                         </tbody>
                       </table>
                     </div>
