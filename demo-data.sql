@@ -261,12 +261,267 @@ FROM generate_series(1, 60) AS i
 WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
 ON CONFLICT DO NOTHING;
 
-INSERT INTO metadata_entries (id, kind, name, description)
+INSERT INTO metadata_entries (id, kind, name, description, room_id)
 SELECT 2000 + i, 'operator',
-       (ARRAY['中国移动', '中国联通', '中国电信', '中国广电', '教育网', '科技网', '国际专线', '云专线'])[i],
-       '虚构线路运营商'
-FROM generate_series(1, 8) AS i
+       (ARRAY['中国移动', '中国联通', '中国电信', '中国广电', '教育网', '科技网', '国际专线', '云专线'])[1 + ((i - 1) % 8)]
+       || '-' || (ARRAY['北京', '上海', '测试', '深圳', '广州', '杭州', '成都', '骨干'])[1 + ((i - 1) / 4)],
+       '虚构线路运营商（接入专线编号 DEMO-ISP-' || lpad(i::text, 3, '0') || '）',
+       CASE WHEN i <= 28 THEN 1 + ((i - 1) % 7) ELSE NULL END
+FROM generate_series(1, 32) AS i
 WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
+ON CONFLICT DO NOTHING;
+
+-- ============================================================================
+-- 批量模拟测试数据：覆盖 7 个数据中心及「未上架 / 未关联机房 / 未分配」场景
+-- 所有 IP 均使用 RFC 1918 私有演示网段 (10.x.x.x)，主机名均为虚构前缀。
+-- ============================================================================
+
+-- 1. 扩展机柜：每个数据中心新增 10 个 42U 机柜（共 70 个，ID 101..170）
+INSERT INTO racks (id, room_id, name, zone, height_u)
+SELECT 100 + i,
+       1 + ((i - 1) / 10),
+       (ARRAY['BJ', 'SH', 'TEST', 'SZ', 'GZ', 'HZ', 'CD'])[1 + ((i - 1) / 10)]
+       || '-R' || lpad((((i - 1) % 10) + 1)::text, 2, '0'),
+       CASE WHEN ((i - 1) % 10) < 5 THEN 'A 区' ELSE 'B 区' END,
+       42
+FROM generate_series(1, 70) AS i
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+
+-- 2. 扩展 VLAN：7 个数据中心各 4 个 VLAN + 7 个未分配全局 VLAN（共 35 个，ID 101..135）
+INSERT INTO vlans (id, vid, name, status, description, room_id)
+SELECT 100 + i,
+       1000 + i * 10,
+       CASE
+           WHEN i <= 28 THEN
+               (ARRAY['bj', 'sh', 'test', 'sz', 'gz', 'hz', 'cd'])[1 + ((i - 1) / 4)]
+               || '-' || (ARRAY['mgmt', 'prod', 'storage', 'interconnect'])[1 + ((i - 1) % 4)]
+               || '-' || (1000 + i * 10)::text
+           ELSE 'global-backbone-' || (1000 + i * 10)::text
+       END,
+       CASE WHEN i % 11 = 0 THEN 'reserved' ELSE 'active' END,
+       CASE
+           WHEN i <= 28 THEN '虚构机房网络分片 VLAN #' || i::text
+           ELSE '虚构全局跨机房骨干 VLAN #' || i::text
+       END,
+       CASE WHEN i <= 28 THEN 1 + ((i - 1) / 4) ELSE NULL END
+FROM generate_series(1, 35) AS i
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+
+-- 3. 扩展网段：与上述 35 个 VLAN 一一对应（10.101.0.0/24 .. 10.135.0.0/24，ID 101..135）
+INSERT INTO subnets (id, name, cidr, gateway, vlan, notes, status, role, room_id)
+SELECT 100 + i,
+       CASE
+           WHEN i <= 28 THEN
+               (ARRAY['北京', '上海', '测试', '深圳', '广州', '杭州', '成都'])[1 + ((i - 1) / 4)]
+               || (ARRAY['管理网段', '业务网段', '存储网段', '互联网段'])[1 + ((i - 1) % 4)]
+               || '-' || lpad(i::text, 2, '0')
+           ELSE '全局公共网段-' || lpad((i - 28)::text, 2, '0')
+       END,
+       '10.' || (100 + i)::text || '.0.0/24',
+       '10.' || (100 + i)::text || '.0.1',
+       (1000 + i * 10)::text,
+       '虚构演示网段，用于测试按数据中心筛选与地址统计',
+       CASE WHEN i % 11 = 0 THEN 'reserved' ELSE 'active' END,
+       (ARRAY['管理', '业务', '存储', '互联'])[1 + ((i - 1) % 4)],
+       CASE WHEN i <= 28 THEN 1 + ((i - 1) / 4) ELSE NULL END
+FROM generate_series(1, 35) AS i
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+
+-- 4. 扩展服务器（140 台，ID 1001..1140：前 126 台分布在 7 个数据中心机柜中，后 14 台为「未上架」）
+INSERT INTO assets (id, kind, name, platform, status, lifecycle, owner, environment, address, probe_enabled, probe_status, probe_checked_at, cpu, memory_mib, group_id, notes, attributes)
+SELECT 1000 + i,
+       'host',
+       CASE
+           WHEN i <= 126 THEN
+               'demo-' || (ARRAY['bj', 'sh', 'test', 'sz', 'gz', 'hz', 'cd'])[1 + ((i - 1) / 18)]
+               || '-srv-' || lpad((((i - 1) % 18) + 1)::text, 2, '0')
+           ELSE 'demo-spare-srv-' || lpad((i - 126)::text, 2, '0')
+       END,
+       CASE WHEN i % 2 = 0 THEN 'pve' ELSE 'kvm' END,
+       CASE WHEN i % 9 = 0 THEN 'offline' ELSE 'online' END,
+       CASE WHEN i % 25 = 0 THEN 'retired' ELSE 'active' END,
+       (ARRAY['示例运维组', '示例基础架构组', '示例平台组', '示例存储组'])[1 + (i % 4)],
+       (ARRAY['生产', '生产', '预发', '测试'])[1 + (i % 4)],
+       CASE
+           WHEN i <= 126 THEN '10.' || (101 + ((i - 1) / 18) * 4)::text || '.0.' || (10 + ((i - 1) % 18))::text
+           ELSE '10.130.0.' || (10 + (i - 126))::text
+       END,
+       (i % 3 <> 0),
+       CASE
+           WHEN i % 3 = 0 THEN 'unknown'
+           WHEN i % 9 = 0 THEN 'unreachable'
+           ELSE 'reachable'
+       END,
+       CASE WHEN i % 3 = 0 THEN NULL ELSE now() - ((i % 30) || ' minutes')::interval END,
+       (ARRAY[16, 32, 48, 64, 96, 128])[1 + (i % 6)],
+       (ARRAY[65536, 131072, 196608, 262144, 524288])[1 + (i % 5)],
+       1 + (i % 3),
+       CASE WHEN i <= 126 THEN '虚构机架式服务器节点' ELSE '虚构待上架备机服务器' END,
+       '{}'
+FROM generate_series(1, 140) AS i
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+
+-- 将前 126 台服务器（1001..1126）上架到机柜 101..170 中（每个数据中心前 9 个机柜各放 2 台：U1..U2 和 U5..U6）
+INSERT INTO rack_placements (asset_id, rack_id, start_u, units, face, depth)
+SELECT 1000 + i,
+       100 + ((i - 1) / 18) * 10 + (((i - 1) % 18) / 2) + 1,
+       CASE WHEN ((i - 1) % 2) = 0 THEN 1 ELSE 5 END,
+       2,
+       'front',
+       'full'
+FROM generate_series(1, 126) AS i
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+
+-- 5. 扩展虚拟机（280 台，ID 2001..2280：前 252 台关联到已上架宿主机 1001..1126，后 28 台未关联宿主机）
+INSERT INTO assets (id, kind, name, platform, status, lifecycle, owner, environment, address, probe_enabled, probe_status, probe_checked_at, cpu, memory_mib, group_id, notes, attributes)
+SELECT 2000 + i,
+       'vm',
+       CASE
+           WHEN i <= 252 THEN
+               'demo-' || (ARRAY['bj', 'sh', 'test', 'sz', 'gz', 'hz', 'cd'])[1 + ((i - 1) / 36)]
+               || '-' || (ARRAY['web', 'api', 'db', 'cache', 'mq', 'worker', 'search', 'gw'])[1 + (i % 8)]
+               || '-' || lpad((((i - 1) % 36) + 1)::text, 2, '0')
+           ELSE 'demo-unassigned-vm-' || lpad((i - 252)::text, 2, '0')
+       END,
+       CASE WHEN ((i + 1) / 2) % 2 = 0 THEN 'pve' ELSE 'kvm' END,
+       CASE
+           WHEN i % 10 = 0 THEN 'stopped'
+           WHEN i % 17 = 0 THEN 'paused'
+           ELSE 'running'
+       END,
+       'active',
+       (ARRAY['示例应用组', '示例数据组', '示例中间件组', '示例研发组'])[1 + (i % 4)],
+       (ARRAY['生产', '生产', '预发', '测试'])[1 + (i % 4)],
+       CASE
+           WHEN i <= 252 THEN '10.' || (102 + ((i - 1) / 36) * 4)::text || '.0.' || (20 + ((i - 1) % 36))::text
+           ELSE '10.131.0.' || (20 + (i - 252))::text
+       END,
+       (i % 2 = 0),
+       CASE
+           WHEN i % 2 <> 0 THEN 'unknown'
+           WHEN i % 10 = 0 THEN 'unreachable'
+           ELSE 'reachable'
+       END,
+       CASE WHEN i % 2 <> 0 THEN NULL ELSE now() - ((i % 45) || ' minutes')::interval END,
+       (ARRAY[2, 4, 8, 16, 32])[1 + (i % 5)],
+       (ARRAY[4096, 8192, 16384, 32768, 65536])[1 + (i % 5)],
+       1 + (i % 3),
+       CASE WHEN i <= 252 THEN '虚构业务虚拟机实例' ELSE '虚构待分配宿主机的独立虚拟机' END,
+       '{}'
+FROM generate_series(1, 280) AS i
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+
+-- 建立前 252 台虚拟机与宿主机 1001..1126 的承载关系（每台宿主机承载 2 台 VM）
+INSERT INTO asset_links (from_id, to_id, kind)
+SELECT 1000 + ((i - 1) / 2) + 1,
+       2000 + i,
+       'hosts'
+FROM generate_series(1, 252) AS i
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+
+-- 6. 扩展网络设备（84 台，ID 3001..3084：前 70 台分布在 7 个数据中心机柜 101..170 的 U40，后 14 台为「未上架」）
+INSERT INTO assets (id, kind, name, platform, status, lifecycle, owner, environment, address, probe_enabled, probe_status, probe_checked_at, cpu, memory_mib, group_id, notes, attributes)
+SELECT 3000 + i,
+       (ARRAY['switch', 'switch', 'switch', 'switch', 'router', 'router', 'firewall', 'firewall', 'load_balancer', 'load_balancer'])[1 + ((i - 1) % 10)],
+       CASE
+           WHEN i <= 70 THEN
+               'demo-' || (ARRAY['bj', 'sh', 'test', 'sz', 'gz', 'hz', 'cd'])[1 + ((i - 1) / 10)]
+               || '-' || (ARRAY['sw', 'sw', 'sw', 'sw', 'rt', 'rt', 'fw', 'fw', 'lb', 'lb'])[1 + ((i - 1) % 10)]
+               || '-' || lpad((((i - 1) % 10) + 1)::text, 2, '0')
+           ELSE 'demo-spare-net-' || lpad((i - 70)::text, 2, '0')
+       END,
+       '',
+       CASE WHEN i % 12 = 0 THEN 'offline' ELSE 'online' END,
+       'active',
+       '示例网络组',
+       (ARRAY['生产', '生产', '预发', '测试'])[1 + (i % 4)],
+       CASE
+           WHEN i <= 70 THEN '10.' || (101 + ((i - 1) / 10) * 4)::text || '.0.' || (200 + ((i - 1) % 10))::text
+           ELSE '10.132.0.' || (200 + (i - 70))::text
+       END,
+       true,
+       CASE WHEN i % 12 = 0 THEN 'unreachable' ELSE 'reachable' END,
+       now() - ((i % 20) || ' minutes')::interval,
+       0,
+       0,
+       NULL,
+       CASE WHEN i <= 70 THEN '虚构机柜顶置/核心网络设备' ELSE '虚构待上架库存网络设备' END,
+       '{}'
+FROM generate_series(1, 84) AS i
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+
+-- 将前 70 台网络设备（3001..3070）上架到机柜 101..170 的 40U（1U 高度，与服务器 U 位完全不冲突）
+INSERT INTO rack_placements (asset_id, rack_id, start_u, units, face, depth)
+SELECT 3000 + i,
+       100 + i,
+       40,
+       1,
+       'front',
+       'full'
+FROM generate_series(1, 70) AS i
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+
+-- 7. 为新增的服务器、虚拟机、网络设备绑定标签
+INSERT INTO asset_tags (asset_id, tag_id)
+SELECT a.id,
+       CASE WHEN a.kind IN ('host', 'vm') THEN 2 ELSE 3 END
+FROM assets a
+WHERE a.id >= 1001
+  AND EXISTS (SELECT 1 FROM demo_empty_guard)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO asset_tags (asset_id, tag_id)
+SELECT a.id, 1001 + (a.id % 15)
+FROM assets a
+WHERE a.id >= 1001
+  AND EXISTS (SELECT 1 FROM demo_empty_guard)
+ON CONFLICT DO NOTHING;
+
+-- 8. 扩展手工 IP 分配记录（每个新增网段 101..135 分配 3 个 VIP/预留/业务地址，共 105 条）
+INSERT INTO ip_allocations (subnet_id, ip, asset_id, label, notes, status, dns_name, role)
+SELECT 100 + s,
+       '10.' || (100 + s)::text || '.0.' || (240 + k)::text,
+       CASE
+           WHEN s <= 28 AND k = 1 THEN 2000 + ((s - 1) / 4) * 36 + ((s - 1) % 4) + 1
+           WHEN s <= 28 AND k = 2 THEN 3000 + ((s - 1) / 4) * 10 + 9
+           ELSE NULL
+       END,
+       CASE
+           WHEN k = 1 THEN '业务集群 VIP'
+           WHEN k = 2 THEN '负载均衡浮动地址'
+           ELSE '网段预留地址'
+       END,
+       '虚构 IPAM 分配记录',
+       CASE WHEN k = 3 THEN 'reserved' ELSE 'active' END,
+       'vip-' || s::text || '-' || k::text || '.demo.internal',
+       CASE WHEN k = 1 THEN 'vip' WHEN k = 2 THEN 'vrrp' ELSE '' END
+FROM generate_series(1, 35) AS s
+CROSS JOIN generate_series(1, 3) AS k
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+
+-- 9. 为批量生成的虚拟机和服务器关联各类内置开源服务，使每个数据中心下都有丰富的服务实例与拓扑
+INSERT INTO asset_services (asset_id, service_id)
+SELECT 2000 + i, s.id
+FROM generate_series(1, 252) AS i
+JOIN services s ON lower(s.name) = (
+    ARRAY[
+        'nginx', 'caddy', 'apache-httpd', 'mysql', 'postgresql', 'mongodb', 'clickhouse',
+        'redis', 'memcached', 'kafka', 'rabbitmq', 'nats', 'elasticsearch',
+        'prometheus', 'grafana', 'loki', 'zabbix', 'minio', 'ceph',
+        'gitlab', 'gitea', 'jenkins', 'harbor', 'registry', 'etcd', 'zookeeper', 'consul', 'vault'
+    ]
+)[1 + ((i - 1) % 28)]
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO asset_services (asset_id, service_id)
+SELECT 1000 + i, s.id
+FROM generate_series(1, 126) AS i
+JOIN services s ON lower(s.name) = (
+    ARRAY['prometheus', 'zabbix', 'etcd', 'consul', 'ceph', 'minio', 'loki']
+)[1 + ((i - 1) % 7)]
+WHERE i % 2 = 0
+  AND EXISTS (SELECT 1 FROM demo_empty_guard)
 ON CONFLICT DO NOTHING;
 
 -- 为演示服务关联虚拟机与服务器，方便在服务拓扑中查看「服务 → 虚拟机 → 服务器 → 数据中心」链路。
