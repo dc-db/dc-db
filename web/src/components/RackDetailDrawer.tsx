@@ -1,13 +1,15 @@
 import { useState, type ReactNode } from 'react'
-import { ArrowLeft, Plus, Settings, Star, Trash2 } from 'lucide-react'
+import { ArrowLeft, Settings, Star, Trash2 } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
 import { UsageBar } from './UsageBar'
+import { Breadcrumbs } from './Breadcrumbs'
 import type { Asset } from '../api'
 import { mountKinds, occupiedUnits, placementFaceLabel, uRange } from '../facilities'
 import type { MountKind, Placement, Rack, RackFace, Room } from '../facilities'
 import { rackElevationSvg } from '../rackExport'
+import { formatDateTime } from '../lib/date'
 
 interface Props {
   rack: Rack | null
@@ -24,7 +26,7 @@ interface Props {
   onClose: () => void
   onOpenAsset: (assetId: number) => void
   onEditRack: (rack: Rack) => void
-  onMount: () => void
+  onCancelMount: () => void
   onEditPlacement: (placement: Placement) => void
   onUnmount: (placement: Placement) => void
   onMove: (placement: Placement, startU: number) => void
@@ -47,7 +49,7 @@ function statusLabel(status?: string) {
 
 export function RackDetailDrawer({
   rack, room, regionName, devices, assets, editable, busy, focused, feedback, error, mountForm,
-  onClose, onOpenAsset, onEditRack, onMount, onEditPlacement, onUnmount, onMove, onMountAt,
+  onClose, onOpenAsset, onEditRack, onCancelMount, onEditPlacement, onUnmount, onMove, onMountAt,
   bookmarked, onToggleBookmark,
 }: Props) {
   const [devicesOpen, setDevicesOpen] = useState(false)
@@ -58,23 +60,12 @@ export function RackDetailDrawer({
   const percent = Math.round(used / rack.heightU * 100)
   return (
     <div className="rack-detail-page">
-      <nav className="rack-detail-breadcrumb" aria-label="当前位置">
-        <Button variant="outline" size="sm" onClick={onClose}><ArrowLeft />返回</Button>
-        <button type="button" onClick={onClose}>数据中心</button>
-        {regionName && <><span aria-hidden="true">/</span><span>{regionName}</span></>}
-        {room && <><span aria-hidden="true">/</span><button type="button" onClick={onClose}>{room.name}</button></>}
-      </nav>
-      <header className="rack-detail-head">
-        <div className="rack-detail-title">
-          <div><strong>{rack.name}</strong><span>{room?.name ?? '未绑定数据中心'} · {rack.heightU}U 机柜</span></div>
-        </div>
-        <div className="rack-detail-actions">
-          <Button variant="outline" onClick={onToggleBookmark}><Star fill={bookmarked ? 'currentColor' : 'none'} />{bookmarked ? '已收藏' : '收藏'}</Button>
-          {editable && <><Button variant="outline" disabled={busy} onClick={() => onEditRack(rack)}><Settings />编辑机柜</Button><Button disabled={busy} onClick={onMount}><Plus />上架设备</Button></>}
-        </div>
-      </header>
-
-      {(error || feedback) && <div className="rack-detail-alert"><div role={error ? 'alert' : 'status'} className={error ? 'rounded-md border border-destructive p-3 text-destructive' : 'rounded-md border border-border p-3'}>{error || feedback}</div></div>}
+      <Dialog open={!!mountForm} onOpenChange={open => { if (!open) onCancelMount() }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>上架设备</DialogTitle><DialogDescription>选择设备并设置机柜位置。</DialogDescription></DialogHeader>
+          {mountForm}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={devicesOpen} onOpenChange={setDevicesOpen}>
         <DialogContent>
@@ -108,6 +99,22 @@ export function RackDetailDrawer({
 
       <div className="rack-detail-body">
         <section className="rack-facts-panel">
+          <div className="rack-detail-navigation">
+            <Button variant="outline" size="sm" onClick={onClose}><ArrowLeft />返回</Button>
+            <Breadcrumbs items={[
+              { label: '数据中心', onClick: onClose },
+              ...(regionName ? [{ label: regionName }] : []),
+              ...(room ? [{ label: room.name, onClick: onClose }] : []),
+            ]} />
+          </div>
+          <header className="rack-detail-head">
+            <div className="rack-detail-title"><strong>{rack.name}</strong></div>
+            <div className="rack-detail-actions">
+              <Button variant="outline" size="sm" onClick={onToggleBookmark}><Star fill={bookmarked ? 'currentColor' : 'none'} />{bookmarked ? '已收藏' : '收藏'}</Button>
+              {editable && <Button variant="outline" size="sm" disabled={busy} onClick={() => onEditRack(rack)}><Settings />编辑机柜</Button>}
+            </div>
+          </header>
+          {(error || feedback) && <div className="rack-detail-alert"><div role={error ? 'alert' : 'status'} className={error ? 'rounded-md border border-destructive p-3 text-destructive' : 'rounded-md border border-border p-3'}>{error || feedback}</div></div>}
           <dl className="rack-facts">
             <div><dt>数据中心</dt><dd>{room?.name ?? '—'}</dd></div>
             <div><dt>机柜编号</dt><dd>{rack.name}</dd></div>
@@ -115,6 +122,8 @@ export function RackDetailDrawer({
             <div><dt>已用 U 位</dt><dd>{used}U</dd></div>
             <div><dt>空闲 U 位</dt><dd>{rack.heightU - used}U</dd></div>
             <div><dt>设备数</dt><dd><button type="button" className="rack-device-count" onClick={() => setDevicesOpen(true)} aria-label={`查看机柜内 ${devices.length} 台设备`}>{devices.length}</button></dd></div>
+            <div><dt>创建时间</dt><dd>{formatDateTime(rack.createdAt)}</dd></div>
+            <div><dt>修改时间</dt><dd>{formatDateTime(rack.updatedAt)}</dd></div>
             <div className="rack-facts-usage"><dt>利用率</dt><dd><UsageBar value={percent} label="机柜利用率" className="w-full" barClassName="min-w-0 flex-1" /></dd></div>
           </dl>
         </section>
@@ -122,7 +131,25 @@ export function RackDetailDrawer({
           {(['front', 'rear'] as RackFace[]).map(face => (
             <figure key={face} className="rack-detail-face">
               <figcaption className="rack-detail-face-label">{face === 'front' ? '前' : '后'}</figcaption>
-              <div className="rack-detail-face-figure" dangerouslySetInnerHTML={{ __html: rackElevationSvg(rack, devices, assets, face, { interactive: false }).svg }} />
+              <div
+                className="rack-detail-face-figure"
+                onClick={event => {
+                  const target = event.target as Element
+                  const assetId = target.closest('[data-asset]')?.getAttribute('data-asset')
+                  const unit = target.closest('[data-unit]')?.getAttribute('data-unit')
+                  if (assetId) onOpenAsset(Number(assetId))
+                  else if (unit && editable && !busy) onMountAt(Number(unit), face)
+                }}
+                onKeyDown={event => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return
+                  const target = event.target as Element
+                  const assetId = target.closest('[data-asset]')?.getAttribute('data-asset')
+                  const unit = target.closest('[data-unit]')?.getAttribute('data-unit')
+                  if (assetId) { event.preventDefault(); onOpenAsset(Number(assetId)) }
+                  else if (unit && editable && !busy) { event.preventDefault(); onMountAt(Number(unit), face) }
+                }}
+                dangerouslySetInnerHTML={{ __html: rackElevationSvg(rack, devices, assets, face, { interactive: true, allowMount: editable && !busy }).svg }}
+              />
             </figure>
           ))}
         </section>

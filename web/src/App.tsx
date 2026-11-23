@@ -102,6 +102,11 @@ function readRoomParam(): number | null {
   return Number.isFinite(value) && value > 0 ? value : null
 }
 
+function readRackParam(): number | null {
+  const value = Number(new URLSearchParams(window.location.search).get('rack'))
+  return Number.isSafeInteger(value) && value > 0 ? value : null
+}
+
 function initialDark() {
   try {
     const saved = localStorage.getItem('dc-db-theme')
@@ -173,6 +178,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [error, setError] = useState('')
   const [page, setPage] = useState<Page>(readPageParam)
   const [facilityRoomId, setFacilityRoomId] = useState<number | null>(readRoomParam)
+  const [facilityRackId, setFacilityRackId] = useState<number | null>(() => readPageParam() === 'facilities' ? readRackParam() : null)
 
   // Keep the current page and room in the URL so a refresh (or a shared link)
   // lands on the same screen instead of the dashboard.
@@ -182,15 +188,15 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     else params.set('page', page)
     if (page === 'facilities' && facilityRoomId) params.set('room', String(facilityRoomId))
     else params.delete('room')
+    if (page === 'facilities' && facilityRackId) params.set('rack', String(facilityRackId))
+    else params.delete('rack')
     params.delete('tab')
     const query = params.toString()
     const next = query ? `${window.location.pathname}?${query}` : window.location.pathname
     if (next !== `${window.location.pathname}${window.location.search}`) {
       window.history.replaceState(null, '', next)
     }
-  }, [page, facilityRoomId])
-
-  const [facilityRackId, setFacilityRackId] = useState<number | null>(null)
+  }, [page, facilityRoomId, facilityRackId])
   const [selectedSubnetId, setSelectedSubnetId] = useState<number | null>(null)
   const [selectedVLAN, setSelectedVLAN] = useState<VLAN | null>(null)
   const [ipFilterSubnetId, setIpFilterSubnetId] = useState<number | null>(null)
@@ -1464,7 +1470,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           {page === 'facilities' && (
             <FacilityView
               roomId={facilityRoomId} onRoomChange={setFacilityRoomId}
-              openRackId={facilityRackId} onRackOpened={() => setFacilityRackId(null)}
+              openRackId={facilityRackId} onRackChange={setFacilityRackId}
               layout={facilities} assets={assets} links={links} editable={editable}
               focus={facilityFocus} reload={loadAll}
               bookmarkedRacks={rackBookmarks} onToggleRackBookmark={toggleRackBookmark}

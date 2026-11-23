@@ -29,6 +29,8 @@ export interface Rack extends RackFields {
   id: number
   roomId: number
   version: number
+  createdAt: string | null
+  updatedAt: string | null
 }
 
 export type RackFace = 'front' | 'rear'

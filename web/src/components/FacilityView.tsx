@@ -17,6 +17,7 @@ import { assetLocations, isMountKind, locationLabel, mountKinds, occupiedUnits, 
 import { isNetworkKind } from '../kinds'
 import type { AssetLocation, Facilities, MountKind, Placement, PlacementDepth, Rack, RackFace, RackFields, Region, Room, RoomFields } from '../facilities'
 import { rackElevationSvg } from '../rackExport'
+import { formatDateTime } from '../lib/date'
 import { downloadCSV } from '../csv'
 import { RackDetailDrawer } from './RackDetailDrawer'
 
@@ -24,7 +25,7 @@ interface Props {
   roomId: number | null
   onRoomChange: (id: number) => void
   openRackId: number | null
-  onRackOpened: () => void
+  onRackChange: (id: number | null) => void
   layout: Facilities
   assets: Asset[]
   links: Link[]
@@ -45,22 +46,26 @@ const rackColumns = [
   { key: 'used', label: '已用' },
   { key: 'free', label: '空闲' },
   { key: 'usage', label: '占用率' },
+  { key: 'createdAt', label: '创建时间' },
+  { key: 'updatedAt', label: '修改时间' },
 ] as const
 
 type RackColumn = typeof rackColumns[number]['key']
-type RackSortColumn = Exclude<RackColumn, 'name' | 'zone'>
+type RackSortColumn = Exclude<RackColumn, 'name' | 'zone' | 'createdAt' | 'updatedAt'>
 
 function isRackSortColumn(key: RackColumn): key is RackSortColumn {
-  return key !== 'name' && key !== 'zone'
+  return key !== 'name' && key !== 'zone' && key !== 'createdAt' && key !== 'updatedAt'
 }
 const defaultRackColumns: RackColumn[] = rackColumns.map(column => column.key)
-const rackColumnsStorageKey = 'dc-db-columns:racks'
+const rackColumnsStorageKey = 'dc-db-columns:racks-v2'
+const legacyRackColumnsStorageKey = 'dc-db-columns:racks'
 
 function loadRackColumns(): RackColumn[] {
   try {
-    const stored: unknown = JSON.parse(localStorage.getItem(rackColumnsStorageKey) ?? 'null')
+    const current = localStorage.getItem(rackColumnsStorageKey)
+    const stored: unknown = JSON.parse(current ?? localStorage.getItem(legacyRackColumnsStorageKey) ?? 'null')
     if (Array.isArray(stored)) {
-      const selected = defaultRackColumns.filter(key => stored.includes(key))
+      const selected = defaultRackColumns.filter(key => stored.includes(key) || (current === null && (key === 'createdAt' || key === 'updatedAt')))
       if (selected.length) return selected
     }
   } catch {
@@ -96,7 +101,7 @@ function ConfirmDelete({ title, disabled, onConfirm, children }: { title: string
   return <AlertDialog><AlertDialogTrigger asChild><Button type="button" variant="destructive" disabled={disabled}>{children}</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{title}</AlertDialogTitle><AlertDialogDescription>此操作无法撤销。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={onConfirm}>删除</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
 }
 
-export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, layout, assets, links, editable, focus, reload, onOpenAsset, bookmarkedRacks, onToggleRackBookmark, onSessionError }: Props) {
+export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, layout, assets, links, editable, focus, reload, onOpenAsset, bookmarkedRacks, onToggleRackBookmark, onSessionError }: Props) {
   const [rackId, setRackId] = useState<number | null>(null)
   const [focused, setFocused] = useState<number | null>(null)
   const [view, setView] = useState<'table' | 'elevations'>('table')
@@ -229,11 +234,13 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   useEffect(() => {
     if (!openRackId) return
     const target = layout.racks.find(item => item.id === openRackId && item.roomId === activeRoomId)
-    if (!target) return
+    if (!target) {
+      if (rooms.some(item => item.id === activeRoomId)) onRackChange(null)
+      return
+    }
     setRackId(target.id)
     setRackDrawerOpen(true)
-    onRackOpened()
-  }, [openRackId, activeRoomId, layout.racks, onRackOpened])
+  }, [openRackId, activeRoomId, layout.racks, rooms, onRackChange])
 
   useEffect(() => {
     if (focus) showLocation(focus)
@@ -251,6 +258,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
     if (id === activeRoomId && roomId !== null) return
     resetForms()
     setRackDrawerOpen(false)
+    onRackChange(null)
     onRoomChange(id)
     setRackId(layout.racks.find(item => item.roomId === id)?.id ?? null)
     setFocused(null)
@@ -266,10 +274,12 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   function openRack(id: number) {
     selectRack(id)
     setRackDrawerOpen(true)
+    onRackChange(id)
   }
 
   function closeRackDrawer() {
     setRackDrawerOpen(false)
+    onRackChange(null)
     setMountDraft(null)
     setFeedback('')
   }
@@ -278,6 +288,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
     resetForms()
     onRoomChange(location.room.id)
     setRackId(location.rack.id)
+    onRackChange(location.rack.id)
     setFocused(location.placement.assetId)
     setRackDrawerOpen(true)
   }
@@ -400,7 +411,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   }
 
   function removeRack(value: Rack) {
-    void mutate(() => api('/racks/' + value.id + '?version=' + value.version, 'DELETE'), resetForms, '机柜已删除')
+    void mutate(() => api('/racks/' + value.id + '?version=' + value.version, 'DELETE'), () => { resetForms(); if (openRackId === value.id) closeRackDrawer() }, '机柜已删除')
   }
 
   function freePosition(units: number, ignore = 0, face: RackFace = 'front', depth: PlacementDepth = 'full') {
@@ -435,7 +446,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
 
   function editMountAt(startU: number, face: RackFace) {
     resetForms()
-    const units = 2
+    const units = 1
     const safeStart = rack ? Math.max(1, Math.min(startU, rack.heightU - units + 1)) : startU
     setMountDraft({
       mode: candidates.length ? 'existing' : 'new',
@@ -451,11 +462,12 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
     })
   }
 
-  function mountAt(target: Rack, startU: number) {
+  function mountAt(target: Rack, startU: number, face: RackFace) {
     resetForms()
     selectRack(target.id)
     setRackDrawerOpen(true)
-    const units = 2
+    onRackChange(target.id)
+    const units = 1
     setMountDraft({
       mode: candidates.length ? 'existing' : 'new',
       assetId: 0,
@@ -465,7 +477,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
       address: '',
       startU: Math.max(1, Math.min(startU, target.heightU - units + 1)),
       units,
-      face: 'front',
+      face,
       depth: 'full',
     })
   }
@@ -549,7 +561,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
   return (
     <div className="facilities">
       {rackDrawerOpen && rack ? (
-      <RackDetailDrawer rack={rack ?? null} room={room ?? null} regionName={layout.regions.find(item => item.id === room?.regionId)?.name} devices={devices} assets={byId} editable={editable} busy={busy} bookmarked={!!rack && bookmarkedRacks.includes(rack.id)} onToggleBookmark={() => { if (rack) onToggleRackBookmark(rack.id) }} focused={focused} feedback={feedback} error={error} mountForm={mountForm} onClose={closeRackDrawer} onOpenAsset={onOpenAsset} onEditRack={value => { setRackDrawerOpen(false); editRack(value) }} onMount={() => editMount()} onEditPlacement={value => editMount(value)} onUnmount={unmountDevice} onMove={moveDevice} onMountAt={editMountAt} />
+      <RackDetailDrawer rack={rack ?? null} room={room ?? null} regionName={layout.regions.find(item => item.id === room?.regionId)?.name} devices={devices} assets={byId} editable={editable} busy={busy} bookmarked={!!rack && bookmarkedRacks.includes(rack.id)} onToggleBookmark={() => { if (rack) onToggleRackBookmark(rack.id) }} focused={focused} feedback={feedback} error={error} mountForm={mountForm} onClose={closeRackDrawer} onOpenAsset={onOpenAsset} onEditRack={value => editRack(value)} onCancelMount={() => setMountDraft(null)} onEditPlacement={value => editMount(value)} onUnmount={unmountDevice} onMove={moveDevice} onMountAt={editMountAt} />
       ) : (
       <div className="facility-layout" style={{ gridTemplateColumns: `${treeWidth}px 6px minmax(0, 1fr)` }}>
         <aside className="facility-sidebar">
@@ -679,6 +691,8 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                                 {visibleRackColumns.includes('used') && <td>{used}U</td>}
                                 {visibleRackColumns.includes('free') && <td>{free}U</td>}
                                 {visibleRackColumns.includes('usage') && <td><UsageBar value={rate} label={`${item.name} 机柜占用率`} /></td>}
+                                {visibleRackColumns.includes('createdAt') && <td className="whitespace-nowrap">{formatDateTime(item.createdAt)}</td>}
+                                {visibleRackColumns.includes('updatedAt') && <td className="whitespace-nowrap">{formatDateTime(item.updatedAt)}</td>}
                                 <td><Button size="sm" variant="outline" onClick={event => { event.stopPropagation(); editRack(item) }}>编辑</Button></td>
                               </tr>
                             )
@@ -691,7 +705,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                     <div className="rack-board">
                       {rackRows.map(item => {
                         const placements = roomPlacements.filter(entry => entry.rackId === item.id)
-                        const preview = rackElevationSvg(item, placements, byId, face)
+                        const preview = rackElevationSvg(item, placements, byId, face, { interactive: true, allowMount: editable && !busy })
                         return (
                           <div key={item.id} className="rack-board-item">
                             <div className="rack-board-head">
@@ -710,7 +724,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                                 }
                                 const unit = target.closest('[data-unit]')?.getAttribute('data-unit')
                                 if (unit && editable) {
-                                  mountAt(item, Number(unit))
+                                  mountAt(item, Number(unit), face)
                                   return
                                 }
                                 openRack(item.id)
@@ -718,7 +732,12 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackOpened, l
                               onKeyDown={event => {
                                 if (event.key === 'Enter' || event.key === ' ') {
                                   event.preventDefault()
-                                  openRack(item.id)
+                                  const target = event.target as Element
+                                  const assetId = target.closest('[data-asset]')?.getAttribute('data-asset')
+                                  const unit = target.closest('[data-unit]')?.getAttribute('data-unit')
+                                  if (assetId) onOpenAsset(Number(assetId))
+                                  else if (unit && editable && !busy) mountAt(item, Number(unit), face)
+                                  else openRack(item.id)
                                 }
                               }}
                               dangerouslySetInnerHTML={{ __html: preview.svg }}
