@@ -36,6 +36,8 @@ body { font-size: var(--fs-body); line-height: 1.55; }
   --info-soft: #eff6ff;
   --info-border: #bfdbfe;
   --success: #047857;
+  --probe-dot-reachable: #16a34a;
+  --probe-dot-unreachable: #dc2626;
   --success-soft: #ecfdf5;
   --success-border: #a7f3d0;
   --warning: #b45309;
@@ -111,6 +113,8 @@ html[data-theme="dark"] {
   --info-soft: #172554;
   --info-border: #1e40af;
   --success: #34d399;
+  --probe-dot-reachable: #34d399;
+  --probe-dot-unreachable: #f87171;
   --success-soft: #052e2b;
   --success-border: #065f46;
   --warning: #fbbf24;
@@ -507,6 +511,11 @@ html[data-theme="dark"] .import-error-row strong { color: #ff7875; }
 .table-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 .page-header-filters { flex: 1 1 auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .page-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.asset-probe-address { display: inline-flex; align-items: center; gap: 8px; }
+.asset-probe-address:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 3px; }
+.asset-probe-dot { width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%; }
+.asset-probe-dot.reachable { background: var(--probe-dot-reachable); }
+.asset-probe-dot.unreachable { background: var(--probe-dot-unreachable); }
 .asset-link { height: auto; padding: 0 !important; display: inline-flex; gap: 7px; align-items: center; }
 .asset-sub { margin-left: 6px; color: var(--muted); font-size: var(--fs-caption); font-weight: 400; }
 .mono { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }

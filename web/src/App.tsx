@@ -44,6 +44,7 @@ import { ServiceIcon } from './components/ServiceIcon'
 import { ServiceManager } from './components/ServiceManager'
 import { TagManager } from './components/TagManager'
 import { UserManager } from './components/UserManager'
+import { ProbeSettings } from './components/ProbeSettings'
 import { VLANView } from './components/VLANView'
 import { Wordmark } from './components/Wordmark'
 
@@ -64,14 +65,25 @@ const relations: { kind: LinkKind; from: Kind; to: Kind[]; outgoing: string; inc
   { kind: 'hosts', from: 'host', to: ['vm'], outgoing: '承载虚拟机', incoming: '所在宿主机' },
 ]
 const defaultPageSize = 10
-const defaultAssetColumns = ['name', 'status', 'tags', 'meta', 'address', 'owner']
-const defaultNetworkDeviceColumns = ['name', 'kind', 'status', 'tags', 'address', 'owner']
-const assetColumnKeys = ['name', 'kind', 'status', 'tags', 'meta', 'address', 'owner', 'group', 'environment', 'capacity', 'updated']
+const defaultAssetColumns = ['name', 'tags', 'meta', 'address', 'owner']
+const defaultNetworkDeviceColumns = ['name', 'kind', 'tags', 'address', 'owner']
+const assetColumnKeys = ['name', 'kind', 'tags', 'meta', 'address', 'owner', 'group', 'environment', 'capacity', 'updated']
 
 
 function platformLabel(asset: Pick<Asset, 'platform'>) {
   return asset.platform === 'pve' ? 'Proxmox VE' : asset.platform === 'kvm' ? 'KVM' : '—'
 }
+function probeOf(asset: Asset): { label: string; color: string } {
+  if (!asset.probeEnabled) return { label: '未开启', color: 'default' }
+  if (asset.lifecycle === 'retired') return { label: '已停用', color: 'default' }
+  switch (asset.probeStatus) {
+    case 'reachable': return { label: '可达', color: 'green' }
+    case 'unreachable': return { label: '不可达', color: 'red' }
+    case 'error': return { label: '探测异常', color: 'orange' }
+    default: return { label: '待探测', color: 'default' }
+  }
+}
+
 function statusOf(asset: Asset) {
   if (asset.lifecycle === 'retired') return { label: '已退役', color: 'default' }
   return statuses[asset.status] ?? statuses.unknown
@@ -80,7 +92,7 @@ function messageText(error: unknown) {
   return error instanceof Error ? error.message : '操作失败'
 }
 
-const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'network_devices', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'password', 'tags', 'groups', 'services', 'owners', 'users', 'guide']
+const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'network_devices', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'password', 'tags', 'groups', 'services', 'owners', 'users', 'probe_settings', 'guide']
 
 function readPageParam(): Page {
   const params = new URLSearchParams(window.location.search)
@@ -212,7 +224,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [keyword, setKeyword] = useState('')
   const [networkKindFilter, setNetworkKindFilter] = useState<'' | NetworkKind>('')
   const [platformFilter, setPlatformFilter] = useState<string | undefined>()
-  const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const [tagFilter, setTagFilter] = useState<number[]>([])
   const [tagFilterMode, setTagFilterMode] = useState<'all' | 'any'>('all')
   const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultAssetColumns)
@@ -293,7 +304,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     { key: 'guide', label: '使用指南', icon: <BookOpenOutlined /> },
   ]
   if (user?.role === 'admin') {
-    systemChildren.splice(1, 0, { key: 'users', label: '用户管理', icon: <TeamOutlined /> })
+    systemChildren.splice(1, 0, { key: 'users', label: '用户管理', icon: <TeamOutlined /> }, { key: 'probe_settings', label: '存活探测设置', icon: <SettingOutlined /> })
   }
   const navigation: (NavLeaf | NavGroup)[] = [
     { key: 'home', label: '首页', icon: <HomeOutlined /> },
@@ -354,7 +365,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     return scoped.filter(asset => {
       if (page === 'network_devices' && networkKindFilter && asset.kind !== networkKindFilter) return false
       if (platformFilter && asset.platform !== platformFilter) return false
-      if (statusFilter && asset.status !== statusFilter) return false
       if (tagFilter.length) {
         const match = tagFilterMode === 'any'
           ? tagFilter.some(id => asset.tags?.some(tag => tag.id === id))
@@ -365,7 +375,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       return !query || [asset.name, asset.address, asset.owner, asset.environment, ...(asset.tags?.map(tag => tag.name) ?? []), ...(vmRelations.get(asset.id) ?? [])]
         .some(value => value?.toLowerCase().includes(query))
     })
-  }, [scoped, page, networkKindFilter, platformFilter, statusFilter, tagFilter, tagFilterMode, keyword, vmRelations])
+  }, [scoped, page, networkKindFilter, platformFilter, tagFilter, tagFilterMode, keyword, vmRelations])
 
   const relationOptions = useMemo(() => {
     if (!selected) return []
@@ -431,7 +441,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   useEffect(() => {
     setSelectedAssetIds([])
-  }, [page, keyword, networkKindFilter, platformFilter, statusFilter, tagFilter, tagFilterMode])
+  }, [page, keyword, networkKindFilter, platformFilter, tagFilter, tagFilterMode])
 
   useEffect(() => {
     if (!assetPage) return
@@ -440,13 +450,31 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       const raw = localStorage.getItem('dc-db-columns:' + page)
       const parsed: unknown = raw ? JSON.parse(raw) : null
       const valid = Array.isArray(parsed)
-        ? parsed.filter((key): key is string => typeof key === 'string' && assetColumnKeys.includes(key))
+        ? parsed.filter((key): key is string => typeof key === 'string').map(key => key === 'status' || key === 'probe' ? 'address' : key).filter(key => assetColumnKeys.includes(key))
         : []
       setVisibleColumns(valid.length ? assetColumnKeys.filter(key => valid.includes(key)) : fallback)
     } catch {
       setVisibleColumns(fallback)
     }
   }, [assetPage, page])
+
+  useEffect(() => {
+    if (!user || (page !== 'host' && page !== 'vm' && page !== 'network_devices')) return
+    let active = true
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return
+      void api<{ id: number; version: number; status: Asset['probeStatus']; checkedAt: string | null }[]>('/probe-results').then(latest => {
+        if (!active) return
+        const byId = new Map(latest.map(item => [item.id, item]))
+        setAssets(current => current.map(item => {
+          const updated = byId.get(item.id)
+          return updated && item.version === updated.version
+            ? { ...item, probeStatus: updated.status, probeCheckedAt: updated.checkedAt } : item
+        }))
+      }).catch(() => {})
+    }, 10000)
+    return () => { active = false; window.clearInterval(timer) }
+  }, [user, page])
 
   useEffect(() => {
     if (!chosenRelation && relationOptions.length) setRelationChoice(relationOptions[0].id)
@@ -606,7 +634,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setKeyword('')
     setNetworkKindFilter('')
     setPlatformFilter(undefined)
-    setStatusFilter(undefined)
     setTagFilter([])
     setTagFilterMode('all')
     setPagination(1)
@@ -631,7 +658,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setKeyword('')
     setNetworkKindFilter('')
     setPlatformFilter(undefined)
-    setStatusFilter(undefined)
     setTagFilter([])
     setTagFilterMode('all')
     setPagination(1)
@@ -779,12 +805,12 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     }
   }
 
-  async function saveBulkEdit(values: { status?: string; platform?: string; lifecycle?: string; owner?: string; environment?: string }) {
+  async function saveBulkEdit(values: { platform?: string; lifecycle?: string; owner?: string; environment?: string }) {
     setBulkSaving(true)
     setBulkError('')
     try {
       const fields: Record<string, string> = {}
-      for (const key of ['status', 'platform', 'lifecycle', 'owner', 'environment'] as const) {
+      for (const key of ['platform', 'lifecycle', 'owner', 'environment'] as const) {
         const value = values[key]?.trim()
         if (value) fields[key] = value
       }
@@ -992,10 +1018,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       },
     },
     {
-      key: 'status', label: '状态',
-      column: { title: '状态', key: 'status', width: 100, sorter: (left, right) => statusOf(left).label.localeCompare(statusOf(right).label, 'zh-CN'), render: (_, asset) => <Tag color={statusOf(asset).color}>{statusOf(asset).label}</Tag> },
-    },
-    {
       key: 'tags', label: '标签',
       column: {
         title: '标签', key: 'tags', width: 180,
@@ -1019,8 +1041,19 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       column: { title: metaTitle, key: 'meta', width: 130, sorter: (left, right) => metaValue(left).localeCompare(metaValue(right), 'zh-CN'), render: (_, asset) => metaValue(asset) },
     },
     {
-      key: 'address', label: '地址 / IP',
-      column: { title: '地址 / IP', dataIndex: 'address', key: 'address', width: 170, sorter: (left, right) => left.address.localeCompare(right.address, 'zh-CN', { numeric: true }), render: value => <span className="mono">{value || '—'}</span> },
+      key: 'address', label: 'IP / 状态',
+      column: {
+        title: 'IP / 状态', dataIndex: 'address', key: 'address', width: 170,
+        sorter: (left, right) => left.address.localeCompare(right.address, 'zh-CN', { numeric: true }),
+        render: (_, asset) => {
+          const address = asset.address || '—'
+          if (!asset.probeEnabled || !asset.address) return <span className="mono">{address}</span>
+          const status = probeOf(asset).label
+          const message = status === '可达' ? 'Ping 可达' : status === '不可达' ? 'Ping 不可达，可能是网络或 ICMP 被阻止' : status === '探测异常' ? 'Ping 探测异常' : status === '已停用' ? '资产已退役，探测已暂停' : '等待首次 Ping 探测'
+          const dot = asset.lifecycle === 'active' && (asset.probeStatus === 'reachable' || asset.probeStatus === 'unreachable') ? asset.probeStatus : null
+          return <Tooltip title={message}><span className="asset-probe-address" role="img" tabIndex={0} aria-label={`${address}，${message}`}><span className="mono">{address}</span>{dot && <span aria-hidden="true" className={`asset-probe-dot ${dot}`} />}</span></Tooltip>
+        },
+      },
     },
     {
       key: 'owner', label: '负责人',
@@ -1289,7 +1322,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           <>
             <div className="asset-drawer-toolbar">
               <Space wrap>
-                <Tag color={statusOf(selected).color}>{statusOf(selected).label}</Tag>
+                <Tag color={probeOf(selected).color}>{probeOf(selected).label}</Tag>
                 {assetTags.map(tag => <Tag key={tag.id} color={tag.color}>{tag.name}</Tag>)}
               </Space>
               <Space>
@@ -1461,6 +1494,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             />
           )}
 
+          {page === 'probe_settings' && user?.role === 'admin' && <ProbeSettings onSessionError={e => handleError(e)} />}
+
           {page === 'users' && user?.role === 'admin' && (
             <UserManager currentUsername={user.username} onSessionError={e => handleError(e)} />
           )}
@@ -1567,11 +1602,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                       options={[{ value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM' }]}
                     />
                   )}
-                  <Select
-                    style={{ width: 120 }} allowClear searchable={false} placeholder="全部状态" value={statusFilter}
-                    onChange={setStatusFilter}
-                    options={Object.entries(statuses).map(([value, item]) => ({ value, label: item.label }))}
-                  />
+
                   <Select
                     mode="multiple" maxTagCount="responsive"
                     style={{ width: 200 }} allowClear searchable={false}
@@ -1803,16 +1834,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       >
         {bulkError && <Alert type="error" showIcon message={bulkError} className="bulk-alert" />}
         <Form form={bulkForm} layout="vertical" onFinish={(values: Parameters<typeof saveBulkEdit>[0]) => void saveBulkEdit(values)}>
-          <Form.Item label="运行状态" name="status" extra="留空表示不修改">
-            <Select
-              allowClear placeholder="不修改"
-              options={[
-                { value: 'online', label: '在线' }, { value: 'offline', label: '离线' },
-                { value: 'running', label: '运行中' }, { value: 'stopped', label: '已停止' },
-                { value: 'paused', label: '已暂停' }, { value: 'unknown', label: '未知' },
-              ]}
-            />
-          </Form.Item>
           <Form.Item label="平台" name="platform" extra="留空表示不修改">
             <Select
               allowClear placeholder="不修改"

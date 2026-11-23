@@ -33,6 +33,7 @@ export interface AssetFields {
   owner: string
   environment: string
   address: string
+  probeEnabled: boolean
   cpu: number
   memoryMiB: number
   groupId: number
@@ -41,6 +42,8 @@ export interface AssetFields {
 }
 
 export interface Asset extends AssetFields {
+  probeStatus: 'unknown' | 'reachable' | 'unreachable' | 'error'
+  probeCheckedAt: string | null
   id: number
   version: number
   updatedAt: string
