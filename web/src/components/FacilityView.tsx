@@ -506,6 +506,15 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
     }), placed => setFocused(placed.assetId), '设备位置已更新')
   }
 
+  function renderRoomTreeItem(item: Room) {
+    return (
+      <div key={item.id} className="facility-tree-room">
+        <button type="button" className={`facility-tree-item${item.id === activeRoomId ? ' active' : ''}`} title={item.name} onClick={() => selectRoom(item.id)}><span className="facility-tree-name">{item.name}</span></button>
+        {editable && <button type="button" className="facility-tree-room-action" aria-label={`编辑数据中心 ${item.name}`} title={`编辑 ${item.name}`} onClick={() => editRoom(item)}><Pencil size={14} aria-hidden="true" /></button>}
+      </div>
+    )
+  }
+
   const mountForm = rack && mountDraft ? (
     <form className="mount-device-form" onSubmit={event => { event.preventDefault(); saveMount() }}>
       <Field label="关联设备"><SearchableSelect label="关联设备" value={mountDraft.assetId ? String(mountDraft.assetId) : ''} placeholder="搜索并选择设备" allowClear={false} onChange={value => changeDevice({ ...mountDraft, assetId: Number(value) })} options={candidates.map(asset => ({ value: String(asset.id), label: `${asset.name} · ${mountKinds[asset.kind as MountKind]}${mounted.has(asset.id) ? ' · 已上架' : ''}` }))} /></Field>
@@ -535,28 +544,15 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
             {editable && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="数据中心操作"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => editRegion()}><Plus />新增区域</DropdownMenuItem><DropdownMenuItem onSelect={() => editRoom()}><Plus />新增数据中心</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
           </div>
           <div className="facility-tree">
-            {groupedRooms.map(group => (
+            {groupedRooms.map(group => group.region ? (
               <div key={group.key} className="facility-tree-group">
                 <div className="facility-tree-region">
-                  <span className="facility-tree-region-name">{group.region ? group.region.name : '未分组'}</span>
-                  {editable && group.region && (
-                    <button type="button" className="facility-tree-region-action" aria-label={`编辑区域 ${group.region.name}`} onClick={() => editRegion(group.region)}>
-                      <Pencil size={14} aria-hidden="true" />
-                    </button>
-                  )}
+                  <span className="facility-tree-region-name">{group.region.name}</span>
+                  {editable && <button type="button" className="facility-tree-region-action" aria-label={`编辑区域 ${group.region.name}`} onClick={() => editRegion(group.region)}><Pencil size={14} aria-hidden="true" /></button>}
                 </div>
-                {group.rooms.length > 0 && (
-                  <div className="facility-tree-children">
-                    {group.rooms.map(item => (
-                      <div key={item.id} className="facility-tree-room">
-                        <button type="button" className={`facility-tree-item${item.id === activeRoomId ? ' active' : ''}`} title={item.name} onClick={() => selectRoom(item.id)}><span className="facility-tree-name">{item.name}</span></button>
-                        {editable && <button type="button" className="facility-tree-room-action" aria-label={`编辑数据中心 ${item.name}`} title={`编辑 ${item.name}`} onClick={() => editRoom(item)}><Pencil size={14} aria-hidden="true" /></button>}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="facility-tree-children">{group.rooms.map(renderRoomTreeItem)}</div>
               </div>
-            ))}
+            ) : group.rooms.map(renderRoomTreeItem))}
             {!filteredRooms.length && <div className="facility-tree-empty">暂无匹配的数据中心</div>}
           </div>
         </aside>
