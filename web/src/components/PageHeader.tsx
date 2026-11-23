@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useRoomScope } from './RoomTreeLayout'
 
 interface Props {
   title?: string
@@ -11,13 +12,28 @@ interface Props {
  * list page, so the asset list and the 组织结构 pages stay in step.
  */
 export function PageHeader({ title, filters, actions }: Props) {
-  return <>
-    {title && <h2 className="asset-view-title">{title}</h2>}
-    {(filters || actions) && (
-      <div className="table-toolbar">
-        <div className="page-header-filters">{filters}</div>
-        <div className="page-header-actions">{actions}</div>
-      </div>
-    )}
-  </>
+  const scope = useRoomScope()
+  return (
+    <>
+      {title && (
+        <h2 className="asset-view-title">
+          <span>{title}</span>
+          {scope && (
+            <>
+              <span className="page-scope-slash" aria-hidden="true">
+                /
+              </span>
+              <span>{scope.label}</span>
+            </>
+          )}
+        </h2>
+      )}
+      {(filters || actions) && (
+        <div className="table-toolbar">
+          <div className="page-header-filters">{filters}</div>
+          <div className="page-header-actions">{actions}</div>
+        </div>
+      )}
+    </>
+  )
 }

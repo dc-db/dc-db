@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { MoreHorizontal, Pencil, Plus } from 'lucide-react'
 import { api, APIError } from '../api'
@@ -27,6 +27,21 @@ export interface RoomFilterCounts {
   all?: number
   unassigned?: number
   byRoom?: Map<number, number>
+}
+
+export interface RoomScopeInfo {
+  mode: 'all' | 'unassigned' | 'room'
+  label: string
+  regionName?: string
+  roomName?: string
+  canReset: boolean
+  onReset: () => void
+}
+
+const RoomScopeContext = createContext<RoomScopeInfo | null>(null)
+
+export function useRoomScope() {
+  return useContext(RoomScopeContext)
 }
 
 type RoomDraft = RoomFields & { id?: number; version: number }
@@ -236,6 +251,38 @@ export function RoomTreeLayout({
     return groups
   }, [facilities.regions, filteredRooms])
 
+  const scopeInfo = useMemo<RoomScopeInfo>(() => {
+    if (typeof value === 'number') {
+      const currentRoom = facilities.rooms.find(item => item.id === value)
+      const currentRegion = currentRoom
+        ? facilities.regions.find(item => item.id === currentRoom.regionId)
+        : undefined
+      const roomName = currentRoom?.name ?? '数据中心'
+      return {
+        mode: 'room',
+        label: currentRegion ? `${currentRegion.name} · ${roomName}` : roomName,
+        regionName: currentRegion?.name,
+        roomName,
+        canReset: showAll,
+        onReset: () => onChange('all'),
+      }
+    }
+    if (value === 'unassigned') {
+      return {
+        mode: 'unassigned',
+        label: unassignedLabel,
+        canReset: showAll,
+        onReset: () => onChange('all'),
+      }
+    }
+    return {
+      mode: 'all',
+      label: '全部数据中心',
+      canReset: false,
+      onReset: () => onChange('all'),
+    }
+  }, [facilities.regions, facilities.rooms, onChange, showAll, unassignedLabel, value])
+
   function renderRoomItem(item: Room) {
     const count = counts?.byRoom?.get(item.id)
     return (
@@ -380,7 +427,9 @@ export function RoomTreeLayout({
             </TooltipContent>
           </Tooltip>
         </div>
-        <div className="facility-main">{children}</div>
+        <div className="facility-main">
+          <RoomScopeContext.Provider value={scopeInfo}>{children}</RoomScopeContext.Provider>
+        </div>
       </div>
 
       <Dialog open={!!roomDraft} onOpenChange={open => { if (!open) setRoomDraft(null) }}>
