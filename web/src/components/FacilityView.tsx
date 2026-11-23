@@ -41,7 +41,7 @@ const rackColumns = [
   { key: 'name', label: '机柜' },
   { key: 'devices', label: '设备数' },
   { key: 'zone', label: '区域 / 排' },
-  { key: 'height', label: 'U 位总数' },
+  { key: 'height', label: '高度' },
   { key: 'used', label: '已用' },
   { key: 'free', label: '空闲' },
   { key: 'usage', label: '占用率' },
