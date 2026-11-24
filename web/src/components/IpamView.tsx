@@ -1,3 +1,4 @@
+import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronRight, Download, Plus, Star, Upload, X } from 'lucide-react'
 import { Badge } from './ui/badge'
@@ -303,8 +304,6 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
     }
   }
 
-  const selectBaseClass = 'h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
-  const selectClass = `${selectBaseClass} w-full`
   const labelClass = 'space-y-2 text-sm font-medium'
   function exportSubnets() {
     downloadCSV('dc-db-subnets.csv', [
@@ -350,11 +349,11 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
     {draft && <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{draft.id ? '编辑网段' : '新增网段'}</CardTitle><Button variant="ghost" size="icon" aria-label="关闭" onClick={() => setDraft(null)}><X /></Button></CardHeader><CardContent><form onSubmit={event => { event.preventDefault(); void saveSubnet() }}><div className="grid grid-cols-2 gap-3">
       <label className={labelClass}>网段名称<Input required value={draft.name} maxLength={160} placeholder="例如：办公网" onChange={event => setDraft({ ...draft, name: event.target.value })} /></label>
       <label className={labelClass}>CIDR<Input required value={draft.cidr} maxLength={64} placeholder="例如：192.0.2.0/24" onChange={event => setDraft({ ...draft, cidr: event.target.value })} /></label>
-      <label className={labelClass}>状态<select className={selectClass} value={draft.status} onChange={event => setDraft({ ...draft, status: event.target.value })}>{Object.entries(subnetStatusMeta).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}</select></label>
+      <label className={labelClass}>状态<OptionSelect className="w-full" label="状态" value={draft.status} onChange={value => setDraft({ ...draft, status: value })} options={Object.entries(subnetStatusMeta).map(([value, meta]) => ({ value, label: meta.label }))} /></label>
       <label className={labelClass}>用途 / 角色<Input value={draft.role} maxLength={80} placeholder="例如：办公、服务器、互联" onChange={event => setDraft({ ...draft, role: event.target.value })} /></label>
       <div className={labelClass}><span>VLAN</span><SearchableSelect label="VLAN" placeholder="可选" value={draft.vlan} onChange={value => setDraft({ ...draft, vlan: value })} options={vlanOptions} />{!vlans.length && <span className="text-xs font-normal text-muted-foreground">请先在「VLAN」页面登记 VLAN</span>}</div>
       <label className={labelClass}>网关<Input value={draft.gateway} maxLength={64} placeholder="例如：192.0.2.1" onChange={event => setDraft({ ...draft, gateway: event.target.value })} /></label>
-      <label className={`${labelClass} col-span-2`}>所属数据中心<select className={selectClass} value={draft.roomId ?? ''} onChange={event => setDraft({ ...draft, roomId: event.target.value ? Number(event.target.value) : undefined })}><option value="">未分配</option>{facilities.rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}</select></label>
+      <label className={`${labelClass} col-span-2`}>所属数据中心<OptionSelect className="w-full" label="所属数据中心" value={String(draft.roomId ?? '')} onChange={value => setDraft({ ...draft, roomId: value ? Number(value) : undefined })} options={[{ value: '', label: '未分配' }, ...facilities.rooms.map(room => ({ value: String(room.id), label: room.name }))]} /></label>
       <label className={`${labelClass} col-span-2`}>备注<Textarea rows={2} maxLength={2000} value={draft.notes} onChange={event => setDraft({ ...draft, notes: event.target.value })} /></label>
     </div><div className="mt-4 flex gap-2"><Button type="submit" disabled={busy}>保存网段</Button><Button type="button" variant="outline" onClick={() => setDraft(null)}>取消</Button></div></form></CardContent></Card>}
     {!subnets.length ? <div className="py-12 text-center text-muted-foreground">{loading ? '正在加载 IPAM 数据…' : '暂无网段，新增一个网段开始管理 IP 地址'}</div> : <>

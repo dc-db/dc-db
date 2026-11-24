@@ -1,3 +1,4 @@
+import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
 import { Download, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
@@ -37,7 +38,6 @@ interface Props {
 const stateMeta: Record<string, string> = { active: '启用', reserved: '预留', deprecated: '停用', dhcp: 'DHCP', slaac: 'SLAAC' }
 const sourceMeta: Record<string, string> = { allocated: '手工分配', asset: '资产地址', gateway: '网关' }
 const roleLabels: Record<string, string> = { loopback: '环回', secondary: '辅助', vip: 'VIP', vrrp: 'VRRP', hsrp: 'HSRP', glbp: 'GLBP', anycast: 'Anycast' }
-const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
 interface AddressFields { subnetId?: number; ip: string; status: string; dnsName: string; role: string; assetId?: number; label: string; notes: string }
 const emptyFields: AddressFields = { ip: '', status: 'active', dnsName: '', role: '', label: '', notes: '' }
 const assetLabel = (asset: Asset) => `${asset.name}（${kindLabel(asset.kind)}）`
@@ -190,8 +190,8 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
     <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save() }}><div className="grid grid-cols-2 gap-3">
       <div className="space-y-2"><span className="text-sm font-medium">网段</span><SearchableSelect label="网段" placeholder="选择网段" allowClear={false} disabled={!!editing} value={fields.subnetId ? String(fields.subnetId) : ''} onChange={value => setFields({ ...fields, subnetId: Number(value) || undefined })} options={subnets.map(subnet => ({ value: String(subnet.id), label: `${subnet.name} · ${subnet.cidr}` }))} /></div>
       <div className="space-y-2"><label htmlFor="address-ip" className="text-sm font-medium">IP 地址</label><Input id="address-ip" required disabled={!!editing} maxLength={64} className="font-mono" placeholder="例如：192.0.2.20" value={fields.ip} onChange={event => setFields({ ...fields, ip: event.target.value })} /></div>
-      <div className="space-y-2"><label htmlFor="address-state" className="text-sm font-medium">状态</label><select id="address-state" className={selectClass} value={fields.status} onChange={event => setFields({ ...fields, status: event.target.value })}>{Object.entries(stateMeta).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
-      <div className="space-y-2"><label htmlFor="address-role" className="text-sm font-medium">角色</label><select id="address-role" className={selectClass} value={fields.role} onChange={event => setFields({ ...fields, role: event.target.value })}><option value="">可选</option>{Object.entries(roleLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+      <div className="space-y-2"><label htmlFor="address-state" className="text-sm font-medium">状态</label><OptionSelect id="address-state" className="w-full" value={fields.status} onChange={value => setFields({ ...fields, status: value })} options={Object.entries(stateMeta).map(([value, label]) => ({ value, label }))} /></div>
+      <div className="space-y-2"><label htmlFor="address-role" className="text-sm font-medium">角色</label><OptionSelect id="address-role" className="w-full" value={fields.role} onChange={value => setFields({ ...fields, role: value })} options={[{ value: '', label: '可选' }, ...Object.entries(roleLabels).map(([value, label]) => ({ value, label }))]} /></div>
       <div className="space-y-2"><label htmlFor="address-dns" className="text-sm font-medium">DNS 名称</label><Input id="address-dns" className="font-mono" maxLength={255} placeholder="例如：db-01.example.test" value={fields.dnsName} onChange={event => setFields({ ...fields, dnsName: event.target.value })} /></div>
       <div className="space-y-2"><span className="text-sm font-medium">关联资产</span><SearchableSelect label="关联资产" placeholder="可选" value={fields.assetId ? String(fields.assetId) : ''} onChange={value => setFields({ ...fields, assetId: Number(value) || undefined })} options={assets.map(asset => ({ value: String(asset.id), label: assetLabel(asset) }))} /></div>
       <div className="col-span-2 space-y-2"><label htmlFor="address-label" className="text-sm font-medium">用途</label><Input id="address-label" maxLength={160} placeholder="例如：VIP、数据库主地址" value={fields.label} onChange={event => setFields({ ...fields, label: event.target.value })} /></div>

@@ -1,3 +1,4 @@
+import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
 import {
   getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
@@ -19,7 +20,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 
-const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 interface Props {
   kind: string
@@ -213,15 +213,7 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
           {withRoomTree && facilities && (
             <div className="space-y-2">
               <label htmlFor="metadata-room" className="text-sm font-medium">所属数据中心</label>
-              <select
-                id="metadata-room"
-                className={selectClass}
-                value={fields.roomId ?? ''}
-                onChange={event => setFields({ ...fields, roomId: event.target.value ? Number(event.target.value) : undefined })}
-              >
-                <option value="">可选</option>
-                {facilities.rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}
-              </select>
+              <OptionSelect id="metadata-room" className="w-full" value={String(fields.roomId ?? '')} onChange={value => setFields({ ...fields, roomId: value ? Number(value) : undefined })} options={[{ value: '', label: '可选' }, ...facilities.rooms.map(room => ({ value: String(room.id), label: room.name }))]} />
             </div>
           )}
           <div className="space-y-2"><label htmlFor="metadata-description" className="text-sm font-medium">备注</label><Textarea id="metadata-description" maxLength={200} rows={3} placeholder="可选" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /></div>

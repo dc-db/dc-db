@@ -1,3 +1,4 @@
+import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
 import { Download, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
@@ -31,7 +32,6 @@ const statusMeta: Record<string, { label: string; className: string }> = {
   reserved: { label: '预留', className: 'border-warning-border bg-warning-soft text-warning' },
   deprecated: { label: '停用', className: 'border-border bg-muted text-muted-foreground' },
 }
-const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
 const emptyFields: VLANFields = { vid: 0, name: '', status: 'active', description: '', roomId: undefined }
 
 export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFilterChange, onSelectVLAN, onSessionError, onChanged }: Props) {
@@ -168,8 +168,8 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
       <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save() }}>
         <div className="grid grid-cols-3 gap-3"><div className="space-y-2"><label className="text-sm font-medium" htmlFor="vlan-id">VLAN ID</label><Input id="vlan-id" type="number" min={1} max={4094} required placeholder="1–4094" value={fields.vid || ''} onChange={event => setFields({ ...fields, vid: Number(event.target.value) })} /></div><div className="col-span-2 space-y-2"><label className="text-sm font-medium" htmlFor="vlan-name">名称</label><Input id="vlan-name" required maxLength={80} placeholder="例如：服务器区" value={fields.name} onChange={event => setFields({ ...fields, name: event.target.value })} /></div></div>
-        <div className="space-y-2"><label className="text-sm font-medium" htmlFor="vlan-status">状态</label><select id="vlan-status" className={selectClass} value={fields.status} onChange={event => setFields({ ...fields, status: event.target.value as VLANFields['status'] })}>{Object.entries(statusMeta).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}</select></div>
-        <div className="space-y-2"><label className="text-sm font-medium" htmlFor="vlan-room">所属数据中心</label><select id="vlan-room" className={selectClass} value={fields.roomId ?? ''} onChange={event => setFields({ ...fields, roomId: event.target.value ? Number(event.target.value) : undefined })}><option value="">可选</option>{rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}</select></div>
+        <div className="space-y-2"><label className="text-sm font-medium" htmlFor="vlan-status">状态</label><OptionSelect id="vlan-status" className="w-full" value={fields.status} onChange={value => setFields({ ...fields, status: value as VLANFields['status'] })} options={Object.entries(statusMeta).map(([value, meta]) => ({ value, label: meta.label }))} /></div>
+        <div className="space-y-2"><label className="text-sm font-medium" htmlFor="vlan-room">所属数据中心</label><OptionSelect id="vlan-room" className="w-full" value={String(fields.roomId ?? '')} onChange={value => setFields({ ...fields, roomId: value ? Number(value) : undefined })} options={[{ value: '', label: '可选' }, ...rooms.map(room => ({ value: String(room.id), label: room.name }))]} /></div>
         <div className="space-y-2"><label className="text-sm font-medium" htmlFor="vlan-description">描述</label><Textarea id="vlan-description" rows={2} maxLength={200} placeholder="用途、网段规划等说明" value={fields.description} onChange={event => setFields({ ...fields, description: event.target.value })} /><div className="text-right text-xs text-muted-foreground">{fields.description.length} / 200</div></div>
         <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={() => setModalOpen(false)}>取消</Button><Button type="submit" disabled={busy}>{busy ? '保存中...' : '保存'}</Button></DialogFooter>
       </form>

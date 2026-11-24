@@ -1,3 +1,4 @@
+import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
 import { Eye, EyeOff, Pencil, Plus, RefreshCw, ShieldCheck, Trash2, UserCog, UserRound } from 'lucide-react'
@@ -18,7 +19,6 @@ const roleMeta: Record<Role, { label: string; className: string; description: st
   viewer: { label: '只读', className: 'border-border bg-muted text-muted-foreground', description: '只能查看，不能修改数据' },
 }
 const roles: Role[] = ['admin', 'operator', 'viewer']
-const selectClass = 'h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
 const initialFields: UserFields = { username: '', role: 'viewer', password: '' }
 
 function roleIcon(role: Role) {
@@ -158,7 +158,7 @@ export function UserManager({ currentUsername, onSessionError }: Props) {
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
       <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save() }}>
         <div className="space-y-2"><label htmlFor="user-name" className="text-sm font-medium">账号</label><Input id="user-name" required disabled={!!editing} maxLength={80} autoComplete="off" placeholder="例如：ops-viewer" value={fields.username} onChange={event => setFields({ ...fields, username: event.target.value })} /></div>
-        <div className="space-y-2"><label htmlFor="user-role" className="text-sm font-medium">角色</label><select id="user-role" className={selectClass} value={fields.role} onChange={event => setFields({ ...fields, role: event.target.value as Role })}>{roles.map(role => <option key={role} value={role}>{roleMeta[role].label} · {roleMeta[role].description}</option>)}</select></div>
+        <div className="space-y-2"><label htmlFor="user-role" className="text-sm font-medium">角色</label><OptionSelect id="user-role" className="w-full" value={fields.role} onChange={value => setFields({ ...fields, role: value as Role })} options={roles.map(role => ({ value: role, label: `${roleMeta[role].label} · ${roleMeta[role].description}` }))} /></div>
         <div className="space-y-2"><label htmlFor="user-password" className="text-sm font-medium">{editing ? '重置密码' : '初始密码'}</label><div className="relative"><Input id="user-password" className="pr-10" type={showPassword ? 'text' : 'password'} required={!editing} minLength={12} maxLength={512} autoComplete="new-password" placeholder={editing ? '留空表示不修改' : '至少 12 个字符'} value={fields.password ?? ''} onChange={event => setFields({ ...fields, password: event.target.value })} /><Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 size-9" aria-label={showPassword ? '隐藏密码' : '显示密码'} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff /> : <Eye />}</Button></div><p className="text-xs text-muted-foreground">{editing ? '留空表示不修改密码；修改后该账号已有会话会失效。' : '至少 12 个字符。'}</p></div>
         <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={() => setModalOpen(false)}>取消</Button><Button type="submit" disabled={busy}>{busy ? '保存中…' : '保存'}</Button></DialogFooter>
       </form>
