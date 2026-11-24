@@ -6,7 +6,7 @@ import { Textarea } from './ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Plus, Trash2 } from 'lucide-react'
 import type { Asset, AssetFields, Group, Kind, ServiceInstance } from '../api'
-import { ALL_KINDS, isNetworkKind, KIND_LABELS } from '../kinds'
+import { ALL_KINDS, NETWORK_KINDS, isNetworkKind, KIND_LABELS } from '../kinds'
 import { ServicePicker } from './ServicePicker'
 
 interface Props {
@@ -19,6 +19,7 @@ interface Props {
   rooms?: { id: number; name: string }[]
   defaultRoomId?: number
   mountedRoomId?: number
+  createFromList?: boolean
   onSave: (fields: AssetFields & { version: number; services?: ServiceInstance[] }) => void
   onCancel: () => void
 }
@@ -99,7 +100,7 @@ function parseAttributeRows(rows: AttributeRow[]): Record<string, unknown> {
   return attributes
 }
 
-export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, rooms, defaultRoomId, mountedRoomId, onSave, onCancel }: Props) {
+export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, rooms, defaultRoomId, mountedRoomId, createFromList = false, onSave, onCancel }: Props) {
   const [fields, setFields] = useState<AssetFields>({
     kind: asset?.kind ?? defaultKind,
     name: asset?.name ?? '',
@@ -190,8 +191,8 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, r
   return (
     <form onSubmit={event => { event.preventDefault(); save() }} className="grid grid-cols-2 gap-4">
       {(validation || error) && <p role="alert" className="col-span-2 text-destructive">{validation || error}</p>}
-      <label className="grid gap-2">资源类型 *<Choice value={fields.kind} disabled={!!asset} onChange={value => update('kind', value as Kind)} options={ALL_KINDS.map(value => ({ value, label: KIND_LABELS[value] }))} /></label>
-      <label className={errors.name ? 'grid gap-2 field-invalid' : 'grid gap-2'}>资源名称 *<Input required value={fields.name} maxLength={160} aria-invalid={!!errors.name} onChange={event => update('name', event.target.value)} />{errors.name && <span className="field-error" role="alert">{errors.name}</span>}</label>
+      {(!createFromList || networkDevice) && <label className="grid gap-2">{createFromList ? '设备类型' : '资源类型'} *<Choice value={fields.kind} disabled={!!asset} onChange={value => update('kind', value as Kind)} options={(createFromList ? NETWORK_KINDS : ALL_KINDS).map(value => ({ value, label: KIND_LABELS[value] }))} /></label>}
+      <label className={`${createFromList && !networkDevice ? 'col-span-2 ' : ''}${errors.name ? 'grid gap-2 field-invalid' : 'grid gap-2'}`}>{createFromList ? (networkDevice ? '设备名称' : fields.kind === 'vm' ? '虚拟机名称' : '服务器名称') : '资源名称'} *<Input required value={fields.name} maxLength={160} aria-invalid={!!errors.name} onChange={event => update('name', event.target.value)} />{errors.name && <span className="field-error" role="alert">{errors.name}</span>}</label>
 
       {!networkDevice && <label className="grid gap-2">平台<Choice value={fields.platform} onChange={value => update('platform', value as AssetFields['platform'])} options={[{ value: '', label: '未指定' }, { value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM / libvirt' }]} /></label>}
       <label className="grid gap-2">负责人<Input list="asset-owner-options" value={fields.owner} maxLength={160} placeholder="姓名或团队" onChange={event => update('owner', event.target.value)} /><datalist id="asset-owner-options">{owners.map(name => <option key={name} value={name} />)}</datalist></label>

@@ -240,6 +240,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [pendingImport, setPendingImport] = useState<File | null>(null)
 
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
+  const createTriggerRef = useRef<HTMLElement | null>(null)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [editor, setEditor] = useState(false)
   const [newKind, setNewKind] = useState<Kind>('host')
@@ -535,6 +537,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   useEffect(() => {
     if (!checking && !user) {
+      setCreateOpen(false)
       setImportPreview(null)
       setPendingImport(null)
       setBulkOpen(false)
@@ -612,6 +615,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   }
 
   function goTo(next: Page) {
+    setCreateOpen(false)
     // Leaving the current page also leaves an open detail page behind.
     if (drawerOpen) {
       setDrawerOpen(false)
@@ -696,12 +700,18 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   }
 
   function startNew(kind?: Kind) {
+    createTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     setSelectedId(null)
     setNewKind(kind ?? (page === 'vm' ? 'vm' : page === 'network_devices' ? (networkKindFilter || 'switch') : 'host'))
-    setEditor(true)
     setDrawerError('')
-    setDrawerOpen(true)
-    syncAssetParam(null)
+    setCreateOpen(true)
+  }
+
+  function closeCreate(force = false) {
+    if (saving && !force) return
+    setCreateOpen(false)
+    setDrawerError('')
+    requestAnimationFrame(() => createTriggerRef.current?.focus())
   }
 
   async function saveAsset(fields: AssetFields & { version: number }) {
@@ -711,7 +721,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       const id = selectedId
       const saved = await api<Asset>(id ? '/assets/' + id : '/assets', id ? 'PUT' : 'POST', fields)
       await loadAll()
-      closeDrawer(true)
+      if (id) closeDrawer(true)
+      else closeCreate(true)
       setHighlightId(saved.id)
       window.setTimeout(() => setHighlightId(current => (current === saved.id ? null : current)), 1800)
       void message.success(id ? '资产已更新' : '资产已添加')
@@ -1575,6 +1586,18 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           </>)}
         </Content>
       </Layout>
+
+      <Modal
+        open={createOpen} title={isNetworkKind(newKind) ? '新增网络设备' : newKind === 'vm' ? '新增虚拟机' : '新增服务器'} width={760} footer={null}
+        onCancel={() => closeCreate()}
+      >
+        {createOpen && <AssetEditor
+          asset={null} defaultKind={newKind} createFromList busy={saving} error={drawerError} groups={groups} owners={owners}
+          rooms={facilities.rooms} defaultRoomId={typeof roomFilter === 'number' ? roomFilter : undefined}
+          onSave={fields => void saveAsset(fields)}
+          onCancel={() => closeCreate()}
+        />}
+      </Modal>
 
       <Modal
         open={assetImportOpen} title="导入设备" width={460}
