@@ -536,6 +536,9 @@ html[data-theme="dark"] .import-error-row strong { color: #ff7875; }
 .asset-create-services .service-picker-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .asset-create-form .field-error { grid-column: 2; }
 .asset-create-form > label, .asset-create-form > div { min-width: 0; }
+[data-slot="dialog-content"]:has(.asset-create-dialog-body) > [data-slot="dialog-header"] { text-align: center; }
+.asset-create-form > .asset-create-capacity, .asset-create-form > .asset-field-room { margin-top: 6px; }
+
 .asset-link { height: auto; padding: 0 !important; display: inline-flex; gap: 7px; align-items: center; }
 .asset-name-button { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .asset-name-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 3px; }
