@@ -12,7 +12,6 @@ CREATE TEMP TABLE demo_empty_guard (ok INTEGER NOT NULL CHECK (ok = 1)) ON COMMI
 INSERT INTO demo_empty_guard (ok)
 SELECT CASE WHEN
     EXISTS (SELECT 1 FROM assets) OR EXISTS (SELECT 1 FROM asset_links) OR
-    EXISTS (SELECT 1 FROM tags) OR EXISTS (SELECT 1 FROM asset_tags) OR
     EXISTS (SELECT 1 FROM regions) OR
     EXISTS (SELECT 1 FROM rooms) OR EXISTS (SELECT 1 FROM racks) OR
     EXISTS (SELECT 1 FROM rack_placements) OR EXISTS (SELECT 1 FROM vlans) OR
@@ -67,12 +66,6 @@ SELECT v.* FROM (
     UNION ALL SELECT 27, 28, 'hosts'
 ) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
-INSERT INTO tags (id, name, color, description)
-SELECT v.* FROM (
-    SELECT 1::bigint, '演示环境'::text, '#1677ff'::text, '虚构示例资产'::text
-    UNION ALL SELECT 2, '计算', '#52c41a', '虚构计算资源'
-    UNION ALL SELECT 3, '网络', '#fa8c16', '虚构网络设备'
-) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
 INSERT INTO asset_groups (id, name, description)
 SELECT v.* FROM (
@@ -89,18 +82,6 @@ UPDATE assets SET group_id = CASE id
     ELSE NULL END
 WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
-INSERT INTO asset_tags (asset_id, tag_id)
-SELECT v.* FROM (
-    SELECT 1::bigint, 1::bigint UNION ALL SELECT 2, 1 UNION ALL SELECT 3, 1 UNION ALL SELECT 4, 1 UNION ALL SELECT 5, 1 UNION ALL SELECT 6, 1
-    UNION ALL SELECT 1, 2 UNION ALL SELECT 2, 2 UNION ALL SELECT 3, 2 UNION ALL SELECT 4, 2 UNION ALL SELECT 5, 2 UNION ALL SELECT 6, 3
-    UNION ALL SELECT 7, 3 UNION ALL SELECT 8, 3
-    UNION ALL SELECT 17, 1 UNION ALL SELECT 18, 1 UNION ALL SELECT 19, 1 UNION ALL SELECT 20, 1
-    UNION ALL SELECT 21, 1 UNION ALL SELECT 23, 1 UNION ALL SELECT 24, 1 UNION ALL SELECT 25, 1
-    UNION ALL SELECT 22, 3 UNION ALL SELECT 26, 3
-    UNION ALL SELECT 29, 3 UNION ALL SELECT 30, 3 UNION ALL SELECT 31, 3 UNION ALL SELECT 32, 3
-    UNION ALL SELECT 29, 1 UNION ALL SELECT 30, 1 UNION ALL SELECT 31, 1 UNION ALL SELECT 32, 1
-    UNION ALL SELECT 17, 2 UNION ALL SELECT 18, 2 UNION ALL SELECT 23, 2 UNION ALL SELECT 25, 2
-) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
 INSERT INTO regions (id, name)
 SELECT v.* FROM (
@@ -235,13 +216,6 @@ FROM generate_series(1, 37) AS i
 WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
 ON CONFLICT DO NOTHING;
 
-INSERT INTO tags (id, name, color, description)
-SELECT 1000 + i, '演示标签-' || lpad(i::text, 2, '0'),
-       (ARRAY['#1677ff', '#52c41a', '#faad14', '#f5222d', '#eb2f96', '#722ed1', '#13c2c2', '#8c8c8c'])[1 + (i % 8)],
-       CASE WHEN i % 4 = 0 THEN '虚构标签' ELSE '' END
-FROM generate_series(1, 77) AS i
-WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
-ON CONFLICT DO NOTHING;
 
 INSERT INTO services (id, name, category, default_port, description, builtin)
 SELECT 1000 + i, '内部系统-' || lpad(i::text, 3, '0'),
@@ -461,21 +435,7 @@ SELECT 3000 + i,
 FROM generate_series(1, 70) AS i
 WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
--- 7. 为新增的服务器、虚拟机、网络设备绑定标签
-INSERT INTO asset_tags (asset_id, tag_id)
-SELECT a.id,
-       CASE WHEN a.kind IN ('host', 'vm') THEN 2 ELSE 3 END
-FROM assets a
-WHERE a.id >= 1001
-  AND EXISTS (SELECT 1 FROM demo_empty_guard)
-ON CONFLICT DO NOTHING;
 
-INSERT INTO asset_tags (asset_id, tag_id)
-SELECT a.id, 1001 + (a.id % 15)
-FROM assets a
-WHERE a.id >= 1001
-  AND EXISTS (SELECT 1 FROM demo_empty_guard)
-ON CONFLICT DO NOTHING;
 
 -- 8. 扩展手工 IP 分配记录（每个新增网段 101..135 分配 3 个 VIP/预留/业务地址，共 105 条）
 INSERT INTO ip_allocations (subnet_id, ip, asset_id, label, notes, status, dns_name, role)
@@ -548,7 +508,6 @@ ON CONFLICT DO NOTHING;
 -- 显式写入主键后推进序列，避免后续新增记录主键冲突。
 SELECT setval(pg_get_serial_sequence('assets', 'id'), (SELECT max(id) FROM assets));
 SELECT setval(pg_get_serial_sequence('regions', 'id'), (SELECT max(id) FROM regions));
-SELECT setval(pg_get_serial_sequence('tags', 'id'), (SELECT max(id) FROM tags));
 SELECT setval(pg_get_serial_sequence('asset_groups', 'id'), (SELECT max(id) FROM asset_groups));
 SELECT setval(pg_get_serial_sequence('services', 'id'), (SELECT max(id) FROM services));
 SELECT setval(pg_get_serial_sequence('metadata_entries', 'id'), (SELECT max(id) FROM metadata_entries));
