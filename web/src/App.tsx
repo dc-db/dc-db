@@ -67,10 +67,10 @@ const relations: { kind: LinkKind; from: Kind; to: Kind[]; outgoing: string; inc
   { kind: 'hosts', from: 'host', to: ['vm'], outgoing: '承载虚拟机', incoming: '所在宿主机' },
 ]
 const defaultPageSize = 10
-const defaultAssetColumns = ['name', 'capacity', 'address', 'platform', 'meta', 'tags', 'notes']
-const defaultHostColumns = ['name', 'capacity', 'address', 'tags', 'notes']
+const defaultAssetColumns = ['name', 'capacity', 'address', 'platform', 'meta', 'services', 'tags', 'notes']
+const defaultHostColumns = ['name', 'capacity', 'address', 'services', 'tags', 'notes']
 const defaultNetworkDeviceColumns = ['name', 'kind', 'tags', 'address', 'owner']
-const assetColumnKeys = ['name', 'capacity', 'kind', 'address', 'platform', 'meta', 'tags', 'group', 'owner', 'environment', 'notes', 'created', 'updated']
+const assetColumnKeys = ['name', 'capacity', 'kind', 'address', 'platform', 'meta', 'services', 'tags', 'group', 'owner', 'environment', 'notes', 'created', 'updated']
 
 
 function platformLabel(asset: Pick<Asset, 'platform'>) {
@@ -257,6 +257,19 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [allTags, setAllTags] = useState<TagItem[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [services, setServices] = useState<Service[]>([])
+  const [serviceAsset, setServiceAsset] = useState<Asset | null>(null)
+  const [serviceSelection, setServiceSelection] = useState<number[]>([])
+  const [serviceSaving, setServiceSaving] = useState(false)
+  const [serviceError, setServiceError] = useState('')
+  const servicesByAsset = useMemo(() => {
+    const result = new Map<number, Service[]>()
+    for (const service of services) for (const id of service.assetIds ?? []) {
+      const list = result.get(id) ?? []
+      list.push(service)
+      result.set(id, list)
+    }
+    return result
+  }, [services])
   const [owners, setOwners] = useState<string[]>([])
   const [bookmarks, setBookmarks] = useState<number[]>(() => {
     try {
@@ -463,20 +476,22 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     if (!assetPage) return
     const fallback = page === 'host' ? defaultHostColumns : page === 'network_devices' ? defaultNetworkDeviceColumns : defaultAssetColumns
     try {
-      const key = 'dc-db-columns:' + page + (page === 'host' || page === 'vm' ? ':v5' : '')
+      const key = 'dc-db-columns:' + page + (page === 'host' || page === 'vm' ? ':v6' : '')
       const raw = localStorage.getItem(key)
-      const v4 = (page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page + ':v4') : null
+      const v5 = (page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page + ':v5') : null
+      const v4 = v5 || ((page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page + ':v4') : null)
       const previous = v4 || ((page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page + ':v3') || localStorage.getItem('dc-db-columns:' + page + ':v2') : null)
       const legacy = previous || ((page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page) : null)
       const parsed: unknown = raw || legacy ? JSON.parse((raw || legacy)!) : null
       const valid = Array.isArray(parsed)
-        ? parsed.filter((key): key is string => typeof key === 'string').map(key => key === 'status' || key === 'probe' ? 'address' : key).filter(key => assetColumnKeys.includes(key) && (page !== 'host' || key !== 'meta') && ((page !== 'host' && page !== 'vm') || (key !== 'environment' && (!!raw || key !== 'owner') && (!!raw || !!v4 || (key !== 'created' && key !== 'updated')))))
+        ? parsed.filter((key): key is string => typeof key === 'string').map(key => key === 'status' || key === 'probe' ? 'address' : key).filter(key => assetColumnKeys.includes(key) && (page !== 'host' || key !== 'meta') && ((page !== 'host' && page !== 'vm') || (key !== 'environment' && (!!raw || !!v5 || key !== 'owner') && (!!raw || !!v4 || (key !== 'created' && key !== 'updated')))))
         : []
       if (legacy && valid.length) {
         if (!previous) {
           if (page === 'vm') valid.push('platform')
         }
-        valid.push('capacity', 'notes')
+        if (!v4) valid.push('capacity', 'notes')
+        valid.push('services')
         localStorage.setItem(key, JSON.stringify(assetColumnKeys.filter(item => valid.includes(item))))
       }
       setVisibleColumns(valid.length ? assetColumnKeys.filter(key => valid.includes(key)) : fallback)
@@ -892,9 +907,31 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     const ordered = assetColumnKeys.filter(key => keys.includes(key))
     setVisibleColumns(ordered)
     try {
-      localStorage.setItem('dc-db-columns:' + page + (page === 'host' || page === 'vm' ? ':v5' : ''), JSON.stringify(ordered))
+      localStorage.setItem('dc-db-columns:' + page + (page === 'host' || page === 'vm' ? ':v6' : ''), JSON.stringify(ordered))
     } catch {
       // Keep the current in-memory column selection.
+    }
+  }
+
+  function editAssetServices(asset: Asset) {
+    setServiceAsset(asset)
+    setServiceSelection((servicesByAsset.get(asset.id) ?? []).map(service => service.id))
+    setServiceError('')
+  }
+
+  async function saveAssetServices() {
+    if (!serviceAsset) return
+    setServiceSaving(true)
+    setServiceError('')
+    try {
+      await api<void>(`/assets/${serviceAsset.id}/services`, 'PUT', { serviceIds: serviceSelection })
+      setServices(await api<Service[]>('/services'))
+      setServiceAsset(null)
+      void message.success('服务关联已更新')
+    } catch (e) {
+      setServiceError(messageText(e))
+    } finally {
+      setServiceSaving(false)
     }
   }
 
@@ -1087,6 +1124,19 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       },
     },
     {
+      key: 'services', label: '服务',
+      column: {
+        title: '服务', key: 'services', width: 200,
+        render: (_, asset) => {
+          const bound = servicesByAsset.get(asset.id) ?? []
+          return <div className="flex flex-wrap items-center gap-2">
+            {bound.map(service => <button key={service.id} type="button" className="asset-service-chip" onClick={() => openService(service.id)}><ServiceIcon name={service.name} category={service.category} /><span>{service.name}</span></button>)}
+            {editable ? <Button size="small" onClick={() => editAssetServices(asset)} aria-label={`关联服务 ${asset.name}`}>{bound.length ? '编辑' : '关联服务'}</Button> : !bound.length ? '—' : null}
+          </div>
+        },
+      },
+    },
+    {
       key: 'owner', label: '负责人',
       column: { title: '负责人', dataIndex: 'owner', key: 'owner', width: 120, sorter: (left, right) => left.owner.localeCompare(right.owner, 'zh-CN'), render: value => value || '—' },
     },
@@ -1132,7 +1182,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     },
   ]
   const availableAssetColumns = page === 'network_devices'
-    ? assetColumns.filter(item => !['meta', 'platform', 'capacity', 'notes', 'created'].includes(item.key))
+    ? assetColumns.filter(item => !['meta', 'platform', 'capacity', 'services', 'notes', 'created'].includes(item.key))
         .sort((a, b) => ['name', 'kind', 'tags', 'address', 'group', 'owner', 'environment', 'updated'].indexOf(a.key) - ['name', 'kind', 'tags', 'address', 'group', 'owner', 'environment', 'updated'].indexOf(b.key))
     : assetColumns.filter(item => item.key !== 'kind' && item.key !== 'environment' && (page !== 'host' || (item.key !== 'meta' && item.key !== 'platform')))
         .sort((a, b) => assetColumnKeys.indexOf(a.key) - assetColumnKeys.indexOf(b.key))
@@ -1738,6 +1788,17 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           </>)}
         </Content>
       </Layout>
+
+      <Modal
+        open={!!serviceAsset} title={`关联服务${serviceAsset ? ` · ${serviceAsset.name}` : ''}`} width={520}
+        onCancel={() => { if (!serviceSaving) setServiceAsset(null) }}
+        footer={<Space><Button disabled={serviceSaving} onClick={() => setServiceAsset(null)}>取消</Button><Button type="primary" loading={serviceSaving} onClick={() => void saveAssetServices()}>保存</Button></Space>}
+      >
+        {serviceError && <Alert type="error" showIcon message={serviceError} />}
+        <label className="grid gap-2">选择服务（可多选）
+          <Select mode="multiple" allowClear placeholder="选择关联的服务" value={serviceSelection} onChange={(value: number[]) => setServiceSelection(value)} options={services.map(service => ({ value: service.id, label: service.name }))} />
+        </label>
+      </Modal>
 
       <Modal
         open={assetImportOpen} title="导入设备" width={460}
