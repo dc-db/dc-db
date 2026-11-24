@@ -33,6 +33,7 @@ type Asset struct {
 	Fields
 	ID             int64           `json:"id"`
 	Version        int             `json:"version"`
+	CreatedAt      *time.Time      `json:"createdAt"`
 	UpdatedAt      time.Time       `json:"updatedAt"`
 	ProbeStatus    string          `json:"probeStatus"`
 	ProbeCheckedAt *time.Time      `json:"probeCheckedAt"`
@@ -66,7 +67,7 @@ type Change struct {
 }
 
 const assetColumns = `id, kind, name, platform, status, lifecycle, owner, environment, address, cpu,
-	memory_mib, notes, attributes, version, updated_at, COALESCE(source_key, ''),
+	memory_mib, notes, attributes, version, created_at, updated_at, COALESCE(source_key, ''),
 	COALESCE(external_key, ''), last_seen_at, missing_count, observed, COALESCE(group_id, 0),
 	probe_enabled, probe_status, probe_checked_at`
 
@@ -77,7 +78,7 @@ func readAsset(row scanner) (Asset, error) {
 	var attributes, observed string
 	err := row.Scan(&a.ID, &a.Kind, &a.Name, &a.Platform, &a.Status, &a.Lifecycle, &a.Owner,
 		&a.Environment, &a.Address, &a.CPU, &a.MemoryMiB, &a.Notes, &attributes,
-		&a.Version, &a.UpdatedAt, &a.SourceKey, &a.ExternalKey, &a.LastSeenAt, &a.MissingCount, &observed,
+		&a.Version, &a.CreatedAt, &a.UpdatedAt, &a.SourceKey, &a.ExternalKey, &a.LastSeenAt, &a.MissingCount, &observed,
 		&a.GroupID, &a.ProbeEnabled, &a.ProbeStatus, &a.ProbeCheckedAt)
 	a.Attributes = json.RawMessage(attributes)
 	a.Observed = json.RawMessage(observed)

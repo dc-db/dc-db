@@ -46,6 +46,7 @@ export interface Asset extends AssetFields {
   probeCheckedAt: string | null
   id: number
   version: number
+  createdAt: string | null
   updatedAt: string
   tags?: Tag[]
 }

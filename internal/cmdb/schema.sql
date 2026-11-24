@@ -40,6 +40,7 @@ CREATE TABLE assets (
     missing_count INTEGER NOT NULL DEFAULT 0,
     group_id BIGINT REFERENCES asset_groups ON DELETE SET NULL,
     version INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (source_key, external_key),
     CHECK ((source_key IS NULL) = (external_key IS NULL))

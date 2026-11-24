@@ -58,7 +58,7 @@ func TestAssetLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create asset: %v", err)
 	}
-	if asset.ID == 0 || asset.Version != 1 || asset.UpdatedAt.IsZero() {
+	if asset.ID == 0 || asset.Version != 1 || asset.CreatedAt == nil || asset.CreatedAt.IsZero() || asset.UpdatedAt.IsZero() {
 		t.Fatalf("unexpected created asset: %+v", asset)
 	}
 	if string(asset.Attributes) != `{"rack":"A"}` {
@@ -80,6 +80,9 @@ func TestAssetLifecycle(t *testing.T) {
 	}
 	if updated.Version != 2 || updated.Owner != "ops" || string(updated.Attributes) != `{"rack":"B"}` {
 		t.Fatalf("unexpected updated asset: %+v", updated)
+	}
+	if updated.CreatedAt == nil || !updated.CreatedAt.Equal(*asset.CreatedAt) {
+		t.Fatal("asset creation time changed after update")
 	}
 
 	if _, err := SaveAsset(ctx, db, asset.ID, 1, update, "tester"); !errors.Is(err, ErrConflict) {
