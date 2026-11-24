@@ -531,9 +531,6 @@ html[data-theme="dark"] .import-error-row strong { color: #ff7875; }
 .detail-page-bar .asset-drawer-title { margin: 0; font-size: var(--fs-title); font-weight: 600; }
 .detail-page-bar .asset-drawer-title > span { color: var(--text); }
 .asset-drawer-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-.attribute-editor { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; width: 100%; }
-.attribute-row { display: grid; grid-template-columns: minmax(90px, 1fr) 82px minmax(120px, 1.7fr) 30px; align-items: start; gap: 6px; width: 100%; }
-.attribute-row .attribute-value { width: 100%; }
 .detail-notes { margin-top: 16px; padding: 12px; border-radius: 6px; background: var(--subtle); color: var(--text); white-space: pre-wrap; }
 .inline-link { height: auto; padding: 0; }
 .relation-form { margin: 12px 0; }

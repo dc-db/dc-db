@@ -130,13 +130,13 @@ export function assetRoomId(
 ): number | null {
   const loc = locations.get(asset.id)
   if (loc) return loc.room.id
-  const attrRoomId = Number(asset.attributes?.roomId)
+  const attrRoomId = Number(asset.roomId)
   if (Number.isInteger(attrRoomId) && attrRoomId > 0) return attrRoomId
   if (asset.kind === 'vm' && byId && links) {
     const hostLink = links.find(link => link.kind === 'hosts' && link.toId === asset.id)
     if (hostLink) {
       const host = byId.get(hostLink.fromId)
-      const hostAttrRoomId = Number(host?.attributes?.roomId)
+      const hostAttrRoomId = Number(host?.roomId)
       if (Number.isInteger(hostAttrRoomId) && hostAttrRoomId > 0) return hostAttrRoomId
     }
   }

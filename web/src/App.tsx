@@ -854,13 +854,13 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   function exportCSV() {
     const rows: (string | number)[][] = [[
-      '资源名称', '类型', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '负责人', '环境', '备注', '扩展属性',
+      '资源名称', '类型', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '负责人', '环境', '备注',
     ]]
     for (const asset of filtered) {
       rows.push([
         asset.name, kindLabel(asset.kind), platformLabel(asset), statusOf(asset).label,
         asset.lifecycle === 'retired' ? '已退役' : '在册', asset.address, asset.cpu, asset.memoryMiB,
-        asset.owner, asset.environment, asset.notes, JSON.stringify(asset.attributes),
+        asset.owner, asset.environment, asset.notes,
       ])
     }
     downloadCSV('dc-db-assets.csv', rows)
@@ -868,7 +868,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   function downloadTemplate() {
     downloadCSV('dc-db-import-template.csv', [[
-      '资源名称', '类型', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '负责人', '环境', '备注', '扩展属性',
+      '资源名称', '类型', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '负责人', '环境', '备注',
     ]])
   }
 
@@ -984,10 +984,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           const bound = asset.services ?? []
           if (!bound.length) return '—'
           const service = bound[0]
-          const remaining = bound.slice(1).map(item => item.name + (item.port ? `:${item.port}` : '')).join('、')
+          const remaining = bound.slice(1).map(item => item.name).join('、')
           return <div className="flex min-w-0 items-center gap-2">
             <button type="button" className="asset-service-chip min-w-0" onClick={() => void openAsset(asset.id)} aria-label={`${service.name}，查看${asset.name}详情`} title={service.name}>
-              <ServiceIcon name={service.name} category={serviceCategory(service.name)} /><span className="truncate">{service.name}{service.port ? `:${service.port}` : ''}</span>
+              <ServiceIcon name={service.name} category={serviceCategory(service.name)} /><span className="truncate">{service.name}</span>
             </button>
             {remaining && <Tooltip title={remaining}><span className="shrink-0 text-muted-foreground" tabIndex={0} aria-label={`另外 ${bound.length - 1} 个服务：${remaining}`}>+{bound.length - 1}</span></Tooltip>}
           </div>
@@ -1066,7 +1066,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         </div>
       ),
     }] : []),
-    ...(selected.services?.length ? [{ key: 'services', label: '运行服务', children: <div className="flex flex-wrap gap-2">{selected.services.map((service, index) => <span key={index} className="asset-service-chip" title={[service.version && `版本：${service.version}`, service.notes].filter(Boolean).join(" · ") || service.name}><ServiceIcon name={service.name} category={serviceCategory(service.name)} />{service.name}{service.port ? `:${service.port}` : ''}{service.version ? ` · ${service.version}` : ''}</span>)}</div> }] : []),
+    ...(selected.services?.length ? [{ key: 'services', label: '运行服务', children: <div className="flex flex-wrap gap-2">{selected.services.map((service, index) => <span key={index} className="asset-service-chip" title={service.name}><ServiceIcon name={service.name} category={serviceCategory(service.name)} />{service.name}</span>)}</div> }] : []),
     {
       key: 'updated', label: '最近更新',
       children: new Date(selected.updatedAt).toLocaleString('zh-CN', { hour12: false }),
@@ -1317,17 +1317,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                 {
                   key: 'interfaces', label: '接口',
                   children: <AssetInterfaces assetId={selected.id} assets={assets} editable={editable} />,
-                },
-                {
-                  key: 'attributes', label: `扩展信息 (${Object.keys(selected.attributes).length})`,
-                  children: Object.keys(selected.attributes).length > 0 ? (
-                    <Descriptions
-                      bordered size="small" column={1}
-                      items={Object.entries(selected.attributes).map(([key, value]) => ({
-                        key, label: key, children: typeof value === 'object' ? JSON.stringify(value) : String(value),
-                      }))}
-                    />
-                  ) : <Empty description="暂无扩展信息" />,
                 },
                 {
                   key: 'changes', label: '变更记录',

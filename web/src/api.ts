@@ -38,10 +38,10 @@ export interface AssetFields {
   memoryMiB: number
   groupId: number
   notes: string
-  attributes: Record<string, unknown>
+  roomId: number
 }
 
-export interface ServiceInstance { name: string; port: number; version: string; notes: string }
+export interface ServiceInstance { name: string }
 
 export interface Asset extends AssetFields {
   services?: ServiceInstance[]

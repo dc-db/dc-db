@@ -17,18 +17,21 @@ interface Props {
   triggerClassName?: string
   triggerVariant?: 'outline' | 'ghost'
   indicator?: 'down' | 'both'
+  allowCustom?: boolean
 }
 
 /** Searchable, keyboard-operable single selection, with an optional empty value. */
-export function SearchableSelect({ value, onChange, options, label, placeholder = '请选择', disabled = false, allowClear = true, triggerClassName, triggerVariant = 'outline', indicator = 'both' }: Props) {
+export function SearchableSelect({ value, onChange, options, label, placeholder = '请选择', disabled = false, allowClear = true, triggerClassName, triggerVariant = 'outline', indicator = 'both', allowCustom = false }: Props) {
   const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
   const chosen = options.find(option => option.value === value)
   const displayValue = chosen?.label ?? (value || placeholder)
-  function choose(next: string) { onChange(next); setOpen(false) }
-  return <Popover open={open} onOpenChange={setOpen}>
+  function choose(next: string) { onChange(next); setOpen(false); setQuery('') }
+  return <Popover open={open} onOpenChange={next => { setOpen(next); if (!next) setQuery('') }}>
     <PopoverTrigger asChild><Button type="button" variant={triggerVariant} disabled={disabled} aria-label={`${label}：${displayValue}`} className={cn("w-full justify-between font-normal", triggerClassName)}><span className="truncate">{displayValue}</span>{indicator === 'down' ? <ChevronDown className="opacity-70" /> : <ChevronsUpDown className="opacity-50" />}</Button></PopoverTrigger>
     <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] min-w-56 p-0">
-      <Command label={`搜索${label}`}><CommandInput aria-label={`搜索${label}`} placeholder={`搜索${label}`} /><CommandList><CommandEmpty>没有匹配的选项</CommandEmpty><CommandGroup>
+      <Command label={`搜索${label}`}><CommandInput aria-label={`搜索${label}`} placeholder={`搜索${label}`} maxLength={allowCustom ? 160 : undefined} value={query} onValueChange={setQuery} /><CommandList><CommandEmpty>没有匹配的选项</CommandEmpty><CommandGroup>
+        {allowCustom && query.trim() && !options.some(option => option.label.toLowerCase() === query.trim().toLowerCase()) && <CommandItem value={query.trim()} onSelect={() => choose(query.trim())}>使用「{query.trim()}」</CommandItem>}
         {allowClear && <CommandItem value="清除选择" onSelect={() => choose('')}>清除选择</CommandItem>}
         {options.map(option => <CommandItem key={option.value} value={`${option.label} ${option.value}`} onSelect={() => choose(option.value)}><Check className={`size-4 ${option.value === value ? 'opacity-100' : 'opacity-0'}`} />{option.label}</CommandItem>)}
       </CommandGroup></CommandList></Command>

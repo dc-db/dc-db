@@ -30,7 +30,7 @@ const fieldLabels: Record<string, string> = {
   probeEnabled: '存活探测', intervalSeconds: '探测间隔（秒）',
   name: '名称', status: '状态', lifecycle: '生命周期', platform: '平台', owner: '负责人',
   environment: '环境', address: '地址', cpu: 'CPU', memoryMiB: '内存（MiB）', notes: '备注',
-  attributes: '扩展属性', observed: '采集信息', missingCount: '缺失次数',
+  observed: '采集信息', missingCount: '缺失次数',
   heightU: '机柜高度（U）',
   cidr: 'CIDR', gateway: '网关', vlan: 'VLAN', ip: 'IP 地址', assetId: '关联资产', label: '用途',
   role: '角色', dnsName: 'DNS 名称', vid: 'VLAN ID', description: '描述', roomId: '所属数据中心',
