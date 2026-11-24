@@ -516,6 +516,8 @@ html[data-theme="dark"] .import-error-row strong { color: #ff7875; }
 .asset-probe-dot.reachable { background: var(--probe-dot-reachable); }
 .asset-probe-dot.unreachable { background: var(--probe-dot-unreachable); }
 .asset-link { height: auto; padding: 0 !important; display: inline-flex; gap: 7px; align-items: center; }
+.asset-name-button { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.asset-name-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 3px; }
 .asset-sub { margin-left: 6px; color: var(--muted); font-size: var(--fs-caption); font-weight: 400; }
 .mono { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }
 .muted { color: var(--muted); }

@@ -15,6 +15,7 @@ import {
   Network as NetworkOutlined, Split as SplitOutlined, LocateFixed as LocateFixedOutlined,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
+import { formatDateTime } from './lib/date'
 import { downloadCSV } from './csv'
 import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, NetworkKind, Service, Subnet, Tag as TagItem, User, VLAN } from './api'
 import { assetLocations, assetRoomId, buildRoomCounts, locationLabel, matchesRoomFilter } from './facilities'
@@ -66,9 +67,10 @@ const relations: { kind: LinkKind; from: Kind; to: Kind[]; outgoing: string; inc
   { kind: 'hosts', from: 'host', to: ['vm'], outgoing: '承载虚拟机', incoming: '所在宿主机' },
 ]
 const defaultPageSize = 10
-const defaultAssetColumns = ['name', 'tags', 'meta', 'address', 'owner']
+const defaultAssetColumns = ['name', 'tags', 'platform', 'meta', 'address', 'owner', 'created']
+const defaultHostColumns = ['name', 'tags', 'address', 'owner', 'created']
 const defaultNetworkDeviceColumns = ['name', 'kind', 'tags', 'address', 'owner']
-const assetColumnKeys = ['name', 'kind', 'tags', 'meta', 'address', 'owner', 'group', 'environment', 'capacity', 'updated']
+const assetColumnKeys = ['name', 'kind', 'tags', 'platform', 'meta', 'address', 'owner', 'group', 'environment', 'capacity', 'created', 'updated']
 
 
 function platformLabel(asset: Pick<Asset, 'platform'>) {
@@ -370,7 +372,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     return scoped.filter(asset => {
       if (!matchesRoomFilter(assetRoomId(asset, locations, byId, links), roomFilter)) return false
       if (page === 'network_devices' && networkKindFilter && asset.kind !== networkKindFilter) return false
-      if (platformFilter && asset.platform !== platformFilter) return false
+      if (page === 'vm' && platformFilter && asset.platform !== platformFilter) return false
       if (tagFilter.length) {
         const match = tagFilterMode === 'any'
           ? tagFilter.some(id => asset.tags?.some(tag => tag.id === id))
@@ -459,13 +461,20 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   useEffect(() => {
     if (!assetPage) return
-    const fallback = page === 'network_devices' ? defaultNetworkDeviceColumns : defaultAssetColumns
+    const fallback = page === 'host' ? defaultHostColumns : page === 'network_devices' ? defaultNetworkDeviceColumns : defaultAssetColumns
     try {
-      const raw = localStorage.getItem('dc-db-columns:' + page)
-      const parsed: unknown = raw ? JSON.parse(raw) : null
+      const key = 'dc-db-columns:' + page + (page === 'host' || page === 'vm' ? ':v2' : '')
+      const raw = localStorage.getItem(key)
+      const legacy = (page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page) : null
+      const parsed: unknown = raw || legacy ? JSON.parse((raw || legacy)!) : null
       const valid = Array.isArray(parsed)
-        ? parsed.filter((key): key is string => typeof key === 'string').map(key => key === 'status' || key === 'probe' ? 'address' : key).filter(key => assetColumnKeys.includes(key))
+        ? parsed.filter((key): key is string => typeof key === 'string').map(key => key === 'status' || key === 'probe' ? 'address' : key).filter(key => assetColumnKeys.includes(key) && (page !== 'host' || key !== 'meta') && ((page !== 'host' && page !== 'vm') || key !== 'environment'))
         : []
+      if (legacy && valid.length) {
+        valid.push('created')
+        if (page === 'vm') valid.push('platform')
+        localStorage.setItem(key, JSON.stringify(assetColumnKeys.filter(item => valid.includes(item))))
+      }
       setVisibleColumns(valid.length ? assetColumnKeys.filter(key => valid.includes(key)) : fallback)
     } catch {
       setVisibleColumns(fallback)
@@ -879,7 +888,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     const ordered = assetColumnKeys.filter(key => keys.includes(key))
     setVisibleColumns(ordered)
     try {
-      localStorage.setItem('dc-db-columns:' + page, JSON.stringify(ordered))
+      localStorage.setItem('dc-db-columns:' + page + (page === 'host' || page === 'vm' ? ':v2' : ''), JSON.stringify(ordered))
     } catch {
       // Keep the current in-memory column selection.
     }
@@ -1004,16 +1013,17 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const groupName = (id: number) => groups.find(item => item.id === id)?.name ?? '—'
   const metaTitle = page === 'vm' ? '宿主机' : '平台'
   const metaValue = (asset: Asset) => page === 'vm' ? hostName(asset) : platformLabel(asset)
+  const assetNameLabel = page === 'host' ? '服务器名称' : page === 'vm' ? '虚拟机名称' : '资源名称'
   const assetColumns: { key: string; label: string; column: TableColumnsType<Asset>[number] }[] = [
     {
-      key: 'name', label: '资源名称',
+      key: 'name', label: assetNameLabel,
       column: {
-        title: '资源名称', key: 'name', width: 260,
+        title: assetNameLabel, key: 'name', width: 260,
         sorter: (left, right) => left.name.localeCompare(right.name, 'zh-CN'),
         render: (_, asset) => (
-          <Button type="link" className="asset-link" onClick={() => void openAsset(asset.id)}>
-            <span>{asset.name}</span>
-          </Button>
+          page === 'host' || page === 'vm'
+            ? <button type="button" className="asset-name-button" onClick={() => void openAsset(asset.id)}>{asset.name}</button>
+            : <Button type="link" className="asset-link" onClick={() => void openAsset(asset.id)}><span>{asset.name}</span></Button>
         ),
       },
     },
@@ -1048,6 +1058,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             )
           : '—',
       },
+    },
+    {
+      key: 'platform', label: '平台',
+      column: { title: '平台', key: 'platform', width: 130, sorter: (left, right) => platformLabel(left).localeCompare(platformLabel(right), 'zh-CN'), render: (_, asset) => platformLabel(asset) },
     },
     {
       key: 'meta', label: metaTitle,
@@ -1093,6 +1107,14 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       },
     },
     {
+      key: 'created', label: '创建时间',
+      column: {
+        title: '创建时间', dataIndex: 'createdAt', key: 'created', width: 165,
+        sorter: (left, right) => (left.createdAt ? Date.parse(left.createdAt) : 0) - (right.createdAt ? Date.parse(right.createdAt) : 0),
+        render: value => formatDateTime(value as string | null),
+      },
+    },
+    {
       key: 'updated', label: '更新时间',
       column: {
         title: '更新时间', dataIndex: 'updatedAt', key: 'updated', width: 165,
@@ -1102,8 +1124,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     },
   ]
   const availableAssetColumns = page === 'network_devices'
-    ? assetColumns.filter(item => item.key !== 'meta' && item.key !== 'capacity')
-    : assetColumns.filter(item => item.key !== 'kind')
+    ? assetColumns.filter(item => !['meta', 'platform', 'capacity', 'created'].includes(item.key))
+    : assetColumns.filter(item => item.key !== 'kind' && item.key !== 'environment' && (page !== 'host' || (item.key !== 'meta' && item.key !== 'platform')))
   const columns = availableAssetColumns.filter(item => visibleColumns.includes(item.key)).map(item => item.column)
 
   const descriptions = selected ? [
@@ -1581,7 +1603,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
           {assetPage && (() => {
             const pageLabel = page === 'vm' ? '虚拟机' : page === 'network_devices' ? '网络设备' : '服务器'
-            const defaultCols = page === 'network_devices' ? defaultNetworkDeviceColumns : defaultAssetColumns
+            const defaultCols = page === 'host' ? defaultHostColumns : page === 'network_devices' ? defaultNetworkDeviceColumns : defaultAssetColumns
             return (
             <RoomTreeLayout
               facilities={facilities}
@@ -1609,13 +1631,13 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                       onChange={(value: NetworkKind | undefined) => setNetworkKindFilter(value ?? '')}
                       options={NETWORK_KINDS.map(kind => ({ value: kind, label: KIND_LABELS[kind] }))}
                     />
-                  ) : (
+                  ) : page === 'vm' ? (
                     <Select
                       style={{ width: 145 }} allowClear searchable={false} placeholder="全部平台" value={platformFilter}
                       onChange={setPlatformFilter}
                       options={[{ value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM' }]}
                     />
-                  )}
+                  ) : null}
 
                   <Select
                     mode="multiple" maxTagCount="responsive"
