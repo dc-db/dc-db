@@ -938,6 +938,9 @@ html:not([data-theme="dark"]) [data-slot="button"][data-variant="outline"]:hover
 .row-icon-box.is-brand { background: var(--surface); color: var(--brand-light, var(--text)); }
 html[data-theme="dark"] .row-icon-box.is-brand { background: var(--subtle); color: var(--brand-dark, var(--text)); }
 .service-brand-svg { width: 15px; height: 15px; display: block; }
+.service-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; flex-shrink: 0; color: var(--muted); }
+.service-icon.is-brand { color: var(--brand-light, var(--text)); }
+html[data-theme="dark"] .service-icon.is-brand { color: var(--brand-dark, var(--text)); }
 
 .table-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; color: var(--muted); font-size: 13px; user-select: none; }
 .table-pager-left { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
@@ -1026,8 +1029,7 @@ html[data-theme="dark"] .row-icon-box.is-brand { background: var(--subtle); colo
 
 .asset-service-chip { display: inline-flex; align-items: center; gap: 7px; padding: 3px 10px 3px 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; transition: border-color .15s ease, background-color .15s ease; }
 .asset-service-chip:hover { border-color: var(--info); background: var(--hover); }
-.asset-service-chip .row-icon-box { width: 22px; height: 22px; border-radius: 5px; }
-.asset-service-chip .service-brand-svg { width: 13px; height: 13px; }
+.asset-service-chip .service-brand-svg { width: 15px; height: 15px; }
 
 .device-kind-cell { display: inline-flex; align-items: center; gap: 6px; color: var(--text); font-size: 13px; white-space: nowrap; }
 .device-kind-cell svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--muted); }

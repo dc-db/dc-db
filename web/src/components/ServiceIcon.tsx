@@ -33,7 +33,7 @@ export function ServiceIcon({ name, category }: { name: string; category?: strin
       '--brand-dark': brand.darkColor,
     } as CSSProperties
     return (
-      <span className="row-icon-box is-brand" title={brand.title} style={style}>
+      <span className="service-icon is-brand" title={brand.title} style={style}>
         <svg viewBox="0 0 24 24" className="service-brand-svg" aria-hidden="true">
           <path d={brand.path} fill="currentColor" />
         </svg>
@@ -42,7 +42,7 @@ export function ServiceIcon({ name, category }: { name: string; category?: strin
   }
   const Fallback = (category && categoryFallbackIcons[category]) || Box
   return (
-    <span className="row-icon-box" title={category || '服务'}>
+    <span className="service-icon" title={category || '服务'}>
       <Fallback className="size-3.5 text-muted-foreground" aria-hidden="true" />
     </span>
   )
