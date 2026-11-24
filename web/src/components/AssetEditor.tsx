@@ -110,12 +110,14 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, r
       {(!createFromList || networkDevice) && <label className="grid gap-2 asset-field-kind"><span>{createFromList ? '设备类型' : '资源类型'} <span className="text-destructive" aria-hidden="true">*</span></span><Choice value={fields.kind} disabled={!!asset} onChange={value => update('kind', value as Kind)} options={(createFromList ? NETWORK_KINDS : ALL_KINDS).map(value => ({ value, label: KIND_LABELS[value] }))} /></label>}
       {!networkDevice && <label className="grid gap-2 asset-field-platform">平台<Choice value={fields.platform} onChange={value => update('platform', value as AssetFields['platform'])} options={[{ value: '', label: '未指定' }, { value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM / libvirt' }]} /></label>}
       <label className="grid gap-2 asset-field-environment">环境<Input value={fields.environment} maxLength={40} placeholder="例如：生产" onChange={event => update('environment', event.target.value)} /></label>
+      {createFromList && <hr className="asset-create-divider" />}
       {!networkDevice && <div className="col-span-2 grid grid-cols-2 gap-3 asset-create-capacity">
         <label className={errors.cpu ? 'grid gap-2 field-invalid' : 'grid gap-2'}>CPU<Input type="number" min={0} max={65536} value={fields.cpu} aria-invalid={!!errors.cpu} onChange={event => update('cpu', Number(event.target.value))} />{errors.cpu && <span className="field-error" role="alert">{errors.cpu}</span>}</label>
         <label className={errors.memoryMiB ? 'grid gap-2 field-invalid' : 'grid gap-2'}>内存<Input value={memory} maxLength={24} placeholder="如 1G、512M" aria-invalid={!!errors.memoryMiB} onChange={event => { setMemory(event.target.value); setErrors(current => { const next = { ...current }; delete next.memoryMiB; return next }) }} />{errors.memoryMiB && <span className="field-error" role="alert">{errors.memoryMiB}</span>}</label>
       </div>}
       <label className="col-span-2 grid gap-2 asset-create-address">管理地址 / IP<Input value={fields.address} maxLength={160} placeholder="例如：192.0.2.11" onChange={event => { const address = event.target.value; setFields(current => ({ ...current, address, probeEnabled: address.trim() ? current.probeEnabled : false })) }} /></label>
       <div className="col-span-2 flex items-center gap-3 asset-create-probe"><Switch id="asset-probe" checked={fields.probeEnabled} disabled={!fields.address.trim()} onCheckedChange={checked => update('probeEnabled', checked)} /><label htmlFor="asset-probe">开启 Ping 存活探测</label></div>
+      {createFromList && <hr className="asset-create-divider" />}
       {rooms && (
         <label className="grid gap-2 asset-field-room">
           所属数据中心
