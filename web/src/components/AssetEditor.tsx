@@ -105,15 +105,19 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, r
   return (
     <form onSubmit={event => { event.preventDefault(); save() }} className={`grid grid-cols-2 gap-4${createFromList ? ' asset-create-form' : ''}`}>
       {(validation || error) && <p role="alert" className="col-span-2 text-destructive">{validation || error}</p>}
-      {(!createFromList || networkDevice) && <label className="grid gap-2">{createFromList ? '设备类型' : '资源类型'} *<Choice value={fields.kind} disabled={!!asset} onChange={value => update('kind', value as Kind)} options={(createFromList ? NETWORK_KINDS : ALL_KINDS).map(value => ({ value, label: KIND_LABELS[value] }))} /></label>}
-      <label className={errors.name ? 'grid gap-2 field-invalid' : 'grid gap-2'}>{createFromList ? (networkDevice ? '设备名称' : fields.kind === 'vm' ? '虚拟机名称' : '服务器名称') : '资源名称'} *<Input required value={fields.name} maxLength={160} aria-invalid={!!errors.name} onChange={event => update('name', event.target.value)} />{errors.name && <span className="field-error" role="alert">{errors.name}</span>}</label>
+      <label className={errors.name ? 'grid gap-2 asset-field-name field-invalid' : 'grid gap-2 asset-field-name'}><span>{createFromList ? (networkDevice ? '设备名称' : fields.kind === 'vm' ? '虚拟机名称' : '服务器名称') : '资源名称'} <span className="text-destructive" aria-hidden="true">*</span></span><Input required value={fields.name} maxLength={160} aria-invalid={!!errors.name} onChange={event => update('name', event.target.value)} />{errors.name && <span className="field-error" role="alert">{errors.name}</span>}</label>
 
-      {!networkDevice && <label className="grid gap-2">平台<Choice value={fields.platform} onChange={value => update('platform', value as AssetFields['platform'])} options={[{ value: '', label: '未指定' }, { value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM / libvirt' }]} /></label>}
-      <div className="grid gap-2"><span>负责人</span><SearchableSelect label="负责人" placeholder="选择或搜索负责人" value={fields.owner} onChange={value => update('owner', value)} options={owners.map(name => ({ value: name, label: name }))} allowCustom indicator="down" triggerClassName="max-w-64" /></div>
-      <label className="grid gap-2">环境<Input value={fields.environment} maxLength={40} placeholder="例如：生产" onChange={event => update('environment', event.target.value)} /></label>
-      <label className="grid gap-2">所属群组<Choice value={fields.groupId ? String(fields.groupId) : ''} onChange={value => update('groupId', Number(value || 0))} options={[{ value: '', label: '未归属' }, ...groups.map(group => ({ value: String(group.id), label: group.name }))]} /></label>
+      {(!createFromList || networkDevice) && <label className="grid gap-2 asset-field-kind"><span>{createFromList ? '设备类型' : '资源类型'} <span className="text-destructive" aria-hidden="true">*</span></span><Choice value={fields.kind} disabled={!!asset} onChange={value => update('kind', value as Kind)} options={(createFromList ? NETWORK_KINDS : ALL_KINDS).map(value => ({ value, label: KIND_LABELS[value] }))} /></label>}
+      {!networkDevice && <label className="grid gap-2 asset-field-platform">平台<Choice value={fields.platform} onChange={value => update('platform', value as AssetFields['platform'])} options={[{ value: '', label: '未指定' }, { value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM / libvirt' }]} /></label>}
+      <label className="grid gap-2 asset-field-environment">环境<Input value={fields.environment} maxLength={40} placeholder="例如：生产" onChange={event => update('environment', event.target.value)} /></label>
+      {!networkDevice && <div className="col-span-2 grid grid-cols-2 gap-3 asset-create-capacity">
+        <label className={errors.cpu ? 'grid gap-2 field-invalid' : 'grid gap-2'}>CPU<Input type="number" min={0} max={65536} value={fields.cpu} aria-invalid={!!errors.cpu} onChange={event => update('cpu', Number(event.target.value))} />{errors.cpu && <span className="field-error" role="alert">{errors.cpu}</span>}</label>
+        <label className={errors.memoryMiB ? 'grid gap-2 field-invalid' : 'grid gap-2'}>内存<Input value={memory} maxLength={24} placeholder="如 1G、512M" aria-invalid={!!errors.memoryMiB} onChange={event => { setMemory(event.target.value); setErrors(current => { const next = { ...current }; delete next.memoryMiB; return next }) }} />{errors.memoryMiB && <span className="field-error" role="alert">{errors.memoryMiB}</span>}</label>
+      </div>}
+      <label className="col-span-2 grid gap-2 asset-create-address">管理地址 / IP<Input value={fields.address} maxLength={160} placeholder="例如：192.0.2.11" onChange={event => { const address = event.target.value; setFields(current => ({ ...current, address, probeEnabled: address.trim() ? current.probeEnabled : false })) }} /></label>
+      <div className="col-span-2 flex items-center gap-3 asset-create-probe"><Switch id="asset-probe" checked={fields.probeEnabled} disabled={!fields.address.trim()} onCheckedChange={checked => update('probeEnabled', checked)} /><label htmlFor="asset-probe">开启 Ping 存活探测</label></div>
       {rooms && (
-        <label className="grid gap-2">
+        <label className="grid gap-2 asset-field-room">
           所属数据中心
           <Choice
             value={roomId ? String(roomId) : ''}
@@ -123,23 +127,19 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, r
           />
         </label>
       )}
-      <label className="col-span-2 grid gap-2 asset-create-address">管理地址 / IP<Input value={fields.address} maxLength={160} placeholder="例如：192.0.2.11" onChange={event => { const address = event.target.value; setFields(current => ({ ...current, address, probeEnabled: address.trim() ? current.probeEnabled : false })) }} /></label>
-      <div className="col-span-2 flex items-center gap-3 asset-create-probe"><Switch id="asset-probe" checked={fields.probeEnabled} disabled={!fields.address.trim()} onCheckedChange={checked => update('probeEnabled', checked)} /><label htmlFor="asset-probe">开启 Ping 存活探测</label></div>
-      {!networkDevice && <div className="col-span-2 grid grid-cols-2 gap-3 asset-create-capacity">
-        <label className={errors.cpu ? 'grid gap-2 field-invalid' : 'grid gap-2'}>CPU<Input type="number" min={0} max={65536} value={fields.cpu} aria-invalid={!!errors.cpu} onChange={event => update('cpu', Number(event.target.value))} />{errors.cpu && <span className="field-error" role="alert">{errors.cpu}</span>}</label>
-        <label className={errors.memoryMiB ? 'grid gap-2 field-invalid' : 'grid gap-2'}>内存<Input value={memory} maxLength={24} placeholder="如 1G、512M" aria-invalid={!!errors.memoryMiB} onChange={event => { setMemory(event.target.value); setErrors(current => { const next = { ...current }; delete next.memoryMiB; return next }) }} />{errors.memoryMiB && <span className="field-error" role="alert">{errors.memoryMiB}</span>}</label>
-      </div>}
+      <label className="grid gap-2 asset-field-group">所属群组<Choice value={fields.groupId ? String(fields.groupId) : ''} onChange={value => update('groupId', Number(value || 0))} options={[{ value: '', label: '未归属' }, ...groups.map(group => ({ value: String(group.id), label: group.name }))]} /></label>
+      <div className="grid gap-2 asset-field-owner"><span>负责人</span><SearchableSelect label="负责人" placeholder="选择或搜索负责人" value={fields.owner} onChange={value => update('owner', value)} options={owners.map(name => ({ value: name, label: name }))} allowCustom indicator="down" triggerClassName="max-w-64" /></div>
       {!networkDevice && <div className="col-span-2 grid gap-3 asset-create-services">
-        <div>运行服务 <span className="muted">（可选）</span></div>
+        <div>运行服务</div>
         {serviceRows.map((service, index) => <div key={index} className="flex items-end gap-2">
           <div className="min-w-0 flex-1"><ServicePicker value={service.name} onChange={value => setServiceRows(rows => rows.map((row, i) => i === index ? { name: value } : row))} /></div>
           <Button type="button" variant="ghost" size="icon" aria-label="删除服务" onClick={() => setServiceRows(rows => rows.filter((_, i) => i !== index))}><Trash2 /></Button>
         </div>)}
         <Button type="button" variant="outline" onClick={() => setServiceRows(rows => [...rows, { name: '' }])}><Plus />添加服务</Button>
       </div>}
-      {asset && <label className="col-span-2 grid gap-2">生命周期<Choice value={fields.lifecycle} onChange={value => update('lifecycle', value as AssetFields['lifecycle'])} options={[{ value: 'active', label: '在册' }, { value: 'retired', label: '已退役' }]} /></label>}
-      <label className="col-span-2 grid gap-2">备注<Textarea value={fields.notes} rows={createFromList ? 2 : 3} maxLength={2500} onChange={event => update('notes', event.target.value)} /></label>
-      <div className="col-span-2 flex justify-end gap-2"><Button type="button" variant="outline" onClick={onCancel}>取消</Button><Button type="submit" disabled={busy}>{busy ? '正在保存…' : '保存资产'}</Button></div>
+      {asset && <label className="col-span-2 grid gap-2 asset-field-lifecycle">生命周期<Choice value={fields.lifecycle} onChange={value => update('lifecycle', value as AssetFields['lifecycle'])} options={[{ value: 'active', label: '在册' }, { value: 'retired', label: '已退役' }]} /></label>}
+      <label className="col-span-2 grid gap-2 asset-field-notes">备注<Textarea value={fields.notes} rows={createFromList ? 2 : 3} maxLength={2500} onChange={event => update('notes', event.target.value)} /></label>
+      <div className="col-span-2 flex justify-end gap-2 asset-field-actions"><Button type="button" variant="outline" onClick={onCancel}>取消</Button><Button type="submit" disabled={busy}>{busy ? '正在保存…' : '保存资产'}</Button></div>
     </form>
   )
 }
