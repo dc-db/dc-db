@@ -267,3 +267,5 @@ Tests connect to `postgres://dc_db:dc_db@127.0.0.1:5432/dc_db_test` by default a
 ## License
 
 Licensed under the [Apache License 2.0](LICENSE).
+
+Servers and virtual machines can each maintain service instances with built-in or custom names and optional ports, versions, and notes.

@@ -16,7 +16,7 @@ SELECT CASE WHEN
     EXISTS (SELECT 1 FROM rooms) OR EXISTS (SELECT 1 FROM racks) OR
     EXISTS (SELECT 1 FROM rack_placements) OR EXISTS (SELECT 1 FROM vlans) OR
     EXISTS (SELECT 1 FROM subnets) OR EXISTS (SELECT 1 FROM ip_allocations) OR
-    EXISTS (SELECT 1 FROM interfaces) OR EXISTS (SELECT 1 FROM asset_services) OR
+    EXISTS (SELECT 1 FROM interfaces) OR EXISTS (SELECT 1 FROM asset_service_instances) OR
     EXISTS (SELECT 1 FROM changes)
     THEN 0 ELSE 1 END;
 
@@ -216,16 +216,6 @@ FROM generate_series(1, 37) AS i
 WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
 ON CONFLICT DO NOTHING;
 
-
-INSERT INTO services (id, name, category, default_port, description, builtin)
-SELECT 1000 + i, '内部系统-' || lpad(i::text, 3, '0'),
-       (ARRAY['内部系统', '研发工具', '监控', '存储', '消息队列'])[1 + (i % 5)],
-       8000 + i,
-       '虚构内部服务',
-       false
-FROM generate_series(1, 122) AS i
-WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
-ON CONFLICT DO NOTHING;
 
 INSERT INTO metadata_entries (id, kind, name, description)
 SELECT 1000 + i, 'owner',
@@ -459,57 +449,22 @@ FROM generate_series(1, 35) AS s
 CROSS JOIN generate_series(1, 3) AS k
 WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
--- 9. 为批量生成的虚拟机和服务器关联各类内置开源服务，使每个数据中心下都有丰富的服务实例与拓扑
-INSERT INTO asset_services (asset_id, service_id)
-SELECT 2000 + i, s.id
-FROM generate_series(1, 252) AS i
-JOIN services s ON lower(s.name) = (
-    ARRAY[
-        'nginx', 'caddy', 'apache-httpd', 'mysql', 'postgresql', 'mongodb', 'clickhouse',
-        'redis', 'memcached', 'kafka', 'rabbitmq', 'nats', 'elasticsearch',
-        'prometheus', 'grafana', 'loki', 'zabbix', 'minio', 'ceph',
-        'gitlab', 'gitea', 'jenkins', 'harbor', 'registry', 'etcd', 'zookeeper', 'consul', 'vault'
-    ]
-)[1 + ((i - 1) % 28)]
-WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
-ON CONFLICT DO NOTHING;
-
-INSERT INTO asset_services (asset_id, service_id)
-SELECT 1000 + i, s.id
-FROM generate_series(1, 126) AS i
-JOIN services s ON lower(s.name) = (
-    ARRAY['prometheus', 'zabbix', 'etcd', 'consul', 'ceph', 'minio', 'loki']
-)[1 + ((i - 1) % 7)]
-WHERE i % 2 = 0
-  AND EXISTS (SELECT 1 FROM demo_empty_guard)
-ON CONFLICT DO NOTHING;
-
--- 为演示服务关联虚拟机与服务器，方便在服务拓扑中查看「服务 → 虚拟机 → 服务器 → 数据中心」链路。
-INSERT INTO asset_services (asset_id, service_id)
-SELECT m.asset_id, s.id
-FROM (VALUES
-    (3::bigint, 'nginx'::text), (19, 'nginx'), (24, 'nginx'), (9, 'nginx'),
-    (4, 'postgresql'), (21, 'postgresql'),
-    (3, 'redis'), (5, 'redis'), (19, 'redis'),
-    (5, 'kafka'), (28, 'kafka'),
-    (10, 'prometheus'), (24, 'prometheus'),
-    (10, 'grafana'),
-    (20, 'minio'), (25, 'minio'),
-    (14, 'gitlab'),
-    (15, 'harbor'),
-    (18, 'elasticsearch'), (21, 'elasticsearch'),
-    (1, 'etcd'), (2, 'etcd'), (17, 'etcd'),
-    (14, 'vault')
-) AS m(asset_id, service_name)
-JOIN services s ON lower(s.name) = lower(m.service_name)
-WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
-ON CONFLICT DO NOTHING;
+-- 9. 为示例资产添加各自的服务实例。
+INSERT INTO asset_service_instances (asset_id, name)
+SELECT 2000 + i, (ARRAY['nginx','mysql','postgresql','redis','kafka','prometheus'])[1 + ((i - 1) % 6)]
+FROM generate_series(1, 252) AS i WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+INSERT INTO asset_service_instances (asset_id, name)
+SELECT 1000 + i, (ARRAY['prometheus','zabbix','etcd','consul'])[1 + ((i - 1) % 4)]
+FROM generate_series(1, 126) AS i WHERE i % 2 = 0 AND EXISTS (SELECT 1 FROM demo_empty_guard);
+INSERT INTO asset_service_instances (asset_id, name)
+SELECT m.asset_id, m.service_name FROM (VALUES
+ (3::bigint,'nginx'), (19,'nginx'), (4,'postgresql'), (3,'redis'), (10,'grafana'), (1,'etcd')
+) AS m(asset_id, service_name) WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
 -- 显式写入主键后推进序列，避免后续新增记录主键冲突。
 SELECT setval(pg_get_serial_sequence('assets', 'id'), (SELECT max(id) FROM assets));
 SELECT setval(pg_get_serial_sequence('regions', 'id'), (SELECT max(id) FROM regions));
 SELECT setval(pg_get_serial_sequence('asset_groups', 'id'), (SELECT max(id) FROM asset_groups));
-SELECT setval(pg_get_serial_sequence('services', 'id'), (SELECT max(id) FROM services));
 SELECT setval(pg_get_serial_sequence('metadata_entries', 'id'), (SELECT max(id) FROM metadata_entries));
 SELECT setval(pg_get_serial_sequence('rooms', 'id'), (SELECT max(id) FROM rooms));
 SELECT setval(pg_get_serial_sequence('racks', 'id'), (SELECT max(id) FROM racks));
