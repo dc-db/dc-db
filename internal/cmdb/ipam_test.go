@@ -35,7 +35,7 @@ func TestIPAM(t *testing.T) {
 
 	host, err := SaveAsset(ctx, db, 0, 0, Fields{
 		Kind: "host", Name: "lab-host-01", Status: "online", Lifecycle: "active",
-		Address: "192.168.10.10, 10.0.0.5", Attributes: []byte(`{}`),
+		Address: "192.168.10.10, 10.0.0.5",
 	}, "tester")
 	if err != nil {
 		t.Fatalf("create asset: %v", err)

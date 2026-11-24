@@ -2,7 +2,6 @@ package cmdb
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 )
 
@@ -14,7 +13,6 @@ func TestSearch(t *testing.T) {
 	hostFields.Address = "10.20.30.40"
 	hostFields.Owner = "平台组"
 	hostFields.Notes = "数据库节点"
-	hostFields.Attributes = json.RawMessage(`{"角色":"数据库"}`)
 	host, err := SaveAsset(ctx, db, 0, 0, hostFields, "tester")
 	if err != nil {
 		t.Fatalf("save host: %v", err)

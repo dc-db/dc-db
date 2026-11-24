@@ -225,11 +225,8 @@ func validateFields(fields *Fields) error {
 	if len(fields.Address) > 512 || len(fields.Owner) > 512 || len(fields.Environment) > 128 || len(fields.Notes) > 8192 {
 		return errors.New("地址、负责人、环境或备注超出长度限制")
 	}
-	if len(fields.Attributes) == 0 {
-		fields.Attributes = json.RawMessage("{}")
-	}
-	if len(fields.Attributes) > 16384 || fields.Attributes[0] != '{' {
-		return errors.New("扩展属性须为不超过 16 KiB 的 JSON 对象")
+	if fields.RoomID < 0 {
+		return errors.New("数据中心编号无效")
 	}
 	return nil
 }

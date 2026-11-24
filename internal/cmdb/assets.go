@@ -27,7 +27,7 @@ type Fields struct {
 	MemoryMiB    int64              `json:"memoryMiB"`
 	GroupID      int64              `json:"groupId"`
 	Notes        string             `json:"notes"`
-	Attributes   json.RawMessage    `json:"attributes"`
+	RoomID       int64              `json:"roomId"`
 }
 
 type Asset struct {
@@ -67,7 +67,7 @@ type Change struct {
 }
 
 const assetColumns = `id, kind, name, platform, status, lifecycle, owner, environment, address, cpu,
-	memory_mib, notes, attributes, version, created_at, updated_at, COALESCE(source_key, ''),
+	memory_mib, notes, COALESCE(room_id, 0), version, created_at, updated_at, COALESCE(source_key, ''),
 	COALESCE(external_key, ''), last_seen_at, missing_count, observed, COALESCE(group_id, 0),
 	probe_enabled, probe_status, probe_checked_at`
 
@@ -75,12 +75,11 @@ type scanner interface{ Scan(...any) error }
 
 func readAsset(row scanner) (Asset, error) {
 	var a Asset
-	var attributes, observed string
+	var observed string
 	err := row.Scan(&a.ID, &a.Kind, &a.Name, &a.Platform, &a.Status, &a.Lifecycle, &a.Owner,
-		&a.Environment, &a.Address, &a.CPU, &a.MemoryMiB, &a.Notes, &attributes,
+		&a.Environment, &a.Address, &a.CPU, &a.MemoryMiB, &a.Notes, &a.RoomID,
 		&a.Version, &a.CreatedAt, &a.UpdatedAt, &a.SourceKey, &a.ExternalKey, &a.LastSeenAt, &a.MissingCount, &observed,
 		&a.GroupID, &a.ProbeEnabled, &a.ProbeStatus, &a.ProbeCheckedAt)
-	a.Attributes = json.RawMessage(attributes)
 	a.Observed = json.RawMessage(observed)
 	return a, err
 }
@@ -105,7 +104,7 @@ func ListAssets(ctx context.Context, db *sql.DB) ([]Asset, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	serviceRows, err := db.QueryContext(ctx, "SELECT asset_id,name,port,version,notes FROM asset_service_instances ORDER BY asset_id,id")
+	serviceRows, err := db.QueryContext(ctx, "SELECT asset_id,name FROM asset_service_instances ORDER BY asset_id,id")
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +112,7 @@ func ListAssets(ctx context.Context, db *sql.DB) ([]Asset, error) {
 	for serviceRows.Next() {
 		var id int64
 		var item ServiceInstance
-		if err := serviceRows.Scan(&id, &item.Name, &item.Port, &item.Version, &item.Notes); err != nil {
+		if err := serviceRows.Scan(&id, &item.Name); err != nil {
 			return nil, err
 		}
 		if index, ok := indices[id]; ok {
@@ -179,6 +178,15 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 	}
 	defer tx.Rollback()
 
+	if fields.RoomID != 0 {
+		var exists bool
+		if err := tx.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM rooms WHERE id=$1)", fields.RoomID).Scan(&exists); err != nil {
+			return Asset{}, err
+		}
+		if !exists {
+			return Asset{}, fmt.Errorf("%w: 所选数据中心不存在", ErrInvalid)
+		}
+	}
 	requestedServices := fields.Services
 	fields.Services = nil
 	if err := validateServiceInstances(fields.Kind, requestedServices); err != nil {
@@ -222,14 +230,14 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 
 	asset, err := readAsset(tx.QueryRowContext(ctx, `
 		UPDATE assets SET name=$2, platform=$3, status=$4, lifecycle=$5, owner=$6, environment=$7,
-			address=$8, cpu=$9, memory_mib=$10, notes=$11, attributes=$12,
+			address=$8, cpu=$9, memory_mib=$10, notes=$11, room_id=NULLIF($12,0),
 			group_id=NULLIF($13,0), version=version+1, updated_at=$14,
 			probe_status=CASE WHEN address IS DISTINCT FROM $8 OR probe_enabled IS DISTINCT FROM $15 OR lifecycle IS DISTINCT FROM $5 THEN 'unknown' ELSE probe_status END,
 			probe_checked_at=CASE WHEN address IS DISTINCT FROM $8 OR probe_enabled IS DISTINCT FROM $15 OR lifecycle IS DISTINCT FROM $5 THEN NULL ELSE probe_checked_at END,
 			probe_enabled=$15
 		WHERE id=$1 RETURNING `+assetColumns, id, fields.Name, fields.Platform, fields.Status,
 		fields.Lifecycle, fields.Owner, fields.Environment, fields.Address, fields.CPU, fields.MemoryMiB,
-		fields.Notes, string(fields.Attributes), fields.GroupID, nowText(), fields.ProbeEnabled))
+		fields.Notes, fields.RoomID, fields.GroupID, nowText(), fields.ProbeEnabled))
 	if err != nil {
 		return Asset{}, err
 	}
@@ -246,11 +254,11 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 func createAsset(ctx context.Context, tx *sql.Tx, fields Fields, actor string) (Asset, error) {
 	asset, err := readAsset(tx.QueryRowContext(ctx, `
 		INSERT INTO assets (kind, name, platform, status, lifecycle, owner, environment, address,
-			cpu, memory_mib, notes, attributes, group_id, updated_at, probe_enabled)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NULLIF($13,0),$14,$15) RETURNING `+assetColumns,
+			cpu, memory_mib, notes, room_id, group_id, updated_at, probe_enabled)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULLIF($12,0),NULLIF($13,0),$14,$15) RETURNING `+assetColumns,
 		fields.Kind, fields.Name, fields.Platform, fields.Status, fields.Lifecycle, fields.Owner,
 		fields.Environment, fields.Address, fields.CPU, fields.MemoryMiB, fields.Notes,
-		string(fields.Attributes), fields.GroupID, nowText(), fields.ProbeEnabled))
+		fields.RoomID, fields.GroupID, nowText(), fields.ProbeEnabled))
 	if err != nil {
 		return Asset{}, err
 	}

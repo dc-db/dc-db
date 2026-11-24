@@ -99,14 +99,13 @@ func searchAssets(ctx context.Context, db *sql.DB, query, pattern, prefix string
 		   OR lower(address) LIKE $2 ESCAPE '\'
 		   OR lower(owner) LIKE $3 ESCAPE '\'
 		   OR lower(notes) LIKE $4 ESCAPE '\'
-		   OR lower(attributes) LIKE $5 ESCAPE '\'
 		ORDER BY CASE
-			WHEN lower(name) = $6 THEN 0
-			WHEN lower(name) LIKE $7 ESCAPE '\' THEN 1
+			WHEN lower(name) = $5 THEN 0
+			WHEN lower(name) LIKE $6 ESCAPE '\' THEN 1
 			ELSE 2
 		END, lower(name)
-		LIMIT $8`,
-		pattern, pattern, pattern, pattern, pattern,
+		LIMIT $7`,
+		pattern, pattern, pattern, pattern,
 		strings.ToLower(query), prefix, searchPerType,
 	)
 	if err != nil {

@@ -10,10 +10,7 @@ import (
 )
 
 type ServiceInstance struct {
-	Name    string `json:"name"`
-	Port    int    `json:"port"`
-	Version string `json:"version"`
-	Notes   string `json:"notes"`
+	Name string `json:"name"`
 }
 
 func validateServiceInstances(kind string, entries *[]ServiceInstance) error {
@@ -29,10 +26,8 @@ func validateServiceInstances(kind string, entries *[]ServiceInstance) error {
 	for i := range *entries {
 		e := &(*entries)[i]
 		e.Name = strings.TrimSpace(e.Name)
-		e.Version = strings.TrimSpace(e.Version)
-		e.Notes = strings.TrimSpace(e.Notes)
-		if e.Name == "" || utf8.RuneCountInString(e.Name) > 120 || e.Port < 0 || e.Port > 65535 || utf8.RuneCountInString(e.Version) > 100 || utf8.RuneCountInString(e.Notes) > 500 {
-			return fmt.Errorf("%w: 服务名称、端口、版本或备注无效", ErrInvalid)
+		if e.Name == "" || utf8.RuneCountInString(e.Name) > 120 {
+			return fmt.Errorf("%w: 服务名称无效", ErrInvalid)
 		}
 	}
 	return nil
@@ -41,14 +36,14 @@ func replaceAssetServices(ctx context.Context, tx *sql.Tx, assetID int64, entrie
 	if entries == nil {
 		return false, nil
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT name,port,version,notes FROM asset_service_instances WHERE asset_id=$1 ORDER BY id", assetID)
+	rows, err := tx.QueryContext(ctx, "SELECT name FROM asset_service_instances WHERE asset_id=$1 ORDER BY id", assetID)
 	if err != nil {
 		return false, err
 	}
 	before := []ServiceInstance{}
 	for rows.Next() {
 		var e ServiceInstance
-		if err := rows.Scan(&e.Name, &e.Port, &e.Version, &e.Notes); err != nil {
+		if err := rows.Scan(&e.Name); err != nil {
 			rows.Close()
 			return false, err
 		}
@@ -66,7 +61,7 @@ func replaceAssetServices(ctx context.Context, tx *sql.Tx, assetID int64, entrie
 		return false, err
 	}
 	for _, e := range *entries {
-		if _, err := tx.ExecContext(ctx, "INSERT INTO asset_service_instances (asset_id,name,port,version,notes) VALUES ($1,$2,$3,$4,$5)", assetID, e.Name, e.Port, e.Version, e.Notes); err != nil {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO asset_service_instances (asset_id,name) VALUES ($1,$2)", assetID, e.Name); err != nil {
 			return false, err
 		}
 	}

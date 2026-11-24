@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/csv"
-	"encoding/json"
 	"errors"
 	"os"
 	"strings"
@@ -42,7 +41,6 @@ func testDB(t *testing.T) *sql.DB {
 func baseFields(kind, name string) Fields {
 	return Fields{
 		Kind: kind, Name: name, Status: "unknown", Lifecycle: "active",
-		Attributes: json.RawMessage(`{}`),
 	}
 }
 
@@ -52,7 +50,7 @@ func TestAssetLifecycle(t *testing.T) {
 
 	fields := Fields{
 		Kind: "host", Name: "lab-host-01", Status: "online", Lifecycle: "active",
-		CPU: 8, MemoryMiB: 16384, Attributes: json.RawMessage(`{"rack":"A"}`),
+		CPU: 8, MemoryMiB: 16384,
 	}
 	asset, err := SaveAsset(ctx, db, 0, 0, fields, "tester")
 	if err != nil {
@@ -60,9 +58,6 @@ func TestAssetLifecycle(t *testing.T) {
 	}
 	if asset.ID == 0 || asset.Version != 1 || asset.CreatedAt == nil || asset.CreatedAt.IsZero() || asset.UpdatedAt.IsZero() {
 		t.Fatalf("unexpected created asset: %+v", asset)
-	}
-	if string(asset.Attributes) != `{"rack":"A"}` {
-		t.Fatalf("attributes = %s", asset.Attributes)
 	}
 
 	assets, err := ListAssets(ctx, db)
@@ -73,12 +68,11 @@ func TestAssetLifecycle(t *testing.T) {
 	update := asset.Fields
 	update.Owner = "ops"
 	update.Notes = "updated"
-	update.Attributes = json.RawMessage(`{"rack":"B"}`)
 	updated, err := SaveAsset(ctx, db, asset.ID, asset.Version, update, "tester")
 	if err != nil {
 		t.Fatalf("update asset: %v", err)
 	}
-	if updated.Version != 2 || updated.Owner != "ops" || string(updated.Attributes) != `{"rack":"B"}` {
+	if updated.Version != 2 || updated.Owner != "ops" {
 		t.Fatalf("unexpected updated asset: %+v", updated)
 	}
 	if updated.CreatedAt == nil || !updated.CreatedAt.Equal(*asset.CreatedAt) {
@@ -201,14 +195,14 @@ func TestImportAssets(t *testing.T) {
 
 	var buf bytes.Buffer
 	writer := csv.NewWriter(&buf)
-	header := []string{"资源名称", "类型", "平台", "状态", "生命周期", "地址 / IP", "CPU", "内存 MiB", "负责人", "环境", "备注", "扩展属性"}
+	header := []string{"资源名称", "类型", "平台", "状态", "生命周期", "地址 / IP", "CPU", "内存 MiB", "负责人", "环境", "备注"}
 	if err := writer.Write(header); err != nil {
 		t.Fatal(err)
 	}
-	if err := writer.Write([]string{"lab-vm-01", "虚拟机", "KVM", "运行中", "在册", "192.0.2.10", "4", "8192", "运维组", "测试", "导入测试", `{"位置":"A01"}`}); err != nil {
+	if err := writer.Write([]string{"lab-vm-01", "虚拟机", "KVM", "运行中", "在册", "192.0.2.10", "4", "8192", "运维组", "测试", "导入测试"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := writer.Write([]string{"lab-host-01", "物理机", "", "在线", "在册", "192.0.2.11", "16", "65536", "", "", "", ""}); err != nil {
+	if err := writer.Write([]string{"lab-host-01", "物理机", "", "在线", "在册", "192.0.2.11", "16", "65536", "", "", ""}); err != nil {
 		t.Fatal(err)
 	}
 	writer.Flush()
@@ -233,9 +227,6 @@ func TestImportAssets(t *testing.T) {
 	}
 	if vm.Kind != "vm" || vm.Platform != "kvm" || vm.Status != "running" || vm.CPU != 4 || vm.MemoryMiB != 8192 {
 		t.Fatalf("unexpected imported vm: %+v", vm)
-	}
-	if string(vm.Attributes) != `{"位置":"A01"}` {
-		t.Fatalf("attributes = %s", vm.Attributes)
 	}
 
 	if _, err := ImportAssets(ctx, db, bytes.NewReader(withBOM), "tester"); !errors.Is(err, ErrInvalid) {

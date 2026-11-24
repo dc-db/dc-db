@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/csv"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -42,7 +41,6 @@ var importHeaderAliases = map[string]string{
 	"负责人": "owner", "owner": "owner",
 	"环境": "environment", "environment": "environment",
 	"备注": "notes", "notes": "notes",
-	"扩展属性": "attributes", "属性": "attributes", "attributes": "attributes",
 }
 
 var importKinds = map[string]string{
@@ -389,18 +387,10 @@ func decodeImportRow(record []string, columns map[string]int, rowNumber int) (Fi
 	if err != nil {
 		return Fields{}, err
 	}
-	attributes := value("attributes")
-	if attributes == "" {
-		attributes = "{}"
-	}
-	if !json.Valid([]byte(attributes)) || !strings.HasPrefix(attributes, "{") {
-		return Fields{}, importRowError(rowNumber, "扩展属性须为 JSON 对象，例如 {\"位置\":\"A01\"}")
-	}
-
 	fields := Fields{
 		Kind: kind, Name: name, Platform: platform, Status: status, Lifecycle: lifecycle,
 		Owner: value("owner"), Environment: value("environment"), Address: value("address"),
-		CPU: int(cpu), MemoryMiB: memory, Notes: value("notes"), Attributes: json.RawMessage(attributes),
+		CPU: int(cpu), MemoryMiB: memory, Notes: value("notes"),
 	}
 	if err := validateFields(&fields); err != nil {
 		return Fields{}, importRowError(rowNumber, "%s", err)
