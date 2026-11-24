@@ -5,7 +5,7 @@ import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { UsageBar } from './UsageBar'
 import type { EChartsOption } from 'echarts'
-import type { Asset, Change, Subnet, Tag } from '../api'
+import type { Asset, Change, Subnet } from '../api'
 import type { Facilities } from '../facilities'
 import { isNetworkKind, KIND_LABELS, KIND_SHORT_LABELS, kindLabel, NETWORK_KINDS } from '../kinds'
 import type { Page } from '../types'
@@ -21,7 +21,6 @@ interface Props {
   bookmarks: number[]
   rackBookmarks: number[]
   subnetBookmarks: number[]
-  tags: Tag[]
   dark: boolean
   onGo: (page: Page) => void
   onOpenAsset: (id: number) => void
@@ -50,7 +49,7 @@ function Empty({ description }: { description: string }) {
   return <div className="p-6 text-center text-sm text-muted-foreground">{description}</div>
 }
 
-export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rackBookmarks, subnetBookmarks, tags, dark, onGo, onOpenAsset, onOpenRack, onOpenSubnet }: Props) {
+export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rackBookmarks, subnetBookmarks, dark, onGo, onOpenAsset, onOpenRack, onOpenSubnet }: Props) {
   const stats = useMemo(() => {
     const active = assets.filter(asset => asset.lifecycle === 'active')
     const hosts = active.filter(asset => asset.kind === 'host')
@@ -191,40 +190,6 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
     }
   }, [dark, subnets])
 
-  const tagOption = useMemo<EChartsOption>(() => {
-    const top = tags
-      .filter(tag => (tag.assetCount ?? 0) > 0)
-      .sort((left, right) => (right.assetCount ?? 0) - (left.assetCount ?? 0))
-      .slice(0, 8)
-      .reverse()
-    return {
-      tooltip: {
-        trigger: 'axis', axisPointer: { type: 'shadow' },
-        backgroundColor: dark ? '#171717' : '#ffffff',
-        borderColor: dark ? '#262626' : '#e5e5e5',
-        textStyle: { color: dark ? '#fafafa' : '#0a0a0a' },
-      },
-      grid: { left: 8, right: 34, bottom: 8, top: 10, containLabel: true },
-      xAxis: {
-        type: 'value', minInterval: 1,
-        axisLabel: { color: dark ? '#a1a1a1' : '#737373' },
-        splitLine: { lineStyle: { color: dark ? '#262626' : '#e5e5e5' } },
-      },
-      yAxis: {
-        type: 'category', data: top.map(tag => tag.name),
-        axisLabel: { color: dark ? '#a1a1a1' : '#737373' },
-      },
-      series: [{
-        type: 'bar', barMaxWidth: 18,
-        label: { show: true, position: 'right', color: dark ? '#a1a1a1' : '#0a0a0a' },
-        data: top.map(tag => ({
-          value: tag.assetCount ?? 0,
-          itemStyle: { color: tag.color, borderRadius: [0, 4, 4, 0] },
-        })),
-      }],
-    }
-  }, [dark, tags])
-
   const ipPercent = stats.usable ? Math.round(stats.used / stats.usable * 100) : 0
 
   return (
@@ -266,7 +231,7 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
       </div>
 
       <div className="dashboard-section grid grid-cols-12 gap-4">
-        <div className="col-span-7 min-w-0">
+        <div className="col-span-12 min-w-0">
           <DashboardCard title={`我的收藏${favoriteCount ? ` (${favoriteCount})` : ''}`}>
             {favoriteCount ? (
               <>
@@ -320,16 +285,6 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
             ) : (
               <div className="bookmark-empty"><Star size="1em" aria-hidden="true" /> 在资产、机柜或网段详情点击星标，收藏常用对象。</div>
             )}
-          </DashboardCard>
-        </div>
-        <div className="col-span-5 min-w-0">
-          <DashboardCard
-            title="标签使用"
-            extra={<Button variant="link" size="sm" onClick={() => onGo('tags')}>管理标签</Button>}
-          >
-            {tags.some(tag => (tag.assetCount ?? 0) > 0)
-              ? <Chart option={tagOption} height={220} dark={dark} />
-              : <div className="dashboard-chart-empty"><Empty description="暂无标签数据" /></div>}
           </DashboardCard>
         </div>
       </div>

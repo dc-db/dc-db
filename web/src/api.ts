@@ -48,7 +48,6 @@ export interface Asset extends AssetFields {
   version: number
   createdAt: string | null
   updatedAt: string
-  tags?: Tag[]
 }
 
 export interface Link {
@@ -171,7 +170,7 @@ export interface Change {
   createdAt: string
 }
 
-export type SearchResultType = 'asset' | 'tag' | 'room' | 'rack' | 'subnet' | 'vlan' | 'ip'
+export type SearchResultType = 'asset' | 'room' | 'rack' | 'subnet' | 'vlan' | 'ip'
 
 export interface ImportPreviewRow {
   row: number
@@ -186,7 +185,6 @@ export interface ImportPreviewRow {
   owner: string
   environment: string
   notes: string
-  tags: string[]
 }
 
 export interface ImportRowError {
@@ -238,20 +236,6 @@ export interface MetadataEntry extends MetadataFields {
   assetCount?: number
 }
 
-export interface Tag {
-  id: number
-  name: string
-  color: string
-  description: string
-  assetCount?: number
-}
-
-export interface TagFields {
-  name: string
-  color: string
-  description: string
-}
-
 export interface SearchResult {
   type: SearchResultType
   id: number
@@ -265,8 +249,6 @@ export interface SearchResult {
   rackId?: number
   subnetId?: number
   vlanId?: number
-  tagId?: number
-  color?: string
 }
 
 export type Role = 'admin' | 'operator' | 'viewer'

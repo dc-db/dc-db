@@ -16,7 +16,7 @@ interface Props {
 
 const actionLabels: Record<string, string> = {
   create: '创建', update: '编辑', discover: '自动发现', sync: '配置同步', move: '宿主机变更',
-  tags: '标签变更', service_assets: '服务关联变更', 'probe.settings': '存活探测设置',
+  service_assets: '服务关联变更', 'probe.settings': '存活探测设置',
   missing: '连续未发现', link: '关联资源', unlink: '解除关系',
   room_create: '新增数据中心', room_update: '编辑数据中心', room_delete: '删除数据中心',
   rack_create: '新增机柜', rack_update: '编辑机柜', rack_delete: '删除机柜',
@@ -32,7 +32,7 @@ const fieldLabels: Record<string, string> = {
   environment: '环境', address: '地址', cpu: 'CPU', memoryMiB: '内存（MiB）', notes: '备注',
   attributes: '扩展属性', observed: '采集信息', missingCount: '缺失次数',
   heightU: '机柜高度（U）',
-  cidr: 'CIDR', gateway: '网关', vlan: 'VLAN', ip: 'IP 地址', assetId: '关联资产', label: '标签',
+  cidr: 'CIDR', gateway: '网关', vlan: 'VLAN', ip: 'IP 地址', assetId: '关联资产', label: '用途',
   role: '角色', dnsName: 'DNS 名称', vid: 'VLAN ID', description: '描述', roomId: '所属数据中心',
   face: '安装面', depth: '安装深度', passwordReset: '重置密码',
 }
@@ -40,7 +40,7 @@ const userRoleLabels: Record<string, string> = { admin: '管理员', operator: '
 const relationLabels: Record<string, string> = { hosts: '承载' }
 
 function summary(change: Change) {
-  if (change.action === 'tags' || change.action === 'service_assets') {
+  if (change.action === 'service_assets') {
     const before = Array.isArray(change.before) ? change.before.map(String) : []
     const after = Array.isArray(change.after) ? change.after.map(String) : []
     const added = after.filter(name => !before.includes(name))
@@ -48,7 +48,7 @@ function summary(change: Change) {
     return [
       added.length ? `新增：${added.join('、')}` : '',
       removed.length ? `移除：${removed.join('、')}` : '',
-    ].filter(Boolean).join(' · ') || (change.action === 'tags' ? '标签未变化' : '关联未变化')
+    ].filter(Boolean).join(' · ') || '关联未变化'
   }
   if (change.action === 'move') return String(change.before?.fromName ?? '—') + ' → ' + String(change.after?.fromName ?? '—')
   if (change.action === 'link' || change.action === 'unlink') {

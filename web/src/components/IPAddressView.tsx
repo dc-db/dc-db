@@ -134,7 +134,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
   const table = useReactTable({ data: visible, columns, state: { sorting }, onSortingChange: setSorting, initialState: { pagination: { pageIndex: 0, pageSize: 20 } }, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getPaginationRowModel: getPaginationRowModel() })
   function exportCSV() {
     downloadCSV('dc-db-ip-addresses.csv', [
-      ['IP 地址', '来源', '状态', 'DNS 名称', '角色', '网段', '资产', '标签', '备注'],
+      ['IP 地址', '来源', '状态', 'DNS 名称', '角色', '网段', '资产', '用途', '备注'],
       ...visible.map(item => [
         item.ip, sourceMeta[item.source] ?? item.source,
         stateMeta[item.state] ?? item.state, item.dnsName ?? '', item.role ?? '',
@@ -194,7 +194,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       <div className="space-y-2"><label htmlFor="address-role" className="text-sm font-medium">角色</label><select id="address-role" className={selectClass} value={fields.role} onChange={event => setFields({ ...fields, role: event.target.value })}><option value="">可选</option>{Object.entries(roleLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
       <div className="space-y-2"><label htmlFor="address-dns" className="text-sm font-medium">DNS 名称</label><Input id="address-dns" className="font-mono" maxLength={255} placeholder="例如：db-01.example.test" value={fields.dnsName} onChange={event => setFields({ ...fields, dnsName: event.target.value })} /></div>
       <div className="space-y-2"><span className="text-sm font-medium">关联资产</span><SearchableSelect label="关联资产" placeholder="可选" value={fields.assetId ? String(fields.assetId) : ''} onChange={value => setFields({ ...fields, assetId: Number(value) || undefined })} options={assets.map(asset => ({ value: String(asset.id), label: assetLabel(asset) }))} /></div>
-      <div className="col-span-2 space-y-2"><label htmlFor="address-label" className="text-sm font-medium">用途 / 标签</label><Input id="address-label" maxLength={160} placeholder="例如：VIP、数据库主地址" value={fields.label} onChange={event => setFields({ ...fields, label: event.target.value })} /></div>
+      <div className="col-span-2 space-y-2"><label htmlFor="address-label" className="text-sm font-medium">用途</label><Input id="address-label" maxLength={160} placeholder="例如：VIP、数据库主地址" value={fields.label} onChange={event => setFields({ ...fields, label: event.target.value })} /></div>
       <div className="col-span-2 space-y-2"><label htmlFor="address-notes" className="text-sm font-medium">备注</label><Textarea id="address-notes" rows={2} maxLength={2000} placeholder="可选" value={fields.notes} onChange={event => setFields({ ...fields, notes: event.target.value })} /></div>
     </div><DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={() => setModalOpen(false)}>取消</Button><Button type="submit" disabled={busy}>{busy ? '保存中...' : '保存'}</Button></DialogFooter></form></DialogContent></Dialog>
     <Dialog open={!!releasing} onOpenChange={next => { if (!next && !busy) setReleasing(null) }}><DialogContent><DialogHeader><DialogTitle>释放该 IP？</DialogTitle><DialogDescription>确认释放 {releasing?.ip}。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setReleasing(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (releasing) void release(releasing) }}>释放</Button></DialogFooter></DialogContent></Dialog>

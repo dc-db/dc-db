@@ -13,14 +13,12 @@ interface Props {
   onIpam: () => void
   onIPAddress: () => void
   onVLAN: () => void
-  onTag: () => void
 }
 
 const typeMeta: Record<SearchResultType, { label: string; icon: ReactNode }> = {
   asset: { label: '资产', icon: <Server size={15} /> },
   room: { label: '数据中心', icon: <Building2 size={15} /> },
   rack: { label: '机柜', icon: <Network size={15} /> },
-  tag: { label: '标签', icon: <Tags size={15} /> },
   subnet: { label: '网段', icon: <Globe size={15} /> },
   vlan: { label: 'VLAN', icon: <Tags size={15} /> },
   ip: { label: 'IP 地址', icon: <Crosshair size={15} /> },
@@ -30,9 +28,9 @@ const statusLabels: Record<string, string> = {
   online: '在线', offline: '离线', running: '运行中', stopped: '已停止', paused: '已暂停', unknown: '未知',
 }
 
-const typeOrder: SearchResultType[] = ['asset', 'tag', 'ip', 'room', 'rack', 'subnet', 'vlan']
+const typeOrder: SearchResultType[] = ['asset', 'ip', 'room', 'rack', 'subnet', 'vlan']
 
-export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onVLAN, onTag }: Props) {
+export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onVLAN }: Props) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -128,7 +126,6 @@ export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onV
     if (result.type === 'asset') onAsset(result.assetId ?? result.id)
     else if (result.type === 'room' && result.roomId) onRoom(result.roomId)
     else if (result.type === 'rack' && result.roomId && result.rackId) onRack(result.roomId, result.rackId)
-    else if (result.type === 'tag') onTag()
     else if (result.type === 'vlan') onVLAN()
     else if (result.type === 'ip') onIPAddress()
     else onIpam()

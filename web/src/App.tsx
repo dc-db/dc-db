@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   Alert, App as UIApp, Button, Card, Checkbox, ConfigProvider, Descriptions,
-  Dropdown, Empty, Form, Input, Layout, List, Menu, Modal, Popover, Radio, Select,
+  Dropdown, Empty, Form, Input, Layout, List, Menu, Modal, Popover, Select,
   Space, Spin, Table, Tabs, Tag, Tooltip, Upload, theme,
 } from './components/AppControls'
 import type { TableColumnsType } from './components/AppControls'
@@ -11,13 +11,13 @@ import {
   Building2 as BuildingOutlined, BookOpen as BookOpenOutlined, Server as CloudServerOutlined,
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
   House as HomeOutlined, ArrowLeft as ArrowLeftOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
-  Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Tags as TagsOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
+  Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
   Network as NetworkOutlined, Split as SplitOutlined, LocateFixed as LocateFixedOutlined,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
 import { formatDateTime } from './lib/date'
 import { downloadCSV } from './csv'
-import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, NetworkKind, Service, Subnet, Tag as TagItem, User, VLAN } from './api'
+import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, NetworkKind, Service, Subnet, User, VLAN } from './api'
 import { assetLocations, assetRoomId, buildRoomCounts, locationLabel, matchesRoomFilter } from './facilities'
 import type { AssetLocation, Facilities } from './facilities'
 import { isNetworkKind, KIND_LABELS, kindLabel, NETWORK_KINDS } from './kinds'
@@ -37,14 +37,13 @@ import { IPAddressView } from './components/IPAddressView'
 import { IpamView } from './components/IpamView'
 import { LoginBackdrop } from './components/LoginBackdrop'
 import {
-  AssetKindIcon, GroupClusterIcon, NetworkDeviceIcon, OperatorTowerIcon, OwnerBadgeIcon, ReferenceDataIcon, ServiceNodeIcon, TagMarkIcon,
+  AssetKindIcon, GroupClusterIcon, NetworkDeviceIcon, OperatorTowerIcon, OwnerBadgeIcon, ReferenceDataIcon, ServiceNodeIcon,
 } from './components/MetadataIcons'
 import { MetadataManager } from './components/MetadataManager'
 import { SubnetDetailView, VLANDetailView } from './components/NetworkDetailViews'
 import { PageHeader } from './components/PageHeader'
 import { ServiceIcon } from './components/ServiceIcon'
 import { ServiceManager } from './components/ServiceManager'
-import { TagManager } from './components/TagManager'
 import { UserManager } from './components/UserManager'
 import { ProbeSettings } from './components/ProbeSettings'
 import { VLANView } from './components/VLANView'
@@ -67,10 +66,10 @@ const relations: { kind: LinkKind; from: Kind; to: Kind[]; outgoing: string; inc
   { kind: 'hosts', from: 'host', to: ['vm'], outgoing: '承载虚拟机', incoming: '所在宿主机' },
 ]
 const defaultPageSize = 10
-const defaultAssetColumns = ['name', 'capacity', 'address', 'platform', 'meta', 'services', 'tags', 'notes']
-const defaultHostColumns = ['name', 'capacity', 'address', 'services', 'tags', 'notes']
-const defaultNetworkDeviceColumns = ['name', 'kind', 'tags', 'address', 'owner']
-const assetColumnKeys = ['name', 'capacity', 'kind', 'address', 'platform', 'meta', 'services', 'tags', 'group', 'owner', 'environment', 'notes', 'created', 'updated']
+const defaultAssetColumns = ['name', 'capacity', 'address', 'platform', 'meta', 'services', 'notes']
+const defaultHostColumns = ['name', 'capacity', 'address', 'services', 'notes']
+const defaultNetworkDeviceColumns = ['name', 'kind', 'address', 'owner']
+const assetColumnKeys = ['name', 'capacity', 'kind', 'address', 'platform', 'meta', 'services', 'group', 'owner', 'environment', 'notes', 'created', 'updated']
 
 
 function platformLabel(asset: Pick<Asset, 'platform'>) {
@@ -95,7 +94,7 @@ function messageText(error: unknown) {
   return error instanceof Error ? error.message : '操作失败'
 }
 
-const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'network_devices', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'password', 'tags', 'groups', 'services', 'owners', 'users', 'probe_settings', 'guide']
+const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'network_devices', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'password', 'groups', 'services', 'owners', 'users', 'probe_settings', 'guide']
 
 function readPageParam(): Page {
   const params = new URLSearchParams(window.location.search)
@@ -227,8 +226,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [roomFilter, setRoomFilter] = useState<RoomFilter>('all')
   const [networkKindFilter, setNetworkKindFilter] = useState<'' | NetworkKind>('')
   const [platformFilter, setPlatformFilter] = useState<string | undefined>()
-  const [tagFilter, setTagFilter] = useState<number[]>([])
-  const [tagFilterMode, setTagFilterMode] = useState<'all' | 'any'>('all')
   const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultAssetColumns)
   const [pagination, setPagination] = useState(1)
   const [pageSize, setPageSize] = useState(() => {
@@ -253,8 +250,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const restoredAssetRef = useRef(false)
   const [assetTab, setAssetTab] = useState('overview')
   const [assetChanges, setAssetChanges] = useState<Change[]>([])
-  const [assetTags, setAssetTags] = useState<TagItem[]>([])
-  const [allTags, setAllTags] = useState<TagItem[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [services, setServices] = useState<Service[]>([])
   const [serviceAsset, setServiceAsset] = useState<Asset | null>(null)
@@ -295,10 +290,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       return []
     }
   })
-  const [tagOpen, setTagOpen] = useState(false)
-  const [tagSaving, setTagSaving] = useState(false)
-  const [tagError, setTagError] = useState('')
-  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
   const [showRelationForm, setShowRelationForm] = useState(false)
   const [relationChoice, setRelationChoice] = useState('')
   const [relationTarget, setRelationTarget] = useState(0)
@@ -308,11 +299,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [bulkSaving, setBulkSaving] = useState(false)
   const [bulkError, setBulkError] = useState('')
   const [bulkForm] = Form.useForm()
-  const [bulkTagOpen, setBulkTagOpen] = useState(false)
-  const [bulkTagMode, setBulkTagMode] = useState<'add' | 'remove' | 'replace'>('add')
-  const [bulkTagIds, setBulkTagIds] = useState<number[]>([])
-  const [bulkTagSaving, setBulkTagSaving] = useState(false)
-  const [bulkTagError, setBulkTagError] = useState('')
 
   const systemChildren: NavLeaf[] = [
     { key: 'changes', label: '变更记录', icon: <HistoryOutlined /> },
@@ -342,7 +328,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       key: 'reference', label: '基础数据', icon: <ReferenceDataIcon />,
       children: [
         { key: 'groups', label: '群组', icon: <GroupClusterIcon /> },
-        { key: 'tags', label: '标签', icon: <TagMarkIcon /> },
         { key: 'owners', label: '负责人', icon: <OwnerBadgeIcon /> },
       ],
     },
@@ -386,17 +371,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       if (!matchesRoomFilter(assetRoomId(asset, locations, byId, links), roomFilter)) return false
       if (page === 'network_devices' && networkKindFilter && asset.kind !== networkKindFilter) return false
       if (page === 'vm' && platformFilter && asset.platform !== platformFilter) return false
-      if (tagFilter.length) {
-        const match = tagFilterMode === 'any'
-          ? tagFilter.some(id => asset.tags?.some(tag => tag.id === id))
-          : tagFilter.every(id => asset.tags?.some(tag => tag.id === id))
-        if (!match) return false
-      }
-
-      return !query || [asset.name, asset.address, asset.owner, asset.environment, ...(asset.tags?.map(tag => tag.name) ?? []), ...(vmRelations.get(asset.id) ?? [])]
+      return !query || [asset.name, asset.address, asset.owner, asset.environment, ...(vmRelations.get(asset.id) ?? [])]
         .some(value => value?.toLowerCase().includes(query))
     })
-  }, [scoped, byId, links, locations, roomFilter, page, networkKindFilter, platformFilter, tagFilter, tagFilterMode, keyword, vmRelations])
+  }, [scoped, byId, links, locations, roomFilter, page, networkKindFilter, platformFilter, keyword, vmRelations])
 
   const relationOptions = useMemo(() => {
     if (!selected) return []
@@ -470,7 +448,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   useEffect(() => {
     setSelectedAssetIds([])
-  }, [page, keyword, roomFilter, networkKindFilter, platformFilter, tagFilter, tagFilterMode])
+  }, [page, keyword, roomFilter, networkKindFilter, platformFilter])
 
   useEffect(() => {
     if (!assetPage) return
@@ -526,9 +504,9 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setBusy(true)
     setError('')
     try {
-      const [nextAssets, nextLinks, nextChanges, nextFacilities, nextSubnets, nextTags, nextGroups, nextServices, nextOwners] = await Promise.all([
+      const [nextAssets, nextLinks, nextChanges, nextFacilities, nextSubnets, nextGroups, nextServices, nextOwners] = await Promise.all([
         api<Asset[]>('/assets'), api<Link[]>('/links'), api<Change[]>('/changes'),
-        api<Facilities>('/facilities'), api<Subnet[]>('/subnets'), api<TagItem[]>('/tags'), api<Group[]>('/groups'),
+        api<Facilities>('/facilities'), api<Subnet[]>('/subnets'), api<Group[]>('/groups'),
         api<Service[]>('/services'), api<{ name: string }[]>('/metadata?kind=owner'),
       ])
       setAssets(nextAssets)
@@ -536,7 +514,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       setChanges(nextChanges)
       setFacilities(nextFacilities)
       setSubnets(nextSubnets)
-      setAllTags(nextTags)
       setGroups(nextGroups)
       setServices(nextServices)
       setOwners(nextOwners.map(item => item.name))
@@ -578,8 +555,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       setImportPreview(null)
       setPendingImport(null)
       setBulkOpen(false)
-      setBulkTagOpen(false)
-      setTagOpen(false)
       setSelectedAssetIds([])
       void loadCaptcha()
     }
@@ -675,8 +650,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setKeyword('')
     setNetworkKindFilter('')
     setPlatformFilter(undefined)
-    setTagFilter([])
-    setTagFilterMode('all')
     setPagination(1)
     setFacilityFocus(null)
   }
@@ -699,8 +672,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setKeyword('')
     setNetworkKindFilter('')
     setPlatformFilter(undefined)
-    setTagFilter([])
-    setTagFilterMode('all')
     setPagination(1)
   }
 
@@ -732,7 +703,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   async function openAsset(id: number) {
     setSelectedId(id)
     setAssetChanges([])
-    setAssetTags([])
     setAssetTab('overview')
     setEditor(false)
     setDrawerError('')
@@ -741,12 +711,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     scrollContentViewTop()
     syncAssetParam(id)
     try {
-      const [changes, tags] = await Promise.all([
-        api<Change[]>('/changes?assetId=' + id),
-        api<TagItem[]>('/assets/' + id + '/tags'),
-      ])
+      const changes = await api<Change[]>('/changes?assetId=' + id)
       setAssetChanges(changes)
-      setAssetTags(tags)
     } catch (e) {
       handleError(e, true)
     }
@@ -754,7 +720,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   function startNew(kind?: Kind) {
     setSelectedId(null)
-    setAssetTags([])
     setNewKind(kind ?? (page === 'vm' ? 'vm' : page === 'network_devices' ? (networkKindFilter || 'switch') : 'host'))
     setEditor(true)
     setDrawerError('')
@@ -817,35 +782,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setPage('subnets')
   }
 
-  function openBulkTags() {
-    setBulkTagError('')
-    setBulkTagMode('add')
-    setBulkTagIds([])
-    setBulkTagOpen(true)
-  }
-
-  async function saveBulkTags() {
-    if (bulkTagMode !== 'replace' && bulkTagIds.length === 0) {
-      setBulkTagError('请选择要处理的标签')
-      return
-    }
-    setBulkTagSaving(true)
-    setBulkTagError('')
-    try {
-      const result = await api<{ updated: number }>('/assets/bulk/tags', 'POST', {
-        ids: selectedAssetIds, tagIds: bulkTagIds, mode: bulkTagMode,
-      })
-      await loadAll()
-      setSelectedAssetIds([])
-      setBulkTagOpen(false)
-      void message.success(`已更新 ${result.updated} 条资产的标签`)
-    } catch (e) {
-      setBulkTagError(messageText(e))
-    } finally {
-      setBulkTagSaving(false)
-    }
-  }
-
   async function saveBulkEdit(values: { platform?: string; lifecycle?: string; owner?: string; environment?: string }) {
     setBulkSaving(true)
     setBulkError('')
@@ -870,35 +806,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       setBulkError(messageText(e))
     } finally {
       setBulkSaving(false)
-    }
-  }
-
-  async function openTagEditor() {
-    if (!selectedId || !selected) return
-    setTagError('')
-    try {
-      setAllTags(await api<TagItem[]>('/tags'))
-      setSelectedTagIds(assetTags.map(tag => tag.id))
-      setTagOpen(true)
-    } catch (e) {
-      handleError(e, true)
-    }
-  }
-
-  async function saveAssetTags() {
-    if (!selectedId) return
-    setTagSaving(true)
-    setTagError('')
-    try {
-      const tags = await api<TagItem[]>('/assets/' + selectedId + '/tags', 'PUT', { tagIds: selectedTagIds })
-      setAssetTags(tags)
-      setTagOpen(false)
-      await loadAll()
-      void message.success('标签已更新')
-    } catch (e) {
-      setTagError(messageText(e))
-    } finally {
-      setTagSaving(false)
     }
   }
 
@@ -981,14 +888,13 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   function exportCSV() {
     const rows: (string | number)[][] = [[
-      '资源名称', '类型', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '负责人', '环境', '备注', '扩展属性', '标签',
+      '资源名称', '类型', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '负责人', '环境', '备注', '扩展属性',
     ]]
     for (const asset of filtered) {
       rows.push([
         asset.name, kindLabel(asset.kind), platformLabel(asset), statusOf(asset).label,
         asset.lifecycle === 'retired' ? '已退役' : '在册', asset.address, asset.cpu, asset.memoryMiB,
         asset.owner, asset.environment, asset.notes, JSON.stringify(asset.attributes),
-        asset.tags?.map(tag => tag.name).join('; ') ?? '',
       ])
     }
     downloadCSV('dc-db-assets.csv', rows)
@@ -996,7 +902,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   function downloadTemplate() {
     downloadCSV('dc-db-import-template.csv', [[
-      '资源名称', '类型', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '负责人', '环境', '备注', '扩展属性', '标签',
+      '资源名称', '类型', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '负责人', '环境', '备注', '扩展属性',
     ]])
   }
 
@@ -1082,25 +988,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       },
     },
     {
-      key: 'tags', label: '标签',
-      column: {
-        title: '标签', key: 'tags', width: 180,
-        sorter: (left, right) => (left.tags?.map(tag => tag.name).join(' ') ?? '').localeCompare(right.tags?.map(tag => tag.name).join(' ') ?? '', 'zh-CN'),
-        render: (_, asset) => asset.tags?.length
-          ? (
-              <Space size={2} wrap>
-                {asset.tags.slice(0, 3).map(tag => <Tag key={tag.id} color={tag.color}>{tag.name}</Tag>)}
-                {asset.tags.length > 3 && (
-                  <Tooltip title={asset.tags.slice(3).map(tag => tag.name).join('、')}>
-                    <Tag tabIndex={0}>+{asset.tags.length - 3}</Tag>
-                  </Tooltip>
-                )}
-              </Space>
-            )
-          : '—',
-      },
-    },
-    {
       key: 'platform', label: '平台',
       column: { title: '平台', key: 'platform', width: 130, sorter: (left, right) => platformLabel(left).localeCompare(platformLabel(right), 'zh-CN'), render: (_, asset) => platformLabel(asset) },
     },
@@ -1183,7 +1070,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   ]
   const availableAssetColumns = page === 'network_devices'
     ? assetColumns.filter(item => !['meta', 'platform', 'capacity', 'services', 'notes', 'created'].includes(item.key))
-        .sort((a, b) => ['name', 'kind', 'tags', 'address', 'group', 'owner', 'environment', 'updated'].indexOf(a.key) - ['name', 'kind', 'tags', 'address', 'group', 'owner', 'environment', 'updated'].indexOf(b.key))
+        .sort((a, b) => ['name', 'kind', 'address', 'group', 'owner', 'environment', 'updated'].indexOf(a.key) - ['name', 'kind', 'address', 'group', 'owner', 'environment', 'updated'].indexOf(b.key))
     : assetColumns.filter(item => item.key !== 'kind' && item.key !== 'environment' && (page !== 'host' || (item.key !== 'meta' && item.key !== 'platform')))
         .sort((a, b) => assetColumnKeys.indexOf(a.key) - assetColumnKeys.indexOf(b.key))
   const columns = availableAssetColumns.filter(item => visibleColumns.includes(item.key)).map(item => item.column)
@@ -1362,7 +1249,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               onIpam={() => goTo('subnets')}
               onIPAddress={() => goTo('ips')}
               onVLAN={() => goTo('vlans')}
-              onTag={() => goTo('tags')}
             />
           </div>
           <Space size={6} className="app-header-actions">
@@ -1402,14 +1288,12 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             <div className="asset-drawer-toolbar">
               <Space wrap>
                 <Tag color={probeOf(selected).color}>{probeOf(selected).label}</Tag>
-                {assetTags.map(tag => <Tag key={tag.id} color={tag.color}>{tag.name}</Tag>)}
               </Space>
               <Space>
                 <Button
                   icon={bookmarks.includes(selected.id) ? <StarFilled /> : <StarOutlined />}
                   onClick={() => toggleBookmark(selected.id)}
                 >{bookmarks.includes(selected.id) ? '已收藏' : '收藏'}</Button>
-                {editable && <Button icon={<TagsOutlined />} onClick={() => void openTagEditor()}>标签</Button>}
                 {editable && <Button type="primary" onClick={() => setEditor(true)}><EditOutlined /> 编辑</Button>}
               </Space>
             </div>
@@ -1529,7 +1413,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           ) : (
             <Dashboard
               assets={assets} subnets={subnets} facilities={facilities} changes={changes}
-              bookmarks={bookmarks} rackBookmarks={rackBookmarks} subnetBookmarks={subnetBookmarks} tags={allTags}
+              bookmarks={bookmarks} rackBookmarks={rackBookmarks} subnetBookmarks={subnetBookmarks}
               onGo={goTo} onOpenAsset={id => void openAsset(id)}
               onOpenRack={openRack} onOpenSubnet={openSubnet} dark={dark}
             />
@@ -1555,14 +1439,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               editable={editable}
               onSessionError={e => handleError(e)}
               onChanged={setGroups}
-            />
-          )}
-
-          {page === 'tags' && (
-            <TagManager
-              editable={editable}
-              onSessionError={e => handleError(e)}
-              onChanged={setAllTags}
             />
           )}
 
@@ -1699,24 +1575,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                     />
                   ) : null}
 
-                  <Select
-                    mode="multiple" maxTagCount="responsive"
-                    style={{ width: 200 }} allowClear searchable={false}
-                    placeholder={tagFilterMode === 'any' ? '匹配任一标签' : '全部标签'} value={tagFilter}
-                    onChange={setTagFilter}
-                    options={allTags.map(tag => ({
-                      value: tag.id,
-                      label: tag.name,
-                      optionRender: () => <span className="tag-color-option"><i style={{ background: tag.color }} />{tag.name}</span>,
-                    }))}
-                  />
-                  {tagFilter.length > 1 && (
-                    <Select
-                      style={{ width: 100 }} searchable={false} value={tagFilterMode}
-                      onChange={setTagFilterMode}
-                      options={[{ value: 'all', label: '同时满足' }, { value: 'any', label: '任一匹配' }]}
-                    />
-                  )}
                   <Popover
                     trigger="click" placement="bottomRight"
                     content={(
@@ -1746,7 +1604,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                 <div className="bulk-bar">
                   <span>已选择 <strong>{selectedAssetIds.length}</strong> 条资产</span>
                   <Space>
-                    <Button size="small" onClick={openBulkTags}>批量标签</Button>
                     <Button size="small" type="primary" onClick={openBulkEdit}>批量编辑</Button>
                     <Button size="small" onClick={() => setSelectedAssetIds([])}>取消选择</Button>
                   </Space>
@@ -1882,7 +1739,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                   { title: '生命周期', dataIndex: 'lifecycle', width: 90, render: value => value === 'retired' ? '已退役' : '在册' },
                   { title: '负责人', dataIndex: 'owner', width: 110, render: value => value || '—' },
                   { title: '地址 / IP', dataIndex: 'address', width: 140, render: value => <span className="mono">{value || '—'}</span> },
-                  { title: '标签', dataIndex: 'tags', width: 150, render: value => Array.isArray(value) && value.length ? value.join('; ') : '—' },
                 ]}
               />
             )}
@@ -1891,48 +1747,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             )}
           </>
         )}
-      </Modal>
-
-      <Modal
-        open={bulkTagOpen} title={`批量标签 ${selectedAssetIds.length} 条资产`} footer={null} width={500} destroyOnHidden
-        onCancel={() => { if (!bulkTagSaving) setBulkTagOpen(false) }}
-      >
-        {bulkTagError && <Alert type="error" showIcon message={bulkTagError} className="bulk-alert" />}
-        <Form layout="vertical" onFinish={() => void saveBulkTags()}>
-          <Form.Item label="操作方式">
-            <Radio.Group
-              value={bulkTagMode} optionType="button" buttonStyle="solid"
-              onChange={(event: { target: { value: 'add' | 'remove' | 'replace' } }) => setBulkTagMode(event.target.value)}
-              options={[
-                { value: 'add', label: '添加标签' },
-                { value: 'remove', label: '移除标签' },
-                { value: 'replace', label: '替换全部标签' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item
-            label="标签"
-            extra={bulkTagMode === 'add' ? '给所选资产追加这些标签'
-              : bulkTagMode === 'remove' ? '从所选资产移除这些标签'
-                : '替换为所选标签；不选择表示清空全部标签'}
-          >
-            <Select
-              mode="multiple" allowClear placeholder="选择标签"
-              value={bulkTagIds} onChange={setBulkTagIds}
-              options={allTags.map(tag => ({
-                value: tag.id,
-                label: tag.name,
-                optionRender: () => <span className="tag-color-option"><i style={{ background: tag.color }} />{tag.name}</span>,
-              }))}
-            />
-          </Form.Item>
-          <div className="bulk-modal-actions">
-            <Space>
-              <Button type="primary" htmlType="submit" loading={bulkTagSaving}>应用标签</Button>
-              <Button disabled={bulkTagSaving} onClick={() => setBulkTagOpen(false)}>取消</Button>
-            </Space>
-          </div>
-        </Form>
       </Modal>
 
       <Modal
@@ -1969,35 +1783,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         </Form>
       </Modal>
 
-      <Modal
-        open={tagOpen} title="编辑标签" footer={null} width={460} destroyOnHidden
-        onCancel={() => { if (!tagSaving) setTagOpen(false) }}
-      >
-        {tagError && <Alert type="error" showIcon message={tagError} className="bulk-alert" />}
-        <Select
-          mode="multiple" allowClear style={{ width: '100%' }} placeholder="选择标签"
-          value={selectedTagIds} onChange={setSelectedTagIds}
-          optionFilterProp="label"
-          options={allTags.map(tag => ({
-            value: tag.id,
-            label: tag.name,
-            title: tag.description || tag.name,
-            optionRender: () => (
-              <span className="tag-color-option">
-                <i style={{ background: tag.color }} />{tag.name}
-                {tag.assetCount ? <span className="muted"> · {tag.assetCount} 个资产</span> : null}
-              </span>
-            ),
-          }))}
-        />
-        <p className="muted tag-modal-hint">标签用于资产分组和筛选。新增或修改标签请前往「系统管理 → 标签管理」。</p>
-        <div className="bulk-modal-actions">
-          <Space>
-            <Button type="primary" loading={tagSaving} onClick={() => void saveAssetTags()}>保存标签</Button>
-            <Button disabled={tagSaving} onClick={() => setTagOpen(false)}>取消</Button>
-          </Space>
-        </div>
-      </Modal>
 
 </Layout>
   )
