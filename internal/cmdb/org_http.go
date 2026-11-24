@@ -118,6 +118,25 @@ func (s *Server) setServiceAssets(w http.ResponseWriter, r *http.Request) {
 	respond(w, http.StatusOK, service)
 }
 
+func (s *Server) setAssetServices(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	var input struct {
+		ServiceIDs []int64 `json:"serviceIds"`
+	}
+	if err := decode(w, r, &input); err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := SetAssetServices(r.Context(), s.db, id, input.ServiceIDs, currentUser(r).Username); err != nil {
+		s.databaseError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) listMetadata(w http.ResponseWriter, r *http.Request) {
 	entries, err := ListMetadata(r.Context(), s.db, r.URL.Query().Get("kind"))
 	if err != nil {

@@ -62,3 +62,43 @@ func TestServiceAssets(t *testing.T) {
 		t.Fatalf("cleared service = %+v", cleared)
 	}
 }
+
+func TestSetAssetServices(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	host, err := SaveAsset(ctx, db, 0, 0, baseFields("host", "example-host"), "tester")
+	if err != nil {
+		t.Fatal(err)
+	}
+	vm, err := SaveAsset(ctx, db, 0, 0, baseFields("vm", "example-vm"), "tester")
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc, err := SaveService(ctx, db, 0, ServiceFields{Name: "example-service"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := SetAssetServices(ctx, db, host.ID, []int64{svc.ID, svc.ID}, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetAssetServices(ctx, db, vm.ID, []int64{svc.ID}, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetAssetServices(ctx, db, host.ID, []int64{999999}, "tester"); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("invalid service: %v", err)
+	}
+	var count int
+	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM asset_services WHERE service_id=$1", svc.ID).Scan(&count); err != nil || count != 2 {
+		t.Fatalf("links after invalid update: %d, %v", count, err)
+	}
+	if err := SetAssetServices(ctx, db, host.ID, nil, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM asset_services WHERE service_id=$1 AND asset_id=$2", svc.ID, vm.ID).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("other asset link: %d, %v", count, err)
+	}
+	changes, err := ListChanges(ctx, db, host.ID)
+	if err != nil || len(changes) != 3 || changes[0].Action != "service_assets" {
+		t.Fatalf("asset audit: %+v, %v", changes, err)
+	}
+}

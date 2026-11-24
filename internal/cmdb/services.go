@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -190,7 +191,7 @@ func SetServiceAssets(ctx context.Context, db *sql.DB, serviceID int64, assetIDs
 	}
 	defer tx.Rollback()
 
-	service, err := readService(tx.QueryRowContext(ctx, "SELECT "+serviceColumns+" FROM services WHERE id=$1", serviceID))
+	service, err := readService(tx.QueryRowContext(ctx, "SELECT "+serviceColumns+" FROM services WHERE id=$1 FOR UPDATE", serviceID))
 	if err != nil {
 		return Service{}, err
 	}
@@ -256,6 +257,99 @@ func SetServiceAssets(ctx context.Context, db *sql.DB, serviceID int64, assetIDs
 	service.AssetIDs = afterIDs
 	service.AssetCount = int64(len(afterIDs))
 	return service, nil
+}
+
+// SetAssetServices replaces only this asset's service links in one transaction.
+func SetAssetServices(ctx context.Context, db *sql.DB, assetID int64, serviceIDs []int64, actor string) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var name, kind string
+	if err := tx.QueryRowContext(ctx, "SELECT name, kind FROM assets WHERE id=$1 FOR NO KEY UPDATE", assetID).Scan(&name, &kind); err != nil {
+		return err
+	}
+	if kind != "host" && kind != "vm" {
+		return fmt.Errorf("%w: 仅服务器和虚拟机支持此操作", ErrInvalid)
+	}
+	seen := make(map[int64]bool, len(serviceIDs))
+	for _, id := range serviceIDs {
+		if id < 1 {
+			return fmt.Errorf("%w: 服务编号无效", ErrInvalid)
+		}
+		seen[id] = true
+	}
+	// Lock services in a stable order, including currently linked services, so
+	// service-centric edits cannot overwrite an in-flight asset-centric edit.
+	if serviceIDs == nil {
+		serviceIDs = []int64{}
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT id, name FROM services WHERE id IN
+		(SELECT service_id FROM asset_services WHERE asset_id=$1) OR id IN
+		(SELECT unnest($2::bigint[])) ORDER BY id FOR UPDATE`, assetID, serviceIDs)
+	if err != nil {
+		return err
+	}
+	names := make(map[int64]string)
+	for rows.Next() {
+		var id int64
+		var serviceName string
+		if err := rows.Scan(&id, &serviceName); err != nil {
+			rows.Close()
+			return err
+		}
+		names[id] = serviceName
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close()
+	for id := range seen {
+		if _, ok := names[id]; !ok {
+			return fmt.Errorf("%w: 部分服务不存在", ErrInvalid)
+		}
+	}
+	linked, err := tx.QueryContext(ctx, "SELECT service_id FROM asset_services WHERE asset_id=$1 ORDER BY service_id", assetID)
+	if err != nil {
+		return err
+	}
+	var before []string
+	for linked.Next() {
+		var id int64
+		if err := linked.Scan(&id); err != nil {
+			linked.Close()
+			return err
+		}
+		before = append(before, names[id])
+	}
+	if err := linked.Err(); err != nil {
+		linked.Close()
+		return err
+	}
+	linked.Close()
+	if _, err := tx.ExecContext(ctx, "DELETE FROM asset_services WHERE asset_id=$1", assetID); err != nil {
+		return err
+	}
+	ids := make([]int64, 0, len(seen))
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	after := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO asset_services (asset_id,service_id) VALUES ($1,$2)", assetID, id); err != nil {
+			return err
+		}
+		after = append(after, names[id])
+	}
+	if strings.Join(before, "\x00") != strings.Join(after, "\x00") {
+		if err := writeNamedChange(ctx, tx, &assetID, name, actor, "service_assets", before, after); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func DeleteService(ctx context.Context, db *sql.DB, id int64) error {
