@@ -20,40 +20,40 @@ SELECT CASE WHEN
     EXISTS (SELECT 1 FROM changes)
     THEN 0 ELSE 1 END;
 
-INSERT INTO assets (id, kind, name, platform, status, lifecycle, owner, environment, address, cpu, memory_mib, notes, attributes)
+INSERT INTO assets (id, kind, name, platform, status, lifecycle, owner, environment, address, cpu, memory_mib, notes)
 SELECT v.* FROM (
-    SELECT 1::bigint, 'host'::text, 'demo-host-01'::text, 'pve'::text, 'online'::text, 'active'::text, '示例运维组'::text, '演示'::text, '192.0.2.11'::text, 32::int, 131072::bigint, '虚构宿主机'::text, '{}'::text
-    UNION ALL SELECT 2, 'host', 'demo-host-02', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.12', 24, 98304, '虚构宿主机', '{}'
-    UNION ALL SELECT 3, 'vm', 'demo-web-01', 'pve', 'running', 'active', '示例应用组', '演示', '198.51.100.21', 4, 8192, '虚构 Web 虚拟机', '{}'
-    UNION ALL SELECT 4, 'vm', 'demo-db-01', 'pve', 'running', 'active', '示例应用组', '演示', '198.51.100.22', 8, 16384, '虚构数据库虚拟机', '{}'
-    UNION ALL SELECT 5, 'vm', 'demo-worker-01', 'kvm', 'stopped', 'active', '示例应用组', '演示', '198.51.100.23', 4, 8192, '虚构工作节点', '{}'
-    UNION ALL SELECT 6, 'switch', 'demo-switch-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.2', 0, 0, '虚构核心交换机', '{}'
-    UNION ALL SELECT 7, 'switch', 'demo-switch-02', '', 'offline', 'active', '示例网络组', '演示', '192.0.2.3', 0, 0, '虚构接入交换机', '{}'
-    UNION ALL SELECT 8, 'firewall', 'demo-fw-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.1', 0, 0, '虚构边界防火墙', '{}'
-    UNION ALL SELECT 9, 'host', 'demo-host-03', 'pve', 'online', 'active', '示例运维组', '演示', '192.0.2.13', 16, 65536, '虚构宿主机', '{}'
-    UNION ALL SELECT 10, 'host', 'demo-host-04', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.14', 16, 65536, '虚构宿主机', '{}'
-    UNION ALL SELECT 11, 'switch', 'demo-switch-03', '', 'online', 'active', '示例网络组', '演示', '192.0.2.4', 0, 0, '虚构汇聚交换机', '{}'
-    UNION ALL SELECT 12, 'host', 'demo-host-05', 'pve', 'offline', 'active', '示例运维组', '演示', '192.0.2.15', 8, 32768, '虚构宿主机', '{}'
-    UNION ALL SELECT 13, 'switch', 'demo-switch-04', '', 'online', 'active', '示例网络组', '演示', '192.0.2.5', 0, 0, '虚构接入交换机', '{}'
-    UNION ALL SELECT 14, 'host', 'demo-host-06', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.16', 12, 49152, '虚构宿主机', '{}'
-    UNION ALL SELECT 15, 'host', 'demo-host-07', 'pve', 'online', 'active', '示例运维组', '演示', '192.0.2.17', 8, 32768, '虚构宿主机', '{}'
-    UNION ALL SELECT 16, 'switch', 'demo-switch-05', '', 'online', 'active', '示例网络组', '演示', '192.0.2.6', 0, 0, '虚构接入交换机', '{}'
-    UNION ALL SELECT 17, 'host', 'demo-sz-host-01', 'pve', 'online', 'active', '示例运维组', '演示', '203.0.113.11', 24, 98304, '虚构深圳宿主机', '{}'
-    UNION ALL SELECT 18, 'host', 'demo-sz-host-02', 'kvm', 'online', 'active', '示例运维组', '演示', '203.0.113.12', 16, 65536, '虚构深圳宿主机', '{}'
-    UNION ALL SELECT 19, 'vm', 'demo-sz-app-01', 'pve', 'running', 'active', '示例应用组', '演示', '203.0.113.21', 4, 8192, '虚构深圳应用虚拟机', '{}'
-    UNION ALL SELECT 20, 'host', 'demo-gz-store-01', 'kvm', 'online', 'active', '示例运维组', '演示', '203.0.113.13', 16, 65536, '虚构广州存储节点', '{}'
-    UNION ALL SELECT 21, 'vm', 'demo-gz-app-01', 'kvm', 'running', 'active', '示例应用组', '演示', '203.0.113.22', 4, 8192, '虚构广州应用虚拟机', '{}'
-    UNION ALL SELECT 22, 'switch', 'demo-hz-switch-01', '', 'online', 'active', '示例网络组', '演示', '203.0.113.2', 0, 0, '虚构杭州接入交换机', '{}'
-    UNION ALL SELECT 23, 'host', 'demo-hz-host-01', 'pve', 'online', 'active', '示例运维组', '演示', '203.0.113.14', 32, 131072, '虚构杭州宿主机', '{}'
-    UNION ALL SELECT 24, 'vm', 'demo-hz-app-01', 'pve', 'running', 'active', '示例应用组', '演示', '203.0.113.23', 8, 16384, '虚构杭州应用虚拟机', '{}'
-    UNION ALL SELECT 25, 'host', 'demo-cd-host-01', 'kvm', 'online', 'active', '示例运维组', '演示', '203.0.113.15', 12, 49152, '虚构成都宿主机', '{}'
-    UNION ALL SELECT 26, 'switch', 'demo-cd-switch-01', '', 'online', 'active', '示例网络组', '演示', '203.0.113.3', 0, 0, '虚构成都汇聚交换机', '{}'
-    UNION ALL SELECT 27, 'host', 'demo-test-host-03', 'pve', 'offline', 'active', '示例运维组', '演示', '203.0.113.16', 8, 32768, '虚构测试宿主机', '{}'
-    UNION ALL SELECT 28, 'vm', 'demo-test-app-01', 'kvm', 'stopped', 'active', '示例应用组', '演示', '203.0.113.24', 2, 4096, '虚构测试虚拟机', '{}'
-    UNION ALL SELECT 29, 'router', 'demo-router-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.7', 0, 0, '虚构核心出口路由器', '{}'
-    UNION ALL SELECT 30, 'firewall', 'demo-sz-fw-01', '', 'online', 'active', '示例网络组', '演示', '203.0.113.1', 0, 0, '虚构深圳边界防火墙', '{}'
-    UNION ALL SELECT 31, 'load_balancer', 'demo-lb-01', '', 'online', 'active', '示例网络组', '演示', '198.51.100.2', 0, 0, '虚构北京硬件负载均衡', '{}'
-    UNION ALL SELECT 32, 'load_balancer', 'demo-sh-lb-01', '', 'online', 'active', '示例网络组', '演示', '198.51.100.3', 0, 0, '虚构上海硬件负载均衡', '{}') AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+    SELECT 1::bigint, 'host'::text, 'demo-host-01'::text, 'pve'::text, 'online'::text, 'active'::text, '示例运维组'::text, '演示'::text, '192.0.2.11'::text, 32::int, 131072::bigint, '虚构宿主机'::text
+    UNION ALL SELECT 2, 'host', 'demo-host-02', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.12', 24, 98304, '虚构宿主机'
+    UNION ALL SELECT 3, 'vm', 'demo-web-01', 'pve', 'running', 'active', '示例应用组', '演示', '198.51.100.21', 4, 8192, '虚构 Web 虚拟机'
+    UNION ALL SELECT 4, 'vm', 'demo-db-01', 'pve', 'running', 'active', '示例应用组', '演示', '198.51.100.22', 8, 16384, '虚构数据库虚拟机'
+    UNION ALL SELECT 5, 'vm', 'demo-worker-01', 'kvm', 'stopped', 'active', '示例应用组', '演示', '198.51.100.23', 4, 8192, '虚构工作节点'
+    UNION ALL SELECT 6, 'switch', 'demo-switch-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.2', 0, 0, '虚构核心交换机'
+    UNION ALL SELECT 7, 'switch', 'demo-switch-02', '', 'offline', 'active', '示例网络组', '演示', '192.0.2.3', 0, 0, '虚构接入交换机'
+    UNION ALL SELECT 8, 'firewall', 'demo-fw-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.1', 0, 0, '虚构边界防火墙'
+    UNION ALL SELECT 9, 'host', 'demo-host-03', 'pve', 'online', 'active', '示例运维组', '演示', '192.0.2.13', 16, 65536, '虚构宿主机'
+    UNION ALL SELECT 10, 'host', 'demo-host-04', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.14', 16, 65536, '虚构宿主机'
+    UNION ALL SELECT 11, 'switch', 'demo-switch-03', '', 'online', 'active', '示例网络组', '演示', '192.0.2.4', 0, 0, '虚构汇聚交换机'
+    UNION ALL SELECT 12, 'host', 'demo-host-05', 'pve', 'offline', 'active', '示例运维组', '演示', '192.0.2.15', 8, 32768, '虚构宿主机'
+    UNION ALL SELECT 13, 'switch', 'demo-switch-04', '', 'online', 'active', '示例网络组', '演示', '192.0.2.5', 0, 0, '虚构接入交换机'
+    UNION ALL SELECT 14, 'host', 'demo-host-06', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.16', 12, 49152, '虚构宿主机'
+    UNION ALL SELECT 15, 'host', 'demo-host-07', 'pve', 'online', 'active', '示例运维组', '演示', '192.0.2.17', 8, 32768, '虚构宿主机'
+    UNION ALL SELECT 16, 'switch', 'demo-switch-05', '', 'online', 'active', '示例网络组', '演示', '192.0.2.6', 0, 0, '虚构接入交换机'
+    UNION ALL SELECT 17, 'host', 'demo-sz-host-01', 'pve', 'online', 'active', '示例运维组', '演示', '203.0.113.11', 24, 98304, '虚构深圳宿主机'
+    UNION ALL SELECT 18, 'host', 'demo-sz-host-02', 'kvm', 'online', 'active', '示例运维组', '演示', '203.0.113.12', 16, 65536, '虚构深圳宿主机'
+    UNION ALL SELECT 19, 'vm', 'demo-sz-app-01', 'pve', 'running', 'active', '示例应用组', '演示', '203.0.113.21', 4, 8192, '虚构深圳应用虚拟机'
+    UNION ALL SELECT 20, 'host', 'demo-gz-store-01', 'kvm', 'online', 'active', '示例运维组', '演示', '203.0.113.13', 16, 65536, '虚构广州存储节点'
+    UNION ALL SELECT 21, 'vm', 'demo-gz-app-01', 'kvm', 'running', 'active', '示例应用组', '演示', '203.0.113.22', 4, 8192, '虚构广州应用虚拟机'
+    UNION ALL SELECT 22, 'switch', 'demo-hz-switch-01', '', 'online', 'active', '示例网络组', '演示', '203.0.113.2', 0, 0, '虚构杭州接入交换机'
+    UNION ALL SELECT 23, 'host', 'demo-hz-host-01', 'pve', 'online', 'active', '示例运维组', '演示', '203.0.113.14', 32, 131072, '虚构杭州宿主机'
+    UNION ALL SELECT 24, 'vm', 'demo-hz-app-01', 'pve', 'running', 'active', '示例应用组', '演示', '203.0.113.23', 8, 16384, '虚构杭州应用虚拟机'
+    UNION ALL SELECT 25, 'host', 'demo-cd-host-01', 'kvm', 'online', 'active', '示例运维组', '演示', '203.0.113.15', 12, 49152, '虚构成都宿主机'
+    UNION ALL SELECT 26, 'switch', 'demo-cd-switch-01', '', 'online', 'active', '示例网络组', '演示', '203.0.113.3', 0, 0, '虚构成都汇聚交换机'
+    UNION ALL SELECT 27, 'host', 'demo-test-host-03', 'pve', 'offline', 'active', '示例运维组', '演示', '203.0.113.16', 8, 32768, '虚构测试宿主机'
+    UNION ALL SELECT 28, 'vm', 'demo-test-app-01', 'kvm', 'stopped', 'active', '示例应用组', '演示', '203.0.113.24', 2, 4096, '虚构测试虚拟机'
+    UNION ALL SELECT 29, 'router', 'demo-router-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.7', 0, 0, '虚构核心出口路由器'
+    UNION ALL SELECT 30, 'firewall', 'demo-sz-fw-01', '', 'online', 'active', '示例网络组', '演示', '203.0.113.1', 0, 0, '虚构深圳边界防火墙'
+    UNION ALL SELECT 31, 'load_balancer', 'demo-lb-01', '', 'online', 'active', '示例网络组', '演示', '198.51.100.2', 0, 0, '虚构北京硬件负载均衡'
+    UNION ALL SELECT 32, 'load_balancer', 'demo-sh-lb-01', '', 'online', 'active', '示例网络组', '演示', '198.51.100.3', 0, 0, '虚构上海硬件负载均衡') AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
 INSERT INTO asset_links (from_id, to_id, kind)
 SELECT v.* FROM (
@@ -292,7 +292,7 @@ FROM generate_series(1, 35) AS i
 WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
 -- 4. 扩展服务器（140 台，ID 1001..1140：前 126 台分布在 7 个数据中心机柜中，后 14 台为「未上架」）
-INSERT INTO assets (id, kind, name, platform, status, lifecycle, owner, environment, address, probe_enabled, probe_status, probe_checked_at, cpu, memory_mib, group_id, notes, attributes)
+INSERT INTO assets (id, kind, name, platform, status, lifecycle, owner, environment, address, probe_enabled, probe_status, probe_checked_at, cpu, memory_mib, group_id, notes)
 SELECT 1000 + i,
        'host',
        CASE
@@ -320,8 +320,7 @@ SELECT 1000 + i,
        (ARRAY[16, 32, 48, 64, 96, 128])[1 + (i % 6)],
        (ARRAY[65536, 131072, 196608, 262144, 524288])[1 + (i % 5)],
        1 + (i % 3),
-       CASE WHEN i <= 126 THEN '虚构机架式服务器节点' ELSE '虚构待上架备机服务器' END,
-       '{}'
+       CASE WHEN i <= 126 THEN '虚构机架式服务器节点' ELSE '虚构待上架备机服务器' END
 FROM generate_series(1, 140) AS i
 WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
@@ -337,7 +336,7 @@ FROM generate_series(1, 126) AS i
 WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
 -- 5. 扩展虚拟机（280 台，ID 2001..2280：前 252 台关联到已上架宿主机 1001..1126，后 28 台未关联宿主机）
-INSERT INTO assets (id, kind, name, platform, status, lifecycle, owner, environment, address, probe_enabled, probe_status, probe_checked_at, cpu, memory_mib, group_id, notes, attributes)
+INSERT INTO assets (id, kind, name, platform, status, lifecycle, owner, environment, address, probe_enabled, probe_status, probe_checked_at, cpu, memory_mib, group_id, notes)
 SELECT 2000 + i,
        'vm',
        CASE
@@ -370,8 +369,7 @@ SELECT 2000 + i,
        (ARRAY[2, 4, 8, 16, 32])[1 + (i % 5)],
        (ARRAY[4096, 8192, 16384, 32768, 65536])[1 + (i % 5)],
        1 + (i % 3),
-       CASE WHEN i <= 252 THEN '虚构业务虚拟机实例' ELSE '虚构待分配宿主机的独立虚拟机' END,
-       '{}'
+       CASE WHEN i <= 252 THEN '虚构业务虚拟机实例' ELSE '虚构待分配宿主机的独立虚拟机' END
 FROM generate_series(1, 280) AS i
 WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
@@ -384,7 +382,7 @@ FROM generate_series(1, 252) AS i
 WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
 -- 6. 扩展网络设备（84 台，ID 3001..3084：前 70 台分布在 7 个数据中心机柜 101..170 的 U40，后 14 台为「未上架」）
-INSERT INTO assets (id, kind, name, platform, status, lifecycle, owner, environment, address, probe_enabled, probe_status, probe_checked_at, cpu, memory_mib, group_id, notes, attributes)
+INSERT INTO assets (id, kind, name, platform, status, lifecycle, owner, environment, address, probe_enabled, probe_status, probe_checked_at, cpu, memory_mib, group_id, notes)
 SELECT 3000 + i,
        (ARRAY['switch', 'switch', 'switch', 'switch', 'router', 'router', 'firewall', 'firewall', 'load_balancer', 'load_balancer'])[1 + ((i - 1) % 10)],
        CASE
@@ -409,8 +407,7 @@ SELECT 3000 + i,
        0,
        0,
        NULL,
-       CASE WHEN i <= 70 THEN '虚构机柜顶置/核心网络设备' ELSE '虚构待上架库存网络设备' END,
-       '{}'
+       CASE WHEN i <= 70 THEN '虚构机柜顶置/核心网络设备' ELSE '虚构待上架库存网络设备' END
 FROM generate_series(1, 84) AS i
 WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 

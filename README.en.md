@@ -183,7 +183,7 @@ Add individual assets with the `新增资产` button. For larger inventories, us
 Template columns:
 
 ```text
-资源名称,类型,角色,平台,状态,生命周期,地址 / IP,CPU,内存 MiB,负责人,环境,备注,扩展属性
+资源名称,类型,角色,平台,状态,生命周期,地址 / IP,CPU,内存 MiB,负责人,环境,备注
 ```
 
 - Type: `host`, `vm`, `switch`, or the Chinese labels 物理机, 虚拟机, 交换机.
@@ -191,7 +191,6 @@ Template columns:
 - Platform: `pve`, `kvm`, `Proxmox VE`, `KVM`, or empty.
 - Status: `unknown`, `online`, `offline`, `running`, `stopped`, `paused`, or the Chinese labels 未知, 在线, 离线, 运行中, 已停止, 已暂停.
 - Lifecycle: `active`, `retired`, 在册, 已退役; empty defaults to active.
-- Attributes: a JSON object such as `{"位置":"A01"}`; empty becomes `{}`.
 - CPU and memory MiB must be non-negative integers.
 
 Import rules:
@@ -204,7 +203,7 @@ Import rules:
 
 Exported CSV files use the same columns and can be used as a reference when preparing an import.
 
-Asset details are organized into overview, relationships, interfaces, custom attributes, and change history tabs. The interfaces tab records each port (name, medium, speed, MAC, status) and lets you cable two ports together; both ends then show the peer device and port until the cable is removed. The relationships tab includes a draggable, zoomable topology; selecting a node opens that asset. Custom attributes use a key-value editor with text, number, boolean, and JSON value types. Star assets from the list or detail view to keep them in the dashboard `My favorites` shortcut. The asset list supports status filters, saved filter presets, configurable columns, click-to-sort headers, and 10/20/50 page sizes. Select multiple assets to bulk-edit status, platform, lifecycle, owner, and environment. The global header search covers assets, IP addresses, data centers, racks, subnets, and VLANs, shows the last six searches when empty, and opens the selected asset, rack, subnet, or VLAN directly.
+Asset details are organized into overview, relationships, interfaces, and change history tabs. The interfaces tab records each port (name, medium, speed, MAC, status) and lets you cable two ports together; both ends then show the peer device and port until the cable is removed. The relationships tab includes a draggable, zoomable topology; selecting a node opens that asset. Star assets from the list or detail view to keep them in the dashboard `My favorites` shortcut. The asset list supports status filters, saved filter presets, configurable columns, click-to-sort headers, and 10/20/50 page sizes. Select multiple assets to bulk-edit status, platform, lifecycle, owner, and environment. The global header search covers assets, IP addresses, data centers, racks, subnets, and VLANs, shows the last six searches when empty, and opens the selected asset, rack, subnet, or VLAN directly.
 
 ## IP address management
 
@@ -268,4 +267,4 @@ Tests connect to `postgres://dc_db:dc_db@127.0.0.1:5432/dc_db_test` by default a
 
 Licensed under the [Apache License 2.0](LICENSE).
 
-Servers and virtual machines can each maintain service instances with built-in or custom names and optional ports, versions, and notes.
+Servers and virtual machines can each maintain service instances with built-in or custom names.
