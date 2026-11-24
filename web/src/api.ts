@@ -41,7 +41,10 @@ export interface AssetFields {
   attributes: Record<string, unknown>
 }
 
+export interface ServiceInstance { name: string; port: number; version: string; notes: string }
+
 export interface Asset extends AssetFields {
+  services?: ServiceInstance[]
   probeStatus: 'unknown' | 'reachable' | 'unreachable' | 'error'
   probeCheckedAt: string | null
   id: number
@@ -207,20 +210,6 @@ export interface GroupFields {
 export interface Group extends GroupFields {
   id: number
   assetCount: number
-}
-
-export interface ServiceFields {
-  name: string
-  category: string
-  defaultPort: number
-  description: string
-}
-
-export interface Service extends ServiceFields {
-  id: number
-  builtin: boolean
-  assetCount?: number
-  assetIds?: number[]
 }
 
 export interface MetadataFields {

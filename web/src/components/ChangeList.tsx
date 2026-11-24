@@ -16,7 +16,7 @@ interface Props {
 
 const actionLabels: Record<string, string> = {
   create: '创建', update: '编辑', discover: '自动发现', sync: '配置同步', move: '宿主机变更',
-  service_assets: '服务关联变更', 'probe.settings': '存活探测设置',
+  service_assets: '服务关联变更', asset_services: '运行服务变更', 'probe.settings': '存活探测设置',
   missing: '连续未发现', link: '关联资源', unlink: '解除关系',
   room_create: '新增数据中心', room_update: '编辑数据中心', room_delete: '删除数据中心',
   rack_create: '新增机柜', rack_update: '编辑机柜', rack_delete: '删除机柜',
@@ -40,6 +40,7 @@ const userRoleLabels: Record<string, string> = { admin: '管理员', operator: '
 const relationLabels: Record<string, string> = { hosts: '承载' }
 
 function summary(change: Change) {
+  if (change.action === 'asset_services') return '运行服务已更新'
   if (change.action === 'service_assets') {
     const before = Array.isArray(change.before) ? change.before.map(String) : []
     const after = Array.isArray(change.after) ? change.after.map(String) : []

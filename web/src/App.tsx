@@ -17,7 +17,7 @@ import {
 import { api, apiCSV, APIError } from './api'
 import { formatDateTime } from './lib/date'
 import { downloadCSV } from './csv'
-import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, NetworkKind, Service, Subnet, User, VLAN } from './api'
+import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, NetworkKind, Subnet, User, VLAN } from './api'
 import { assetLocations, assetRoomId, buildRoomCounts, locationLabel, matchesRoomFilter } from './facilities'
 import type { AssetLocation, Facilities } from './facilities'
 import { isNetworkKind, KIND_LABELS, kindLabel, NETWORK_KINDS } from './kinds'
@@ -37,13 +37,13 @@ import { IPAddressView } from './components/IPAddressView'
 import { IpamView } from './components/IpamView'
 import { LoginBackdrop } from './components/LoginBackdrop'
 import {
-  AssetKindIcon, GroupClusterIcon, NetworkDeviceIcon, OperatorTowerIcon, OwnerBadgeIcon, ReferenceDataIcon, ServiceNodeIcon,
+  AssetKindIcon, GroupClusterIcon, NetworkDeviceIcon, OperatorTowerIcon, OwnerBadgeIcon, ReferenceDataIcon,
 } from './components/MetadataIcons'
 import { MetadataManager } from './components/MetadataManager'
 import { SubnetDetailView, VLANDetailView } from './components/NetworkDetailViews'
 import { PageHeader } from './components/PageHeader'
 import { ServiceIcon } from './components/ServiceIcon'
-import { ServiceManager } from './components/ServiceManager'
+import { serviceCategory } from './serviceCatalog'
 import { UserManager } from './components/UserManager'
 import { ProbeSettings } from './components/ProbeSettings'
 import { VLANView } from './components/VLANView'
@@ -94,7 +94,7 @@ function messageText(error: unknown) {
   return error instanceof Error ? error.message : '操作失败'
 }
 
-const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'network_devices', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'password', 'groups', 'services', 'owners', 'users', 'probe_settings', 'guide']
+const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'network_devices', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'password', 'groups', 'owners', 'users', 'probe_settings', 'guide']
 
 function readPageParam(): Page {
   const params = new URLSearchParams(window.location.search)
@@ -214,7 +214,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [selectedSubnetId, setSelectedSubnetId] = useState<number | null>(null)
   const [selectedVLAN, setSelectedVLAN] = useState<VLAN | null>(null)
   const [ipFilterSubnetId, setIpFilterSubnetId] = useState<number | null>(null)
-  const [openServiceId, setOpenServiceId] = useState<number | null>(null)
 
   const [assets, setAssets] = useState<Asset[]>([])
   const [links, setLinks] = useState<Link[]>([])
@@ -251,20 +250,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [assetTab, setAssetTab] = useState('overview')
   const [assetChanges, setAssetChanges] = useState<Change[]>([])
   const [groups, setGroups] = useState<Group[]>([])
-  const [services, setServices] = useState<Service[]>([])
-  const [serviceAsset, setServiceAsset] = useState<Asset | null>(null)
-  const [serviceSelection, setServiceSelection] = useState<number[]>([])
-  const [serviceSaving, setServiceSaving] = useState(false)
-  const [serviceError, setServiceError] = useState('')
-  const servicesByAsset = useMemo(() => {
-    const result = new Map<number, Service[]>()
-    for (const service of services) for (const id of service.assetIds ?? []) {
-      const list = result.get(id) ?? []
-      list.push(service)
-      result.set(id, list)
-    }
-    return result
-  }, [services])
   const [owners, setOwners] = useState<string[]>([])
   const [bookmarks, setBookmarks] = useState<number[]>(() => {
     try {
@@ -313,7 +298,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     { key: 'facilities', label: '机柜', icon: <BuildingOutlined /> },
     { key: 'host', label: '服务器', icon: <CloudServerOutlined /> },
     { key: 'vm', label: '虚拟机', icon: <DesktopOutlined /> },
-    { key: 'services', label: '服务', icon: <ServiceNodeIcon /> },
     {
       key: 'network_group', label: '网络', icon: <GlobalOutlined />,
       children: [
@@ -504,10 +488,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setBusy(true)
     setError('')
     try {
-      const [nextAssets, nextLinks, nextChanges, nextFacilities, nextSubnets, nextGroups, nextServices, nextOwners] = await Promise.all([
+      const [nextAssets, nextLinks, nextChanges, nextFacilities, nextSubnets, nextGroups, nextOwners] = await Promise.all([
         api<Asset[]>('/assets'), api<Link[]>('/links'), api<Change[]>('/changes'),
         api<Facilities>('/facilities'), api<Subnet[]>('/subnets'), api<Group[]>('/groups'),
-        api<Service[]>('/services'), api<{ name: string }[]>('/metadata?kind=owner'),
+        api<{ name: string }[]>('/metadata?kind=owner'),
       ])
       setAssets(nextAssets)
       setLinks(nextLinks)
@@ -515,7 +499,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       setFacilities(nextFacilities)
       setSubnets(nextSubnets)
       setGroups(nextGroups)
-      setServices(nextServices)
       setOwners(nextOwners.map(item => item.name))
     } catch (e) {
       handleError(e)
@@ -660,12 +643,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setFacilityRoomId(roomId)
     setFacilityRackId(null)
     setPage('facilities')
-  }
-
-  function openService(serviceId: number) {
-    closeDrawer()
-    setOpenServiceId(serviceId)
-    setPage('services')
   }
 
   function clearFilters() {
@@ -817,28 +794,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       localStorage.setItem('dc-db-columns:' + page + (page === 'host' || page === 'vm' ? ':v6' : ''), JSON.stringify(ordered))
     } catch {
       // Keep the current in-memory column selection.
-    }
-  }
-
-  function editAssetServices(asset: Asset) {
-    setServiceAsset(asset)
-    setServiceSelection((servicesByAsset.get(asset.id) ?? []).map(service => service.id))
-    setServiceError('')
-  }
-
-  async function saveAssetServices() {
-    if (!serviceAsset) return
-    setServiceSaving(true)
-    setServiceError('')
-    try {
-      await api<void>(`/assets/${serviceAsset.id}/services`, 'PUT', { serviceIds: serviceSelection })
-      setServices(await api<Service[]>('/services'))
-      setServiceAsset(null)
-      void message.success('服务关联已更新')
-    } catch (e) {
-      setServiceError(messageText(e))
-    } finally {
-      setServiceSaving(false)
     }
   }
 
@@ -1015,10 +970,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       column: {
         title: '服务', key: 'services', width: 200,
         render: (_, asset) => {
-          const bound = servicesByAsset.get(asset.id) ?? []
+          const bound = asset.services ?? []
           return <div className="flex flex-wrap items-center gap-2">
-            {bound.map(service => <button key={service.id} type="button" className="asset-service-chip" onClick={() => openService(service.id)}><ServiceIcon name={service.name} category={service.category} /><span>{service.name}</span></button>)}
-            {editable ? <Button size="small" onClick={() => editAssetServices(asset)} aria-label={`关联服务 ${asset.name}`}>{bound.length ? '编辑' : '关联服务'}</Button> : !bound.length ? '—' : null}
+            {bound.length ? bound.map((service, index) => <span key={index} className="asset-service-chip" title={[service.version && `版本：${service.version}`, service.notes].filter(Boolean).join(" · ") || service.name}><ServiceIcon name={service.name} category={serviceCategory(service.name)} />{service.name}{service.port ? `:${service.port}` : ''}</span>) : '—'}
+            {editable && <Button size="small" onClick={() => { void openAsset(asset.id); setEditor(true) }} aria-label={`编辑服务 ${asset.name}`}>编辑</Button>}
           </div>
         },
       },
@@ -1095,26 +1050,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         </div>
       ),
     }] : []),
-    ...(() => {
-      const bound = services.filter(item => item.assetIds?.includes(selected.id))
-      if (!bound.length) return []
-      return [{
-        key: 'services', label: '运行服务',
-        children: (
-          <div className="flex flex-wrap gap-2">
-            {bound.map(item => (
-              <button
-                key={item.id} type="button" className="asset-service-chip"
-                onClick={() => openService(item.id)}
-              >
-                <ServiceIcon name={item.name} category={item.category} />
-                <span>{item.name}</span>
-              </button>
-            ))}
-          </div>
-        ),
-      }]
-    })(),
+    ...(selected.services?.length ? [{ key: 'services', label: '运行服务', children: <div className="flex flex-wrap gap-2">{selected.services.map((service, index) => <span key={index} className="asset-service-chip" title={[service.version && `版本：${service.version}`, service.notes].filter(Boolean).join(" · ") || service.name}><ServiceIcon name={service.name} category={serviceCategory(service.name)} />{service.name}{service.port ? `:${service.port}` : ''}{service.version ? ` · ${service.version}` : ''}</span>)}</div> }] : []),
     {
       key: 'updated', label: '最近更新',
       children: new Date(selected.updatedAt).toLocaleString('zh-CN', { hour12: false }),
@@ -1423,17 +1359,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             <Card variant="borderless" title="变更记录"><ChangeList changes={changes} filterable onOpen={id => void openAsset(id)} /></Card>
           )}
 
-          {page === 'services' && (
-            <ServiceManager
-              editable={editable} dark={dark}
-              assets={assets} links={links} facilities={facilities}
-              roomFilter={roomFilter} onRoomFilterChange={setRoomFilter}
-              openServiceId={openServiceId} onServiceOpened={() => setOpenServiceId(null)}
-              onOpenAsset={id => void openAsset(id)} onOpenRoom={openRoom}
-              onSessionError={e => handleError(e)} onChanged={setServices}
-            />
-          )}
-
           {page === 'groups' && (
             <GroupManager
               editable={editable}
@@ -1645,17 +1570,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           </>)}
         </Content>
       </Layout>
-
-      <Modal
-        open={!!serviceAsset} title={`关联服务${serviceAsset ? ` · ${serviceAsset.name}` : ''}`} width={520}
-        onCancel={() => { if (!serviceSaving) setServiceAsset(null) }}
-        footer={<Space><Button disabled={serviceSaving} onClick={() => setServiceAsset(null)}>取消</Button><Button type="primary" loading={serviceSaving} onClick={() => void saveAssetServices()}>保存</Button></Space>}
-      >
-        {serviceError && <Alert type="error" showIcon message={serviceError} />}
-        <label className="grid gap-2">选择服务（可多选）
-          <Select mode="multiple" allowClear placeholder="选择关联的服务" value={serviceSelection} onChange={(value: number[]) => setServiceSelection(value)} options={services.map(service => ({ value: service.id, label: service.name }))} />
-        </label>
-      </Modal>
 
       <Modal
         open={assetImportOpen} title="导入设备" width={460}

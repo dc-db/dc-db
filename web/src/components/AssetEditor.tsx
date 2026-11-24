@@ -5,8 +5,9 @@ import { Checkbox } from './ui/checkbox'
 import { Textarea } from './ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Plus, Trash2 } from 'lucide-react'
-import type { Asset, AssetFields, Group, Kind } from '../api'
+import type { Asset, AssetFields, Group, Kind, ServiceInstance } from '../api'
 import { ALL_KINDS, isNetworkKind, KIND_LABELS } from '../kinds'
+import { ServicePicker } from './ServicePicker'
 
 interface Props {
   asset: Asset | null
@@ -18,7 +19,7 @@ interface Props {
   rooms?: { id: number; name: string }[]
   defaultRoomId?: number
   mountedRoomId?: number
-  onSave: (fields: AssetFields & { version: number }) => void
+  onSave: (fields: AssetFields & { version: number; services?: ServiceInstance[] }) => void
   onCancel: () => void
 }
 
@@ -115,6 +116,7 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, r
     notes: asset?.notes ?? '',
     attributes: asset?.attributes ?? {},
   })
+  const [serviceRows, setServiceRows] = useState<ServiceInstance[]>(() => (asset?.services ?? []).map(item => ({ ...item })))
   const [roomId, setRoomId] = useState<number>(() =>
     mountedRoomId ?? (Number(asset?.attributes?.roomId) || (asset ? 0 : (defaultRoomId ?? 0))),
   )
@@ -178,6 +180,7 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, r
       cpu: networkDevice ? 0 : Number(fields.cpu || 0),
       memoryMiB: networkDevice ? 0 : Number(fields.memoryMiB || 0),
       groupId: Number(fields.groupId || 0),
+      services: networkDevice ? undefined : serviceRows,
       version: asset?.version ?? 0,
     })
   }
@@ -211,6 +214,17 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, r
         <label className={errors.cpu ? 'grid gap-2 field-invalid' : 'grid gap-2'}>CPU 核数 / vCPU<Input type="number" min={0} max={65536} value={fields.cpu} aria-invalid={!!errors.cpu} onChange={event => update('cpu', Number(event.target.value))} />{errors.cpu && <span className="field-error" role="alert">{errors.cpu}</span>}</label>
         <label className={errors.memoryMiB ? 'grid gap-2 field-invalid' : 'grid gap-2'}>内存（MiB）<Input type="number" min={0} max={1073741824} value={fields.memoryMiB} aria-invalid={!!errors.memoryMiB} onChange={event => update('memoryMiB', Number(event.target.value))} />{errors.memoryMiB && <span className="field-error" role="alert">{errors.memoryMiB}</span>}</label>
       </>}
+      {!networkDevice && <div className="col-span-2 grid gap-3">
+        <div>运行服务 <span className="muted">（可选）</span></div>
+        {serviceRows.map((service, index) => <div key={index} className="grid grid-cols-2 gap-2 rounded-md border p-3">
+          <ServicePicker value={service.name} onChange={value => setServiceRows(rows => rows.map((row, i) => i === index ? { ...row, name: value } : row))} />
+          <label className="grid gap-1">端口（可选）<Input type="number" min={0} max={65535} value={service.port || ''} onChange={event => setServiceRows(rows => rows.map((row, i) => i === index ? { ...row, port: Number(event.target.value) } : row))} /></label>
+          <label className="grid gap-1">版本（可选）<Input maxLength={100} value={service.version} onChange={event => setServiceRows(rows => rows.map((row, i) => i === index ? { ...row, version: event.target.value } : row))} /></label>
+          <label className="grid gap-1">备注（可选）<Input maxLength={500} value={service.notes} onChange={event => setServiceRows(rows => rows.map((row, i) => i === index ? { ...row, notes: event.target.value } : row))} /></label>
+          <Button type="button" variant="ghost" onClick={() => setServiceRows(rows => rows.filter((_, i) => i !== index))}><Trash2 />删除服务</Button>
+        </div>)}
+        <Button type="button" variant="outline" onClick={() => setServiceRows(rows => [...rows, { name: '', port: 0, version: '', notes: '' }])}><Plus />添加服务</Button>
+      </div>}
       {asset && <label className="col-span-2 grid gap-2">生命周期<Choice value={fields.lifecycle} onChange={value => update('lifecycle', value as AssetFields['lifecycle'])} options={[{ value: 'active', label: '在册' }, { value: 'retired', label: '已退役' }]} /></label>}
       <label className="col-span-2 grid gap-2">备注<Textarea value={fields.notes} rows={3} maxLength={2500} onChange={event => update('notes', event.target.value)} /></label>
       <div className="col-span-2 grid gap-2">
