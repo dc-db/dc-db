@@ -1,3 +1,4 @@
+import { OptionSelect } from './OptionSelect'
 import React, { createContext, useContext, useRef, useState } from 'react'
 import type { ReactNode, CSSProperties } from 'react'
 import { flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table'
@@ -195,9 +196,7 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, p
           {pagination.showSizeChanger !== false && (
             <label className="control-page-size">
               每页
-              <select aria-label="每页条数" value={pageSize} onChange={e => pagination.onChange(1, Number(e.target.value))}>
-                {(pagination.pageSizeOptions ?? ['10', '20', '50']).map(size => <option key={size} value={size}>{size}</option>)}
-              </select>
+              <OptionSelect label="每页条数" size="sm" value={String(pageSize)} onChange={value => pagination.onChange(1, Number(value))} options={(pagination.pageSizeOptions ?? ['10', '20', '50']).map(size => ({ value: String(size), label: String(size) }))} />
               条
             </label>
           )}

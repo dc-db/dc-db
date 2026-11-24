@@ -1,3 +1,4 @@
+import { OptionSelect } from './OptionSelect'
 import { useId, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { serviceCatalog, serviceCategory } from '../serviceCatalog'
@@ -24,9 +25,7 @@ export function ServicePicker({ value, onChange }: { value: string; onChange: (v
         <PopoverContent align="start" className="w-80 max-w-[min(24rem,80vw)] space-y-3">
           <div className="font-medium">选择内置服务</div>
           <label className="grid gap-1 text-sm">服务分类
-            <select className="control-select w-full" value={category} onChange={event => setCategory(event.target.value)}>
-              <option>全部分类</option>{serviceCatalog.map(group => <option key={group.category}>{group.category}</option>)}
-            </select>
+            <OptionSelect className="w-full" label="服务分类" value={category} onChange={setCategory} options={['全部分类', ...serviceCatalog.map(group => group.category)].map(value => ({ value, label: value }))} />
           </label>
           <Input aria-label="搜索内置服务" placeholder="搜索服务名称" value={query} onChange={event => setQuery(event.target.value)} />
           <div className="max-h-64 overflow-y-auto">
