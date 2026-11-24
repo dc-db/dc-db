@@ -971,9 +971,14 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         title: '服务', key: 'services', width: 200,
         render: (_, asset) => {
           const bound = asset.services ?? []
-          return <div className="flex flex-wrap items-center gap-2">
-            {bound.length ? bound.map((service, index) => <span key={index} className="asset-service-chip" title={[service.version && `版本：${service.version}`, service.notes].filter(Boolean).join(" · ") || service.name}><ServiceIcon name={service.name} category={serviceCategory(service.name)} />{service.name}{service.port ? `:${service.port}` : ''}</span>) : '—'}
-            {editable && <Button size="small" onClick={() => { void openAsset(asset.id); setEditor(true) }} aria-label={`编辑服务 ${asset.name}`}>编辑</Button>}
+          if (!bound.length) return '—'
+          const service = bound[0]
+          const remaining = bound.slice(1).map(item => item.name + (item.port ? `:${item.port}` : '')).join('、')
+          return <div className="flex min-w-0 items-center gap-2">
+            <button type="button" className="asset-service-chip min-w-0" onClick={() => void openAsset(asset.id)} aria-label={`${service.name}，查看${asset.name}详情`} title={service.name}>
+              <ServiceIcon name={service.name} category={serviceCategory(service.name)} /><span className="truncate">{service.name}{service.port ? `:${service.port}` : ''}</span>
+            </button>
+            {remaining && <Tooltip title={remaining}><span className="shrink-0 text-muted-foreground" tabIndex={0} aria-label={`另外 ${bound.length - 1} 个服务：${remaining}`}>+{bound.length - 1}</span></Tooltip>}
           </div>
         },
       },
