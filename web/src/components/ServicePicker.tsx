@@ -15,7 +15,7 @@ export function ServicePicker({ value, onChange }: { value: string; onChange: (v
     .map(group => ({ ...group, names: group.names.filter(name => name.includes(query.trim().toLowerCase())) }))
     .filter(group => group.names.length > 0)
   return <div className="grid min-w-0 gap-1">
-    <label htmlFor={id}>服务名称</label>
+    <label className="service-picker-label" htmlFor={id}>服务名称</label>
     <div className="flex min-w-0 items-center gap-2">
       {value && <ServiceIcon name={value} category={serviceCategory(value)} />}
       <Input id={id} required maxLength={120} placeholder="输入名称或选择内置服务" value={value} onChange={event => onChange(event.target.value)} />

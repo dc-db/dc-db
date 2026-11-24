@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
 import { formatDateTime } from './lib/date'
+import { formatMemory } from './lib/memory'
 import { downloadCSV } from './csv'
 import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, NetworkKind, Subnet, User, VLAN } from './api'
 import { assetLocations, assetRoomId, buildRoomCounts, locationLabel, matchesRoomFilter } from './facilities'
@@ -1015,7 +1016,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       column: {
         title: 'CPU / 内存', key: 'capacity', width: 140,
         sorter: (left, right) => left.cpu - right.cpu || left.memoryMiB - right.memoryMiB,
-        render: (_, asset) => isNetworkKind(asset.kind) ? '—' : `${asset.cpu || 0} 核 / ${asset.memoryMiB ? (asset.memoryMiB / 1024).toFixed(0) + ' GiB' : '—'}`,
+        render: (_, asset) => isNetworkKind(asset.kind) ? '—' : `${asset.cpu || 0} 核 / ${formatMemory(asset.memoryMiB) || '—'}`,
       },
     },
     {
@@ -1053,7 +1054,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     { key: 'address', label: '管理地址 / IP', children: <span className="mono">{selected.address || '—'}</span> },
     ...(selected.kind === 'host' || selected.kind === 'vm' ? [{
       key: 'capacity', label: 'CPU / 内存',
-      children: `${selected.cpu || '—'} 核 · ${selected.memoryMiB ? selected.memoryMiB / 1024 + ' GiB' : '—'}`,
+      children: `${selected.cpu || '—'} 核 · ${formatMemory(selected.memoryMiB) || '—'}`,
     }] : []),
     ...(selectedLocation ? [{
       key: 'location', label: '数据中心位置',
@@ -1577,7 +1578,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       </Layout>
 
       <Modal
-        open={createOpen} title={isNetworkKind(newKind) ? '新增网络设备' : newKind === 'vm' ? '新增虚拟机' : '新增服务器'} width={760} footer={null}
+        open={createOpen} title={isNetworkKind(newKind) ? '新增网络设备' : newKind === 'vm' ? '新增虚拟机' : '新增服务器'} width={620} footer={null} bodyClassName="asset-create-dialog-body"
         onCancel={() => closeCreate()}
       >
         {createOpen && <AssetEditor
