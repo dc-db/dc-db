@@ -67,10 +67,10 @@ const relations: { kind: LinkKind; from: Kind; to: Kind[]; outgoing: string; inc
   { kind: 'hosts', from: 'host', to: ['vm'], outgoing: '承载虚拟机', incoming: '所在宿主机' },
 ]
 const defaultPageSize = 10
-const defaultAssetColumns = ['name', 'tags', 'platform', 'meta', 'address', 'owner', 'created']
-const defaultHostColumns = ['name', 'tags', 'address', 'owner', 'created']
+const defaultAssetColumns = ['name', 'capacity', 'address', 'platform', 'meta', 'tags', 'notes']
+const defaultHostColumns = ['name', 'capacity', 'address', 'tags', 'notes']
 const defaultNetworkDeviceColumns = ['name', 'kind', 'tags', 'address', 'owner']
-const assetColumnKeys = ['name', 'kind', 'tags', 'platform', 'meta', 'address', 'owner', 'group', 'environment', 'capacity', 'created', 'updated']
+const assetColumnKeys = ['name', 'capacity', 'kind', 'address', 'platform', 'meta', 'tags', 'group', 'owner', 'environment', 'notes', 'created', 'updated']
 
 
 function platformLabel(asset: Pick<Asset, 'platform'>) {
@@ -463,16 +463,20 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     if (!assetPage) return
     const fallback = page === 'host' ? defaultHostColumns : page === 'network_devices' ? defaultNetworkDeviceColumns : defaultAssetColumns
     try {
-      const key = 'dc-db-columns:' + page + (page === 'host' || page === 'vm' ? ':v2' : '')
+      const key = 'dc-db-columns:' + page + (page === 'host' || page === 'vm' ? ':v5' : '')
       const raw = localStorage.getItem(key)
-      const legacy = (page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page) : null
+      const v4 = (page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page + ':v4') : null
+      const previous = v4 || ((page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page + ':v3') || localStorage.getItem('dc-db-columns:' + page + ':v2') : null)
+      const legacy = previous || ((page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page) : null)
       const parsed: unknown = raw || legacy ? JSON.parse((raw || legacy)!) : null
       const valid = Array.isArray(parsed)
-        ? parsed.filter((key): key is string => typeof key === 'string').map(key => key === 'status' || key === 'probe' ? 'address' : key).filter(key => assetColumnKeys.includes(key) && (page !== 'host' || key !== 'meta') && ((page !== 'host' && page !== 'vm') || key !== 'environment'))
+        ? parsed.filter((key): key is string => typeof key === 'string').map(key => key === 'status' || key === 'probe' ? 'address' : key).filter(key => assetColumnKeys.includes(key) && (page !== 'host' || key !== 'meta') && ((page !== 'host' && page !== 'vm') || (key !== 'environment' && (!!raw || key !== 'owner') && (!!raw || !!v4 || (key !== 'created' && key !== 'updated')))))
         : []
       if (legacy && valid.length) {
-        valid.push('created')
-        if (page === 'vm') valid.push('platform')
+        if (!previous) {
+          if (page === 'vm') valid.push('platform')
+        }
+        valid.push('capacity', 'notes')
         localStorage.setItem(key, JSON.stringify(assetColumnKeys.filter(item => valid.includes(item))))
       }
       setVisibleColumns(valid.length ? assetColumnKeys.filter(key => valid.includes(key)) : fallback)
@@ -888,7 +892,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     const ordered = assetColumnKeys.filter(key => keys.includes(key))
     setVisibleColumns(ordered)
     try {
-      localStorage.setItem('dc-db-columns:' + page + (page === 'host' || page === 'vm' ? ':v2' : ''), JSON.stringify(ordered))
+      localStorage.setItem('dc-db-columns:' + page + (page === 'host' || page === 'vm' ? ':v5' : ''), JSON.stringify(ordered))
     } catch {
       // Keep the current in-memory column selection.
     }
@@ -1107,6 +1111,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       },
     },
     {
+      key: 'notes', label: '备注',
+      column: { title: '备注', dataIndex: 'notes', key: 'notes', width: 200, render: value => value ? <span className="whitespace-pre-wrap break-words">{value}</span> : '—' },
+    },
+    {
       key: 'created', label: '创建时间',
       column: {
         title: '创建时间', dataIndex: 'createdAt', key: 'created', width: 165,
@@ -1124,8 +1132,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     },
   ]
   const availableAssetColumns = page === 'network_devices'
-    ? assetColumns.filter(item => !['meta', 'platform', 'capacity', 'created'].includes(item.key))
+    ? assetColumns.filter(item => !['meta', 'platform', 'capacity', 'notes', 'created'].includes(item.key))
+        .sort((a, b) => ['name', 'kind', 'tags', 'address', 'group', 'owner', 'environment', 'updated'].indexOf(a.key) - ['name', 'kind', 'tags', 'address', 'group', 'owner', 'environment', 'updated'].indexOf(b.key))
     : assetColumns.filter(item => item.key !== 'kind' && item.key !== 'environment' && (page !== 'host' || (item.key !== 'meta' && item.key !== 'platform')))
+        .sort((a, b) => assetColumnKeys.indexOf(a.key) - assetColumnKeys.indexOf(b.key))
   const columns = availableAssetColumns.filter(item => visibleColumns.includes(item.key)).map(item => item.column)
 
   const descriptions = selected ? [
