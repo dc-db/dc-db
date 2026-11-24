@@ -9,10 +9,9 @@ import (
 // round trip, so the page does not have to fetch every list to build its
 // sidebar counts.
 func ReferenceCounts(ctx context.Context, db *sql.DB) (map[string]int64, error) {
-	counts := map[string]int64{"groups": 0, "services": 0}
+	counts := map[string]int64{"groups": 0}
 	queries := map[string]string{
-		"groups":   "SELECT count(*) FROM asset_groups",
-		"services": "SELECT count(*) FROM services",
+		"groups": "SELECT count(*) FROM asset_groups",
 	}
 	for key, query := range queries {
 		var count int64

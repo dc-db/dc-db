@@ -13,20 +13,21 @@ import (
 var ErrConflict = errors.New("记录已被更新，请刷新后重试")
 
 type Fields struct {
-	Kind         string          `json:"kind"`
-	Name         string          `json:"name"`
-	Platform     string          `json:"platform"`
-	Status       string          `json:"status"`
-	Lifecycle    string          `json:"lifecycle"`
-	Owner        string          `json:"owner"`
-	Environment  string          `json:"environment"`
-	Address      string          `json:"address"`
-	ProbeEnabled bool            `json:"probeEnabled"`
-	CPU          int             `json:"cpu"`
-	MemoryMiB    int64           `json:"memoryMiB"`
-	GroupID      int64           `json:"groupId"`
-	Notes        string          `json:"notes"`
-	Attributes   json.RawMessage `json:"attributes"`
+	Services     *[]ServiceInstance `json:"services,omitempty"`
+	Kind         string             `json:"kind"`
+	Name         string             `json:"name"`
+	Platform     string             `json:"platform"`
+	Status       string             `json:"status"`
+	Lifecycle    string             `json:"lifecycle"`
+	Owner        string             `json:"owner"`
+	Environment  string             `json:"environment"`
+	Address      string             `json:"address"`
+	ProbeEnabled bool               `json:"probeEnabled"`
+	CPU          int                `json:"cpu"`
+	MemoryMiB    int64              `json:"memoryMiB"`
+	GroupID      int64              `json:"groupId"`
+	Notes        string             `json:"notes"`
+	Attributes   json.RawMessage    `json:"attributes"`
 }
 
 type Asset struct {
@@ -92,14 +93,38 @@ func ListAssets(ctx context.Context, db *sql.DB) ([]Asset, error) {
 	defer rows.Close()
 
 	assets := make([]Asset, 0)
+	indices := make(map[int64]int)
 	for rows.Next() {
 		asset, err := readAsset(rows)
 		if err != nil {
 			return nil, err
 		}
+		indices[asset.ID] = len(assets)
 		assets = append(assets, asset)
 	}
-	return assets, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	serviceRows, err := db.QueryContext(ctx, "SELECT asset_id,name,port,version,notes FROM asset_service_instances ORDER BY asset_id,id")
+	if err != nil {
+		return nil, err
+	}
+	defer serviceRows.Close()
+	for serviceRows.Next() {
+		var id int64
+		var item ServiceInstance
+		if err := serviceRows.Scan(&id, &item.Name, &item.Port, &item.Version, &item.Notes); err != nil {
+			return nil, err
+		}
+		if index, ok := indices[id]; ok {
+			if assets[index].Services == nil {
+				empty := []ServiceInstance{}
+				assets[index].Services = &empty
+			}
+			*assets[index].Services = append(*assets[index].Services, item)
+		}
+	}
+	return assets, serviceRows.Err()
 }
 
 func ListLinks(ctx context.Context, db *sql.DB, assetID int64) ([]Link, error) {
@@ -154,15 +179,24 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 	}
 	defer tx.Rollback()
 
+	requestedServices := fields.Services
+	fields.Services = nil
+	if err := validateServiceInstances(fields.Kind, requestedServices); err != nil {
+		return Asset{}, err
+	}
 	if id == 0 {
 		asset, err := createAsset(ctx, tx, fields, actor)
 		if err != nil {
 			return Asset{}, err
 		}
+		if _, err := replaceAssetServices(ctx, tx, asset.ID, requestedServices, actor, asset.Name); err != nil {
+			return Asset{}, err
+		}
+		asset.Services = requestedServices
 		return asset, tx.Commit()
 	}
 
-	before, err := readAsset(tx.QueryRowContext(ctx, "SELECT "+assetColumns+" FROM assets WHERE id=$1", id))
+	before, err := readAsset(tx.QueryRowContext(ctx, "SELECT "+assetColumns+" FROM assets WHERE id=$1 FOR UPDATE", id))
 	if err != nil {
 		return Asset{}, err
 	}
@@ -173,6 +207,16 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 		return Asset{}, ErrConflict
 	}
 	if equalFields(fields, before.Fields) {
+		changed, err := replaceAssetServices(ctx, tx, id, requestedServices, actor, before.Name)
+		if err != nil {
+			return Asset{}, err
+		}
+		if changed {
+			if err := tx.QueryRowContext(ctx, "UPDATE assets SET version=version+1, updated_at=now() WHERE id=$1 RETURNING version, updated_at", id).Scan(&before.Version, &before.UpdatedAt); err != nil {
+				return Asset{}, err
+			}
+		}
+		before.Services = requestedServices
 		return before, tx.Commit()
 	}
 
@@ -192,6 +236,10 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 	if err := writeChange(ctx, tx, asset, actor, "update", before.Fields, asset.Fields); err != nil {
 		return Asset{}, err
 	}
+	if _, err := replaceAssetServices(ctx, tx, id, requestedServices, actor, asset.Name); err != nil {
+		return Asset{}, err
+	}
+	asset.Services = requestedServices
 	return asset, tx.Commit()
 }
 
