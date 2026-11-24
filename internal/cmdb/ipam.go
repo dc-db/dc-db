@@ -569,7 +569,7 @@ func normalizeAllocationFields(fields *AllocationFields) error {
 		return invalidFacility("IP 地址角色无效")
 	}
 	if len(fields.Label) > 160 || len(fields.Notes) > 2000 {
-		return invalidFacility("标签或备注超出长度限制")
+		return invalidFacility("用途或备注超出长度限制")
 	}
 	if len(fields.DNSName) > 255 {
 		return invalidFacility("DNS 名称不能超过 255 个字符")

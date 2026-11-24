@@ -21,8 +21,6 @@ type SearchResult struct {
 	RackID   int64  `json:"rackId,omitempty"`
 	SubnetID int64  `json:"subnetId,omitempty"`
 	VLANID   int64  `json:"vlanId,omitempty"`
-	TagID    int64  `json:"tagId,omitempty"`
-	Color    string `json:"color,omitempty"`
 }
 
 const (
@@ -60,12 +58,6 @@ func Search(ctx context.Context, db *sql.DB, raw string) ([]SearchResult, error)
 		return nil, err
 	}
 	results = append(results, assets...)
-
-	tags, err := searchTags(ctx, db, query, pattern, prefix)
-	if err != nil {
-		return nil, err
-	}
-	results = append(results, tags...)
 
 	rooms, err := searchRooms(ctx, db, query, pattern, prefix)
 	if err != nil {
@@ -138,48 +130,6 @@ func searchAssets(ctx context.Context, db *sql.DB, query, pattern, prefix string
 		}
 		if owner != "" {
 			parts = append(parts, owner)
-		}
-		result.Detail = strings.Join(parts, " · ")
-		out = append(out, result)
-	}
-	return out, rows.Err()
-}
-
-func searchTags(ctx context.Context, db *sql.DB, query, pattern, prefix string) ([]SearchResult, error) {
-	rows, err := db.QueryContext(ctx, `
-		SELECT t.id, t.name, t.color, t.description,
-			(SELECT count(*) FROM asset_tags at WHERE at.tag_id = t.id)
-		FROM tags t
-		WHERE lower(t.name) LIKE $1 ESCAPE '\' OR lower(t.description) LIKE $2 ESCAPE '\'
-		ORDER BY CASE
-			WHEN lower(t.name) = $3 THEN 0
-			WHEN lower(t.name) LIKE $4 ESCAPE '\' THEN 1
-			ELSE 2
-		END, lower(t.name)
-		LIMIT $5`,
-		pattern, pattern, strings.ToLower(query), prefix, searchPerType,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var out []SearchResult
-	for rows.Next() {
-		var result SearchResult
-		var description string
-		var count int64
-		if err := rows.Scan(&result.ID, &result.Label, &result.Color, &description, &count); err != nil {
-			return nil, err
-		}
-		result.Type = "tag"
-		result.TagID = result.ID
-		parts := []string{"标签"}
-		if count > 0 {
-			parts = append(parts, strconv.FormatInt(count, 10)+" 个资产")
-		}
-		if description != "" {
-			parts = append(parts, description)
 		}
 		result.Detail = strings.Join(parts, " · ")
 		out = append(out, result)

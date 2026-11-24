@@ -50,11 +50,6 @@ func NewServer(db *sql.DB, secureCookie bool, frontend http.Handler) http.Handle
 	mux.HandleFunc("GET /api/assets", s.requireUser(false, s.listAssets))
 	mux.HandleFunc("GET /api/search", s.requireUser(false, s.search))
 	mux.HandleFunc("POST /api/assets/bulk", s.requireUser(true, s.bulkUpdateAssets))
-	mux.HandleFunc("POST /api/assets/bulk/tags", s.requireUser(true, s.bulkUpdateAssetTags))
-	mux.HandleFunc("GET /api/tags", s.requireUser(false, s.listTags))
-	mux.HandleFunc("POST /api/tags", s.requireUser(true, s.saveTag))
-	mux.HandleFunc("PUT /api/tags/{id}", s.requireUser(true, s.saveTag))
-	mux.HandleFunc("DELETE /api/tags/{id}", s.requireUser(true, s.deleteTag))
 
 	mux.HandleFunc("GET /api/groups", s.requireUser(false, s.listGroups))
 	mux.HandleFunc("POST /api/groups", s.requireUser(true, s.saveGroup))
@@ -70,8 +65,6 @@ func NewServer(db *sql.DB, secureCookie bool, frontend http.Handler) http.Handle
 	mux.HandleFunc("POST /api/metadata", s.requireUser(true, s.saveMetadata))
 	mux.HandleFunc("PUT /api/metadata/{id}", s.requireUser(true, s.saveMetadata))
 	mux.HandleFunc("DELETE /api/metadata/{id}", s.requireUser(true, s.deleteMetadata))
-	mux.HandleFunc("GET /api/assets/{id}/tags", s.requireUser(false, s.listAssetTags))
-	mux.HandleFunc("PUT /api/assets/{id}/tags", s.requireUser(true, s.setAssetTags))
 	mux.HandleFunc("PUT /api/assets/{id}/services", s.requireUser(true, s.setAssetServices))
 	mux.HandleFunc("POST /api/assets", s.requireUser(true, s.saveAsset))
 	mux.HandleFunc("POST /api/assets/import", s.requireUser(true, s.importAssets))
@@ -118,108 +111,6 @@ func (s *Server) search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respond(w, http.StatusOK, results)
-}
-
-func (s *Server) listTags(w http.ResponseWriter, r *http.Request) {
-	tags, err := ListTags(r.Context(), s.db)
-	if err != nil {
-		s.databaseError(w, err)
-		return
-	}
-	respond(w, http.StatusOK, tags)
-}
-
-func (s *Server) bulkUpdateAssetTags(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		IDs    []int64 `json:"ids"`
-		TagIDs []int64 `json:"tagIds"`
-		Mode   string  `json:"mode"`
-	}
-	if err := decode(w, r, &input); err != nil {
-		fail(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if len(input.IDs) == 0 || len(input.IDs) > 1000 {
-		fail(w, http.StatusBadRequest, "请选择 1–1000 条资产")
-		return
-	}
-	updated, err := BulkUpdateAssetTags(r.Context(), s.db, input.IDs, input.TagIDs, input.Mode, currentUser(r).Username)
-	if err != nil {
-		s.databaseError(w, err)
-		return
-	}
-	respond(w, http.StatusOK, map[string]int{"updated": updated})
-}
-
-func (s *Server) saveTag(w http.ResponseWriter, r *http.Request) {
-	var id int64
-	if r.Method == http.MethodPut {
-		var ok bool
-		id, ok = pathID(w, r)
-		if !ok {
-			return
-		}
-	}
-	var fields TagFields
-	if err := decode(w, r, &fields); err != nil {
-		fail(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	tag, err := SaveTag(r.Context(), s.db, id, fields)
-	if err != nil {
-		s.databaseError(w, err)
-		return
-	}
-	status := http.StatusOK
-	if id == 0 {
-		status = http.StatusCreated
-	}
-	respond(w, status, tag)
-}
-
-func (s *Server) deleteTag(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(w, r)
-	if !ok {
-		return
-	}
-	if err := DeleteTag(r.Context(), s.db, id); err != nil {
-		s.databaseError(w, err)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (s *Server) listAssetTags(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(w, r)
-	if !ok {
-		return
-	}
-	tags, err := ListAssetTags(r.Context(), s.db, id)
-	if err != nil {
-		s.databaseError(w, err)
-		return
-	}
-	respond(w, http.StatusOK, tags)
-}
-
-func (s *Server) setAssetTags(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(w, r)
-	if !ok {
-		return
-	}
-	var input struct {
-		TagIDs []int64 `json:"tagIds"`
-	}
-	if err := decode(w, r, &input); err != nil {
-		fail(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	tags, err := SetAssetTags(r.Context(), s.db, id, input.TagIDs, currentUser(r).Username)
-	if err != nil {
-		s.databaseError(w, err)
-		return
-	}
-	respond(w, http.StatusOK, tags)
 }
 
 func (s *Server) bulkUpdateAssets(w http.ResponseWriter, r *http.Request) {

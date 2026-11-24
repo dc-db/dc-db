@@ -39,13 +39,6 @@ func TestSearch(t *testing.T) {
 	}, "tester"); err != nil {
 		t.Fatalf("save allocation: %v", err)
 	}
-	tag, err := SaveTag(ctx, db, 0, TagFields{Name: "生产标签", Color: "#1677ff", Description: "生产环境"})
-	if err != nil {
-		t.Fatalf("save tag: %v", err)
-	}
-	if _, err := SetAssetTags(ctx, db, host.ID, []int64{tag.ID}, "tester"); err != nil {
-		t.Fatalf("set tag: %v", err)
-	}
 
 	assertTypes := func(query string, expected ...string) {
 		t.Helper()
@@ -70,8 +63,6 @@ func TestSearch(t *testing.T) {
 	assertTypes("北京数据中心", "room", "rack")
 	assertTypes("A-01", "rack")
 	assertTypes("10.20.30.0/24", "subnet")
-	assertTypes("生产标签", "tag")
-	assertTypes("生产环境", "tag")
 
 	if rack.RoomID != room.ID {
 		t.Fatalf("rack room = %d, want %d", rack.RoomID, room.ID)
