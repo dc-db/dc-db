@@ -25,20 +25,6 @@ export function ReferenceDataIcon(props: IconProps) {
   )
 }
 
-// 群组：边界框内聚编组（与文件夹、用户图标完全区分）
-export function GroupClusterIcon(props: IconProps) {
-  return (
-    <svg {...baseProps} {...props}>
-      <path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8" />
-      <path d="M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8" />
-      <path d="M4 16v2.5A1.5 1.5 0 0 0 5.5 20H8" />
-      <path d="M16 20h2.5a1.5 1.5 0 0 0 1.5-1.5V16" />
-      <rect x="7.5" y="7.75" width="9" height="3.25" rx="1" />
-      <rect x="7.5" y="13" width="9" height="3.25" rx="1" />
-    </svg>
-  )
-}
-
 // 服务：六边形运行组件节点（中间件 / 基础服务）
 export function ServiceNodeIcon(props: IconProps) {
   return (

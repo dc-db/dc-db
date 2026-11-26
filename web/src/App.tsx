@@ -12,7 +12,7 @@ import {
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
   House as HomeOutlined, ArrowLeft as ArrowLeftOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
-  Network as NetworkOutlined, Split as SplitOutlined, LocateFixed as LocateFixedOutlined,
+  Network as NetworkOutlined, Split as SplitOutlined, LocateFixed as LocateFixedOutlined, Layers3,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
 import { formatDateTime } from './lib/date'
@@ -36,7 +36,7 @@ import { IPAddressView } from './components/IPAddressView'
 import { IpamView } from './components/IpamView'
 import { LoginBackdrop } from './components/LoginBackdrop'
 import {
-  GroupClusterIcon, NetworkDeviceIcon, OperatorTowerIcon, OwnerBadgeIcon, ReferenceDataIcon,
+  NetworkDeviceIcon, OperatorTowerIcon, OwnerBadgeIcon, ReferenceDataIcon,
 } from './components/MetadataIcons'
 import { MetadataManager } from './components/MetadataManager'
 import { SubnetDetailView, VLANDetailView } from './components/NetworkDetailViews'
@@ -310,7 +310,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     {
       key: 'reference', label: '组织', icon: <ReferenceDataIcon />,
       children: [
-        { key: 'groups', label: '项目', icon: <GroupClusterIcon /> },
+        { key: 'groups', label: '项目', icon: <Layers3 strokeWidth={1.9} /> },
         { key: 'teams', label: '团队', icon: <TeamOutlined /> },
         { key: 'owners', label: '人员', icon: <OwnerBadgeIcon /> },
       ],
