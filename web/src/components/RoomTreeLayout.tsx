@@ -277,7 +277,7 @@ export function RoomTreeLayout({
     }
     return {
       mode: 'all',
-      label: '全部数据中心',
+      label: '全部',
       canReset: false,
       onReset: () => onChange('all'),
     }
@@ -353,7 +353,7 @@ export function RoomTreeLayout({
                 className={`facility-tree-item${value === 'all' ? ' active' : ''}`}
                 onClick={() => onChange('all')}
               >
-                <span className="facility-tree-name">全部数据中心</span>
+                <span className="facility-tree-name">全部</span>
                 {counts?.all !== undefined && <span className="facility-tree-count tabular-nums">{counts.all}</span>}
               </button>
             )}
