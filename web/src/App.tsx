@@ -36,7 +36,7 @@ import { IPAddressView } from './components/IPAddressView'
 import { IpamView } from './components/IpamView'
 import { LoginBackdrop } from './components/LoginBackdrop'
 import {
-  AssetKindIcon, GroupClusterIcon, NetworkDeviceIcon, OperatorTowerIcon, OwnerBadgeIcon, ReferenceDataIcon,
+  GroupClusterIcon, NetworkDeviceIcon, OperatorTowerIcon, OwnerBadgeIcon, ReferenceDataIcon,
 } from './components/MetadataIcons'
 import { MetadataManager } from './components/MetadataManager'
 import { SubnetDetailView, VLANDetailView } from './components/NetworkDetailViews'
@@ -959,7 +959,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         sorter: (left, right) => kindLabel(left.kind).localeCompare(kindLabel(right.kind), 'zh-CN'),
         render: (_, asset) => (
           <span className="device-kind-cell">
-            <AssetKindIcon kind={asset.kind} />
             {kindLabel(asset.kind)}
           </span>
         ),

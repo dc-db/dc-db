@@ -7,9 +7,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Group, GroupFields } from '../api'
 import { DataTable } from './DataTable'
-import { GroupClusterIcon } from './MetadataIcons'
 import { PageHeader } from './PageHeader'
-import { RowIconBox } from './ServiceIcon'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
@@ -93,12 +91,7 @@ export function GroupManager({ editable, hideTitle, onSessionError, onChanged }:
       header: '名称',
       sortingFn: (a, b) => a.original.name.localeCompare(b.original.name, 'zh-CN'),
       meta: { headerClassName: 'w-[28%]', cellClassName: 'whitespace-nowrap' },
-      cell: ({ row }) => (
-        <div className="table-name-cell">
-          <RowIconBox><GroupClusterIcon className="size-3.5" /></RowIconBox>
-          <span className="font-medium">{row.original.name}</span>
-        </div>
-      ),
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
     },
     {
       accessorKey: 'assetCount',

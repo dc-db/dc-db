@@ -1,13 +1,12 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
-import { Eye, EyeOff, Pencil, Plus, RefreshCw, ShieldCheck, Trash2, UserCog, UserRound } from 'lucide-react'
+import { Eye, EyeOff, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Role, User, UserFields } from '../api'
 import { ChangePassword } from './ChangePassword'
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
-import { RowIconBox } from './ServiceIcon'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
@@ -25,12 +24,6 @@ const roleMeta: Record<Role, { label: string; className: string; description: st
 }
 const roles: Role[] = ['admin', 'operator', 'viewer']
 const initialFields: UserFields = { username: '', role: 'viewer', password: '' }
-
-function roleIcon(role: Role) {
-  if (role === 'admin') return <ShieldCheck className="size-3.5" />
-  if (role === 'operator') return <UserCog className="size-3.5" />
-  return <UserRound className="size-3.5" />
-}
 
 export function UserManager({ currentUser, onChangePassword, onSessionError }: Props) {
   const canManageUsers = currentUser.role === 'admin'
@@ -90,7 +83,6 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => (
         <div className="table-name-cell">
-          <RowIconBox>{roleIcon(row.original.role)}</RowIconBox>
           <span className="font-medium">{row.original.username}</span>
           {row.original.username === currentUsername && <Badge variant="secondary">当前账号</Badge>}
           {row.original.role === 'admin' && adminCount === 1 && <Badge variant="outline">最后一个管理员</Badge>}

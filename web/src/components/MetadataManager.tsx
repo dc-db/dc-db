@@ -10,10 +10,8 @@ import type { MetadataEntry, MetadataFields } from '../api'
 import { buildRoomCounts, matchesRoomFilter } from '../facilities'
 import type { Facilities } from '../facilities'
 import { DataTable } from './DataTable'
-import { OperatorTowerIcon, OwnerBadgeIcon, TagMarkIcon } from './MetadataIcons'
 import { PageHeader } from './PageHeader'
 import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
-import { RowIconBox } from './ServiceIcon'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
@@ -31,12 +29,6 @@ interface Props {
   onRoomFilterChange?: (next: RoomFilter) => void
   onSessionError: (error: unknown) => void
   onChanged?: () => void
-}
-
-function kindIcon(kind: string) {
-  if (kind === 'owner') return <OwnerBadgeIcon className="size-3.5" />
-  if (kind === 'operator') return <OperatorTowerIcon className="size-3.5" />
-  return <TagMarkIcon className="size-3.5" />
 }
 
 // Generic dictionary category (负责人, 运营商, …): name plus an optional note.
@@ -137,12 +129,7 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
       header: '名称',
       sortingFn: (a, b) => a.original.name.localeCompare(b.original.name, 'zh-CN'),
       meta: { headerClassName: 'w-[28%]', cellClassName: 'whitespace-nowrap' },
-      cell: ({ row }) => (
-        <div className="table-name-cell">
-          <RowIconBox>{kindIcon(kind)}</RowIconBox>
-          <span className="font-medium">{row.original.name}</span>
-        </div>
-      ),
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
     },
     ...(withRoomTree ? [{
       accessorKey: 'roomName',
