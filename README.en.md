@@ -176,6 +176,12 @@ For production, put Nginx in front with HTTPS and set `cookie_secure: true` in `
 
 Without Docker you can run the compiled binary, but you have to provide PostgreSQL, fill in the `database` block of `config.yaml`, and place `web/dist` where `web_dir` points (default `web/dist`). The binary itself is a static single file and does not contain the frontend assets; the server does not need Node.
 
+## Organization
+
+Use Organization to manage projects, teams, and people. Projects track business ownership, teams track operational responsibility, and a person can join multiple teams or be responsible for assets directly. Servers, virtual machines, and network devices can each have a project, an operations team, and a responsible person.
+
+Administrators can link a person to an existing login account. Accounts are managed under System management, and each account's system role determines its permissions. Deleting an account removes the link and preserves the person and their asset assignments.
+
 ## Asset management
 
 Add individual assets with the `新增资产` button. For larger inventories, use CSV import: edit the file in Excel and save it as `CSV UTF-8` (comma-separated), click `下载模板` on the asset list to get the template, fill it in, then click `导入 CSV`. The file is validated and previewed first; row errors are listed for correction and can be downloaded as a CSV report, and data is written only after you confirm.

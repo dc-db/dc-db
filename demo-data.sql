@@ -217,8 +217,8 @@ WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
 ON CONFLICT DO NOTHING;
 
 
-INSERT INTO metadata_entries (id, kind, name, description)
-SELECT 1000 + i, 'owner',
+INSERT INTO people (name, description)
+SELECT
        (ARRAY['张', '李', '王', '赵', '刘', '陈', '杨', '黄', '周', '吴'])[1 + (i % 10)] || '示例' || lpad(i::text, 2, '0'),
        CASE WHEN i % 3 = 0 THEN '虚构负责人' ELSE '' END
 FROM generate_series(1, 60) AS i
@@ -457,6 +457,24 @@ INSERT INTO asset_service_instances (asset_id, name)
 SELECT m.asset_id, m.service_name FROM (VALUES
  (3::bigint,'nginx'), (19,'nginx'), (4,'postgresql'), (3,'redis'), (10,'grafana'), (1,'etcd')
 ) AS m(asset_id, service_name) WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+
+INSERT INTO people (name)
+SELECT min(owner) FROM assets WHERE length(owner) BETWEEN 1 AND 80 GROUP BY lower(owner)
+ON CONFLICT DO NOTHING;
+
+UPDATE assets a SET person_id=p.id, owner=''
+FROM people p WHERE lower(a.owner)=lower(p.name);
+
+INSERT INTO teams (name, description) VALUES
+    ('示例平台运维组', '维护演示服务器和虚拟机'),
+    ('示例网络运维组', '维护演示网络设备');
+
+UPDATE assets a SET team_id=t.id
+FROM teams t
+WHERE t.name=CASE WHEN a.kind IN ('host','vm') THEN '示例平台运维组' ELSE '示例网络运维组' END;
+
+INSERT INTO team_members (team_id, person_id)
+SELECT DISTINCT team_id, person_id FROM assets WHERE team_id IS NOT NULL AND person_id IS NOT NULL;
 
 -- 显式写入主键后推进序列，避免后续新增记录主键冲突。
 SELECT setval(pg_get_serial_sequence('assets', 'id'), (SELECT max(id) FROM assets));
