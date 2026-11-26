@@ -350,6 +350,12 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     () => buildRoomCounts(scoped, asset => assetRoomId(asset, locations, byId, links)),
     [byId, links, locations, scoped],
   )
+  useEffect(() => {
+    if (assetPage && !busy && roomFilter === 'unassigned' && assetRoomCounts.unassigned === 0) {
+      setRoomFilter('all')
+    }
+  }, [assetPage, assetRoomCounts.unassigned, busy, roomFilter])
+
   const filtered = useMemo(() => {
     const query = keyword.trim().toLowerCase()
     return scoped.filter(asset => {
@@ -1466,6 +1472,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               value={roomFilter}
               onChange={setRoomFilter}
               editable={editable}
+              showUnassigned={busy || assetRoomCounts.unassigned !== 0}
               counts={assetRoomCounts}
               onSessionError={e => handleError(e)}
             >
