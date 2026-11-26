@@ -81,7 +81,7 @@ The service binds to `127.0.0.1:8080` by default. Before the first start of a ne
 
 ### Reachability checks
 
-For a server, VM, or network device with a single IP address, enable Ping checks in the asset editor. An administrator can set the interval under System Management → Reachability Settings (10–86400 seconds; default 300). Results indicate ICMP reachability, not whether a device or service is running; retired assets are skipped. The Docker image includes Ping and probes from the application container network through the host. When running directly on Linux, install iputils `ping` and allow the application user to send ICMP.
+For a server, VM, or network device with a single IP address, enable Ping checks in the asset editor. Enabled assets are checked every 60 seconds. Results indicate ICMP reachability, not whether a device or service is running; retired assets are skipped. The Docker image includes Ping and probes from the application container network through the host. When running directly on Linux, install iputils `ping` and allow the application user to send ICMP.
 
 ### Example data
 

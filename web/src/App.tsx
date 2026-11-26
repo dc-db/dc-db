@@ -46,7 +46,6 @@ import { PageHeader } from './components/PageHeader'
 import { ServiceIcon } from './components/ServiceIcon'
 import { serviceCategory } from './serviceCatalog'
 import { UserManager } from './components/UserManager'
-import { ProbeSettings } from './components/ProbeSettings'
 import { VLANView } from './components/VLANView'
 import { Wordmark } from './components/Wordmark'
 
@@ -95,7 +94,7 @@ function messageText(error: unknown) {
   return error instanceof Error ? error.message : '操作失败'
 }
 
-const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'network_devices', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'password', 'groups', 'teams', 'owners', 'users', 'probe_settings']
+const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'network_devices', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'password', 'groups', 'teams', 'owners', 'users']
 
 function readPageParam(): Page {
   const params = new URLSearchParams(window.location.search)
@@ -294,7 +293,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     { key: 'password', label: '更改密码', icon: <LockOutlined /> },
   ]
   if (user?.role === 'admin') {
-    systemChildren.splice(1, 0, { key: 'users', label: '用户管理', icon: <TeamOutlined /> }, { key: 'probe_settings', label: '存活探测设置', icon: <SettingOutlined /> })
+    systemChildren.splice(1, 0, { key: 'users', label: '用户管理', icon: <TeamOutlined /> })
   }
   const navigation: (NavLeaf | NavGroup)[] = [
     { key: 'home', label: '首页', icon: <HomeOutlined /> },
@@ -1404,7 +1403,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             />
           )}
 
-          {page === 'probe_settings' && user?.role === 'admin' && <ProbeSettings onSessionError={e => handleError(e)} />}
 
           {page === 'users' && user?.role === 'admin' && (
             <UserManager currentUsername={user.username} onSessionError={e => handleError(e)} />
