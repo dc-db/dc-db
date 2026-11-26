@@ -33,10 +33,10 @@ func normalizeGroupFields(fields *GroupFields) error {
 	fields.Name = strings.TrimSpace(fields.Name)
 	fields.Description = strings.TrimSpace(fields.Description)
 	if fields.Name == "" || utf8.RuneCountInString(fields.Name) > 80 {
-		return fmt.Errorf("%w: 群组名称须为 1–80 个字符", ErrInvalid)
+		return fmt.Errorf("%w: 项目名称须为 1–80 个字符", ErrInvalid)
 	}
 	if utf8.RuneCountInString(fields.Description) > 200 {
-		return fmt.Errorf("%w: 群组说明不能超过 200 个字符", ErrInvalid)
+		return fmt.Errorf("%w: 项目说明不能超过 200 个字符", ErrInvalid)
 	}
 	return nil
 }
@@ -84,7 +84,7 @@ func SaveGroup(ctx context.Context, db *sql.DB, id int64, fields GroupFields) (G
 	}
 	if err != nil {
 		if isUniqueViolation(err) {
-			return Group{}, fmt.Errorf("%w: 群组名称已存在", ErrInvalid)
+			return Group{}, fmt.Errorf("%w: 项目名称已存在", ErrInvalid)
 		}
 		return Group{}, err
 	}

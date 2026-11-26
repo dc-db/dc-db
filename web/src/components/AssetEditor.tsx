@@ -129,7 +129,7 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, r
           />
         </label>
       )}
-      <label className="grid gap-2 asset-field-group">所属群组<Choice value={fields.groupId ? String(fields.groupId) : ''} onChange={value => update('groupId', Number(value || 0))} options={[{ value: '', label: '未分配' }, ...groups.map(group => ({ value: String(group.id), label: group.name }))]} /></label>
+      <label className="grid gap-2 asset-field-group">所属项目<Choice value={fields.groupId ? String(fields.groupId) : ''} onChange={value => update('groupId', Number(value || 0))} options={[{ value: '', label: '未分配' }, ...groups.map(group => ({ value: String(group.id), label: group.name }))]} /></label>
       <div className="grid gap-2 asset-field-owner"><span>负责人</span><SearchableSelect label="负责人" placeholder="选择或搜索负责人" value={fields.owner} onChange={value => update('owner', value)} options={owners.map(name => ({ value: name, label: name }))} allowCustom indicator="down" triggerClassName="max-w-64" /></div>
       {!networkDevice && <div className="col-span-2 grid gap-3 asset-create-services">
         <div>运行服务</div>

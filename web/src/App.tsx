@@ -310,10 +310,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       ],
     },
     {
-      key: 'reference', label: '基础数据', icon: <ReferenceDataIcon />,
+      key: 'reference', label: '组织', icon: <ReferenceDataIcon />,
       children: [
-        { key: 'groups', label: '群组', icon: <GroupClusterIcon /> },
-        { key: 'owners', label: '负责人', icon: <OwnerBadgeIcon /> },
+        { key: 'groups', label: '项目', icon: <GroupClusterIcon /> },
+        { key: 'owners', label: '人员', icon: <OwnerBadgeIcon /> },
       ],
     },
     {
@@ -1004,9 +1004,9 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       column: { title: '负责人', dataIndex: 'owner', key: 'owner', width: 120, sorter: (left, right) => left.owner.localeCompare(right.owner, 'zh-CN'), render: value => value || '—' },
     },
     {
-      key: 'group', label: '群组',
+      key: 'group', label: '项目',
       column: {
-        title: '群组', key: 'group', width: 120,
+        title: '项目', key: 'group', width: 120,
         sorter: (left, right) => groupName(left.groupId).localeCompare(groupName(right.groupId), 'zh-CN'),
         render: (_, asset) => groupName(asset.groupId),
       },
@@ -1370,7 +1370,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
           {page === 'owners' && (
             <MetadataManager
-              kind="owner" title="负责人" editable={editable}
+              kind="owner" title="人员" editable={editable}
               onSessionError={e => handleError(e)}
               onChanged={() => { void api<{ name: string }[]>('/metadata?kind=owner').then(list => setOwners(list.map(i => i.name))).catch(() => {}) }}
             />
