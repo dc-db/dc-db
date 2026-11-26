@@ -576,10 +576,6 @@ html[data-theme="dark"] .import-error-row strong { color: #ff7875; }
   .relation-topology-canvas { height: 320px; }
 }
 
-.password-card { max-width: 560px; }
-.password-hint { margin-bottom: 16px; }
-.password-alert { margin-bottom: 16px; }
-
 /* change timeline */
 .change-toolbar { margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
 .change-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

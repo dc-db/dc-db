@@ -4,6 +4,7 @@ import { getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef, type
 import { Eye, EyeOff, Pencil, Plus, RefreshCw, ShieldCheck, Trash2, UserCog, UserRound } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Role, User, UserFields } from '../api'
+import { ChangePassword } from './ChangePassword'
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 import { RowIconBox } from './ServiceIcon'
@@ -12,7 +13,11 @@ import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 
-interface Props { currentUsername: string; onSessionError: (error: unknown) => void }
+interface Props {
+  currentUser: User
+  onChangePassword: (currentPassword: string, newPassword: string) => Promise<void>
+  onSessionError: (error: unknown) => void
+}
 const roleMeta: Record<Role, { label: string; className: string; description: string }> = {
   admin: { label: '管理员', className: 'border-danger-border bg-danger-soft text-danger', description: '全部权限，可管理账号' },
   operator: { label: '运维', className: 'border-info-border bg-info-soft text-info', description: '可维护资产、IPAM 和数据中心' },
@@ -27,7 +32,9 @@ function roleIcon(role: Role) {
   return <UserRound className="size-3.5" />
 }
 
-export function UserManager({ currentUsername, onSessionError }: Props) {
+export function UserManager({ currentUser, onChangePassword, onSessionError }: Props) {
+  const canManageUsers = currentUser.role === 'admin'
+  const currentUsername = currentUser.username
   const [users, setUsers] = useState<User[]>([])
   const [sorting, setSorting] = useState<SortingState>([])
   const [loading, setLoading] = useState(false)
@@ -42,7 +49,7 @@ export function UserManager({ currentUsername, onSessionError }: Props) {
   const [fields, setFields] = useState<UserFields>(initialFields)
   const adminCount = useMemo(() => users.filter(user => user.role === 'admin').length, [users])
 
-  useEffect(() => { void load() }, [])
+  useEffect(() => { if (canManageUsers) void load() }, [canManageUsers])
   function report(e: unknown, inModal = false) {
     if (e instanceof APIError && e.status === 401) { onSessionError(e); return }
     const message = e instanceof Error ? e.message : '操作失败'
@@ -112,7 +119,7 @@ export function UserManager({ currentUsername, onSessionError }: Props) {
       header: () => <div className="text-right">操作</div>,
       cell: ({ row }) => {
         const user = row.original
-        if (user.username === currentUsername) return <span className="text-xs text-muted-foreground">请使用「更改密码」维护当前账号</span>
+        if (user.username === currentUsername) return <ChangePassword onSubmit={onChangePassword} />
         const lastAdmin = user.role === 'admin' && adminCount <= 1
         return (
           <div className="table-row-action flex justify-end gap-1">
@@ -125,7 +132,7 @@ export function UserManager({ currentUsername, onSessionError }: Props) {
   ]
 
   const table = useReactTable({
-    data: users,
+    data: canManageUsers ? users : [currentUser],
     columns,
     state: { sorting },
     onSortingChange: setSorting,
@@ -135,8 +142,8 @@ export function UserManager({ currentUsername, onSessionError }: Props) {
 
   return <>
     <PageHeader
-      title="用户管理"
-      filters={
+      title={canManageUsers ? '用户管理' : '我的账号'}
+      filters={canManageUsers && (
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           {roles.map(role => (
             <span key={role} className="inline-flex items-center gap-1.5">
@@ -145,8 +152,8 @@ export function UserManager({ currentUsername, onSessionError }: Props) {
             </span>
           ))}
         </div>
-      }
-      actions={<>
+      )}
+      actions={canManageUsers && <>
         <Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
         <Button onClick={() => showForm(null)}><Plus />新增账号</Button>
       </>}

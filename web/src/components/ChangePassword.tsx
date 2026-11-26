@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { Lock } from 'lucide-react'
 import { Button } from './ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog'
 import { Input } from './ui/input'
 
 interface Props {
@@ -8,14 +9,27 @@ interface Props {
 }
 
 export function ChangePassword({ onSubmit }: Props) {
+  const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
+  function onOpenChange(next: boolean) {
+    if (busy) return
+    setOpen(next)
+    if (!next) {
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setError('')
+    }
+  }
+
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (busy) return
     if (newPassword.length < 12 || newPassword.length > 512) {
       setError('新密码长度须为 12–512 个字符')
       return
@@ -35,29 +49,32 @@ export function ChangePassword({ onSubmit }: Props) {
   }
 
   return (
-    <Card className="password-card">
-      <CardHeader><CardTitle>修改登录密码</CardTitle></CardHeader>
-      <CardContent>
-        <p className="muted password-hint">修改成功后，当前账号的所有登录会话都会失效，需要使用新密码重新登录。</p>
-        {error && <p role="alert" className="password-alert text-destructive">{error}</p>}
-        <form className="grid gap-4" onSubmit={event => void submit(event)} onReset={() => {
-          setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); setError('')
-        }}>
-          <label className="grid gap-2">当前密码
-            <Input type="password" autoComplete="current-password" maxLength={512} required value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} />
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm"><Lock />更改密码</Button>
+      </DialogTrigger>
+      <DialogContent showCloseButton={!busy}>
+        <DialogHeader>
+          <DialogTitle>更改密码</DialogTitle>
+          <DialogDescription>更改成功后，当前账号的所有登录会话都会失效，请使用新密码重新登录。</DialogDescription>
+        </DialogHeader>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        <form className="grid gap-4" onSubmit={event => void submit(event)}>
+          <label className="grid gap-2 text-sm font-medium">当前密码
+            <Input type="password" autoComplete="current-password" maxLength={512} required disabled={busy} value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} />
           </label>
-          <label className="grid gap-2">新密码
-            <Input type="password" autoComplete="new-password" maxLength={512} required value={newPassword} onChange={event => setNewPassword(event.target.value)} />
+          <label className="grid gap-2 text-sm font-medium">新密码
+            <Input type="password" autoComplete="new-password" placeholder="至少 12 个字符" maxLength={512} required disabled={busy} value={newPassword} onChange={event => setNewPassword(event.target.value)} />
           </label>
-          <label className="grid gap-2">确认新密码
-            <Input type="password" autoComplete="new-password" maxLength={512} required value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} />
+          <label className="grid gap-2 text-sm font-medium">确认新密码
+            <Input type="password" autoComplete="new-password" maxLength={512} required disabled={busy} value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} />
           </label>
-          <div className="flex gap-2">
-            <Button type="submit" disabled={busy}>{busy ? '修改中…' : '修改密码'}</Button>
-            <Button type="reset" variant="outline" disabled={busy}>重置</Button>
-          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button type="button" variant="outline" disabled={busy}>取消</Button></DialogClose>
+            <Button type="submit" disabled={busy}>{busy ? '更改中…' : '保存新密码'}</Button>
+          </DialogFooter>
         </form>
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   )
 }

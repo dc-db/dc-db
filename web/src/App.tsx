@@ -10,7 +10,7 @@ const zhCN = {}
 import {
   Building2 as BuildingOutlined, Server as CloudServerOutlined,
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
-  House as HomeOutlined, ArrowLeft as ArrowLeftOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
+  House as HomeOutlined, ArrowLeft as ArrowLeftOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
   Network as NetworkOutlined, Split as SplitOutlined, LocateFixed as LocateFixedOutlined,
 } from 'lucide-react'
@@ -28,7 +28,6 @@ import { RoomTreeLayout, type RoomFilter } from './components/RoomTreeLayout'
 import { AssetInterfaces } from './components/AssetInterfaces'
 import { AssetRelationGraph } from './components/AssetRelationGraph'
 import { ChangeList } from './components/ChangeList'
-import { ChangePassword } from './components/ChangePassword'
 import { Dashboard } from './components/Dashboard'
 import { FacilityView } from './components/FacilityView'
 import { GlobalSearch } from './components/GlobalSearch'
@@ -94,7 +93,7 @@ function messageText(error: unknown) {
   return error instanceof Error ? error.message : '操作失败'
 }
 
-const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'network_devices', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'password', 'groups', 'teams', 'owners', 'users']
+const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'network_devices', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'groups', 'teams', 'owners', 'users']
 
 function readPageParam(): Page {
   const params = new URLSearchParams(window.location.search)
@@ -108,6 +107,7 @@ function readPageParam(): Page {
     return 'subnets'
   }
   if (value === 'metadata') return 'groups'
+  if (value === 'password') return 'users'
   return PAGE_KEYS.includes(value as Page) ? (value as Page) : 'home'
 }
 
@@ -290,11 +290,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   const systemChildren: NavLeaf[] = [
     { key: 'changes', label: '变更记录', icon: <HistoryOutlined /> },
-    { key: 'password', label: '更改密码', icon: <LockOutlined /> },
+    { key: 'users', label: user?.role === 'admin' ? '用户管理' : '我的账号', icon: <TeamOutlined /> },
   ]
-  if (user?.role === 'admin') {
-    systemChildren.splice(1, 0, { key: 'users', label: '用户管理', icon: <TeamOutlined /> })
-  }
   const navigation: (NavLeaf | NavGroup)[] = [
     { key: 'home', label: '首页', icon: <HomeOutlined /> },
     { key: 'facilities', label: '机柜', icon: <BuildingOutlined /> },
@@ -1404,11 +1401,9 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           )}
 
 
-          {page === 'users' && user?.role === 'admin' && (
-            <UserManager currentUsername={user.username} onSessionError={e => handleError(e)} />
+          {page === 'users' && (
+            <UserManager currentUser={user} onChangePassword={changePassword} onSessionError={handleError} />
           )}
-
-          {page === 'password' && <ChangePassword onSubmit={changePassword} />}
 
           {page === 'facilities' && (
             <FacilityView
