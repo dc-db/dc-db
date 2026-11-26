@@ -140,14 +140,14 @@ viewer:
 The `系统管理` section contains:
 
 - **Change history**: review changes to assets, relationships, and facilities, filtered by asset, actor, or action, and export the current result
-- **User management**: administrator-only account management with administrator, operator, and viewer roles, plus password reset for other accounts
-- **Change password**: update the password for the signed-in account
+- **User management**: administrator-only account management with administrator, operator, and viewer roles, plus password reset for other accounts. Use **Change password** in the signed-in account’s row
+- **My account**: operators and viewers can see their own account and change their password
 
 Roles are:
 
 - **Administrator**: all features, including user management;
 - **Operator**: manage assets, IPAM and data centers, but not accounts;
-- **Viewer**: read-only; every write request is rejected by the server.
+- **Viewer**: view asset and system data, and change their own password.
 
 The last administrator cannot be deleted or demoted, and an administrator cannot delete or change their own role. Resetting a password invalidates that account's existing sessions.
 
