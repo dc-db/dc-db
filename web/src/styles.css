@@ -337,33 +337,11 @@ html[data-theme] .rack-detail-face-figure svg .slot-row:hover .slot, html[data-t
 .facility-table-clickable tbody tr { cursor: pointer; }
 .facility-table-empty { padding: 40px 14px !important; color: var(--muted); text-align: center; font-size: 14px; }
 
-/* Usage guide page. */
-.guide-page { display: flex; flex-direction: column; gap: 16px; }
-.guide-lead { margin: 0 0 16px; color: var(--muted); font-size: 13px; line-height: 1.8; }
-.guide-paths { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-.guide-path { display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
-.guide-path > svg { width: 20px; height: 20px; color: var(--muted); }
-.guide-path strong { font-size: 14px; }
-.guide-path p { flex: 1; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
-.guide-steps { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; list-style: none; }
-.guide-step { display: flex; gap: 12px; }
-.guide-step-index { display: grid; flex: 0 0 24px; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--info-soft); color: var(--info); font-size: 12px; font-weight: 600; }
-.guide-step strong { font-size: 13px; }
-.guide-step p { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
-.guide-faq details { padding: 10px 0; border-bottom: 1px solid var(--line); }
-.guide-faq details:last-child { border-bottom: 0; }
-.guide-faq summary { color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; }
-.guide-faq p { margin: 8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
-.guide-faq code { padding: 1px 5px; border-radius: 4px; background: var(--subtle); font-size: 12px; }
-.guide-footer { display: flex; justify-content: flex-end; }
-
-/* First run: pick a starting point instead of forcing a data center. */
 .first-run { display: flex; justify-content: center; padding: 64px 24px; }
 .first-run-card { width: 100%; max-width: 560px; text-align: center; }
 .first-run-card h2 { margin: 0 0 8px; color: var(--text); font-size: 20px; font-weight: 600; }
 .first-run-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
 .first-run-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 22px 0 14px; }
-.first-run-hint { color: var(--muted); font-size: 12px; }
 
 /* Asset interfaces tab. */
 .asset-interfaces { display: flex; flex-direction: column; gap: 12px; }

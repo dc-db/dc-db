@@ -8,7 +8,7 @@ import {
 import type { TableColumnsType } from './components/AppControls'
 const zhCN = {}
 import {
-  Building2 as BuildingOutlined, BookOpen as BookOpenOutlined, Server as CloudServerOutlined,
+  Building2 as BuildingOutlined, Server as CloudServerOutlined,
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
   House as HomeOutlined, ArrowLeft as ArrowLeftOutlined, Lock as LockOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
@@ -33,7 +33,6 @@ import { Dashboard } from './components/Dashboard'
 import { FacilityView } from './components/FacilityView'
 import { GlobalSearch } from './components/GlobalSearch'
 import { GroupManager } from './components/GroupManager'
-import { GuidePage } from './components/GuidePage'
 import { IPAddressView } from './components/IPAddressView'
 import { IpamView } from './components/IpamView'
 import { LoginBackdrop } from './components/LoginBackdrop'
@@ -95,7 +94,7 @@ function messageText(error: unknown) {
   return error instanceof Error ? error.message : '操作失败'
 }
 
-const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'network_devices', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'password', 'groups', 'owners', 'users', 'probe_settings', 'guide']
+const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'network_devices', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'password', 'groups', 'owners', 'users', 'probe_settings']
 
 function readPageParam(): Page {
   const params = new URLSearchParams(window.location.search)
@@ -291,7 +290,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const systemChildren: NavLeaf[] = [
     { key: 'changes', label: '变更记录', icon: <HistoryOutlined /> },
     { key: 'password', label: '更改密码', icon: <LockOutlined /> },
-    { key: 'guide', label: '使用指南', icon: <BookOpenOutlined /> },
   ]
   if (user?.role === 'admin') {
     systemChildren.splice(1, 0, { key: 'users', label: '用户管理', icon: <TeamOutlined /> }, { key: 'probe_settings', label: '存活探测设置', icon: <SettingOutlined /> })
@@ -1331,25 +1329,16 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
           </>) : (<>
           {error && <Alert type="error" showIcon closable message={error} className="page-alert" onClose={() => setError('')} />}
 
-          {page === 'guide' && (
-            <GuidePage
-              onGo={goTo}
-              onStartAsset={() => { setPage('host'); startNew('host') }}
-            />
-          )}
-
           {page === 'home' && (firstRun ? (
             <div className="first-run">
               <div className="first-run-card">
                 <h2>还没有任何数据</h2>
-                <p>第一次使用？先花两分钟看一遍使用指南，了解三条上手路径。</p>
+                <p>从录入资产、创建数据中心或管理网络开始。</p>
                 <div className="first-run-actions">
-                  <Button type="primary" size="large" icon={<BookOpenOutlined />} onClick={() => goTo('guide')}>查看使用指南</Button>
                   <Button size="large" icon={<PlusOutlined />} onClick={() => { setPage('host'); startNew('host') }}>先录资产</Button>
                   <Button size="large" icon={<BuildingOutlined />} onClick={() => goTo('facilities')}>先建机房</Button>
                   <Button size="large" icon={<GlobalOutlined />} onClick={() => goTo('subnets')}>先管网络</Button>
                 </div>
-                <p className="first-run-hint">「使用指南」里有截图级的操作顺序和常见问题。</p>
               </div>
             </div>
           ) : (
