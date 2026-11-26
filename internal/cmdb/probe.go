@@ -11,47 +11,15 @@ import (
 	"time"
 )
 
-const probeConcurrency = 32
-
-type ProbeSettings struct {
-	IntervalSeconds int `json:"intervalSeconds"`
-}
+const (
+	probeConcurrency     = 32
+	probeIntervalSeconds = 60
+)
 
 type probeTarget struct {
 	id      int64
 	version int
 	address string
-}
-
-func GetProbeSettings(ctx context.Context, db *sql.DB) (ProbeSettings, error) {
-	var settings ProbeSettings
-	err := db.QueryRowContext(ctx, "SELECT interval_seconds FROM probe_settings WHERE id=1").Scan(&settings.IntervalSeconds)
-	return settings, err
-}
-
-func SetProbeSettings(ctx context.Context, db *sql.DB, interval int, actor string) error {
-	if interval < 10 || interval > 86400 {
-		return errors.New("探测间隔须为 10–86400 秒")
-	}
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	var before ProbeSettings
-	if err := tx.QueryRowContext(ctx, "SELECT interval_seconds FROM probe_settings WHERE id=1 FOR UPDATE").Scan(&before.IntervalSeconds); err != nil {
-		return err
-	}
-	if before.IntervalSeconds == interval {
-		return tx.Commit()
-	}
-	if _, err := tx.ExecContext(ctx, "UPDATE probe_settings SET interval_seconds=$1 WHERE id=1", interval); err != nil {
-		return err
-	}
-	if err := writeNamedChange(ctx, tx, nil, "存活探测", actor, "probe.settings", before, ProbeSettings{IntervalSeconds: interval}); err != nil {
-		return err
-	}
-	return tx.Commit()
 }
 
 type ProbeResult struct {
@@ -95,14 +63,10 @@ func RunProbeWorker(ctx context.Context, db *sql.DB) {
 }
 
 func runProbeRound(ctx context.Context, db *sql.DB, probe func(context.Context, string) string) error {
-	settings, err := GetProbeSettings(ctx, db)
-	if err != nil {
-		return err
-	}
 	rows, err := db.QueryContext(ctx, `SELECT id,address,version FROM assets
         WHERE probe_enabled AND lifecycle='active'
           AND (probe_checked_at IS NULL OR probe_checked_at <= now() - make_interval(secs => $1))
-        ORDER BY probe_checked_at NULLS FIRST, id LIMIT 5000`, settings.IntervalSeconds)
+        ORDER BY probe_checked_at NULLS FIRST, id LIMIT 5000`, probeIntervalSeconds)
 	if err != nil {
 		return err
 	}

@@ -41,8 +41,6 @@ func NewServer(db *sql.DB, secureCookie bool, frontend http.Handler) http.Handle
 		respond(w, http.StatusOK, currentUser(r))
 	}))
 	mux.HandleFunc("GET /api/probe-results", s.requireUser(false, s.listProbeResults))
-	mux.HandleFunc("GET /api/probe-settings", s.requireAdmin(s.getProbeSettings))
-	mux.HandleFunc("PUT /api/probe-settings", s.requireAdmin(s.updateProbeSettings))
 	mux.HandleFunc("GET /api/users", s.requireAdmin(s.listUsers))
 	mux.HandleFunc("POST /api/users", s.requireAdmin(s.createUser))
 	mux.HandleFunc("PUT /api/users/{username}", s.requireAdmin(s.updateUser))

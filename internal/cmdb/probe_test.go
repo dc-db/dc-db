@@ -2,10 +2,7 @@ package cmdb
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"runtime"
-	"strings"
 	"sync/atomic"
 	"testing"
 )
@@ -28,7 +25,7 @@ func TestProbeValidation(t *testing.T) {
 	}
 }
 
-func TestProbeRoundAndSettings(t *testing.T) {
+func TestProbeRound(t *testing.T) {
 	db := testDB(t)
 	ctx := context.Background()
 	create := func(name, address string, enabled bool) Asset {
@@ -94,63 +91,25 @@ func TestProbeRoundAndSettings(t *testing.T) {
 	if found[stale.ID].ProbeStatus != "unknown" || found[stale.ID].ProbeCheckedAt != nil {
 		t.Fatal("stale probe result was applied")
 	}
-	if err := SetProbeSettings(ctx, db, 9, "tester"); err == nil {
-		t.Fatal("invalid interval accepted")
-	}
-	if err := SetProbeSettings(ctx, db, 30, "tester"); err != nil {
+	// Only enabled assets whose last check was over 60 seconds ago are due.
+	if _, err := db.ExecContext(ctx, `
+		UPDATE assets SET probe_checked_at=now() -
+		    CASE WHEN id IN ($1,$2) THEN interval '61 seconds' ELSE interval '59 seconds' END`,
+		enabled.ID, disabled.ID); err != nil {
 		t.Fatal(err)
 	}
-	settings, err := GetProbeSettings(ctx, db)
-	if err != nil || settings.IntervalSeconds != 30 {
-		t.Fatalf("settings: %+v, %v", settings, err)
-	}
-	changes, err := ListChanges(ctx, db, 0)
-	if err != nil {
+	calls.Store(0)
+	if err := runProbeRound(ctx, db, func(_ context.Context, address string) string {
+		calls.Add(1)
+		if address != enabled.Address {
+			t.Errorf("probed asset that was not due: %s", address)
+		}
+		return "reachable"
+	}); err != nil {
 		t.Fatal(err)
 	}
-	if len(changes) == 0 || changes[0].Action != "probe.settings" {
-		t.Fatal("setting change was not audited")
-	}
-}
-
-func TestProbeSettingsPermissions(t *testing.T) {
-	db := testDB(t)
-	ctx := context.Background()
-	for _, user := range []struct{ name, role, token string }{
-		{"example-admin", "admin", strings.Repeat("a", 43)},
-		{"example-viewer", "viewer", strings.Repeat("b", 43)},
-	} {
-		if err := EnsureUser(ctx, db, user.name, "example-password-only", user.role); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := db.ExecContext(ctx, "INSERT INTO sessions (token_hash,username,expires_at) VALUES ($1,$2,'2099-01-01T00:00:00Z')", sessionHash(user.token), user.name); err != nil {
-			t.Fatal(err)
-		}
-	}
-	handler := NewServer(db, false, http.NotFoundHandler())
-	for _, tc := range []struct {
-		token, method, body string
-		want                int
-	}{
-		{"", "GET", "", http.StatusUnauthorized},
-		{strings.Repeat("b", 43), "GET", "", http.StatusForbidden},
-		{strings.Repeat("b", 43), "PUT", `{"intervalSeconds":60}`, http.StatusForbidden},
-		{strings.Repeat("a", 43), "PUT", `{"intervalSeconds":9}`, http.StatusBadRequest},
-		{strings.Repeat("a", 43), "PUT", `{"intervalSeconds":60}`, http.StatusOK},
-		{strings.Repeat("a", 43), "GET", "", http.StatusOK},
-	} {
-		req := httptest.NewRequest(tc.method, "/api/probe-settings", strings.NewReader(tc.body))
-		if tc.body != "" {
-			req.Header.Set("Content-Type", "application/json")
-		}
-		if tc.token != "" {
-			req.AddCookie(&http.Cookie{Name: sessionCookie, Value: tc.token})
-		}
-		rec := httptest.NewRecorder()
-		handler.ServeHTTP(rec, req)
-		if rec.Code != tc.want {
-			t.Errorf("%s: got %d, want %d", tc.method, rec.Code, tc.want)
-		}
+	if calls.Load() != 1 {
+		t.Fatalf("probed %d due assets, want 1", calls.Load())
 	}
 }
 
