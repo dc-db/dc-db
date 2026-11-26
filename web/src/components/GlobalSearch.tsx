@@ -53,6 +53,14 @@ export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onV
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
         inputRef.current?.focus()
+        return
+      }
+      if (event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        const target = event.target as HTMLElement | null
+        const tag = target?.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return
+        event.preventDefault()
+        inputRef.current?.focus()
       }
     }
     window.addEventListener('keydown', shortcut)
@@ -166,66 +174,101 @@ export function GlobalSearch({ onAsset, onRoom, onRack, onIpam, onIPAddress, onV
   const flat = grouped.flatMap(group => group.items)
 
   return (
-    <div className="global-search">
+    <div className="global-search relative">
       <div className="relative flex items-center">
-      <Search size={15} className="absolute left-3 text-muted-foreground pointer-events-none" />
-      <Input
-        ref={inputRef}
-        className="pl-9 pr-9"
-        aria-label="全局搜索"
-        placeholder="全局搜索"
-        value={query}
-        autoComplete="off"
-        onChange={event => {
-          const value = event.target.value
-          setQuery(value)
-          setOpen(value.trim().length >= 2 || value.trim().length === 0)
-        }}
-        onFocus={() => setOpen(true)}
-        onClick={() => setOpen(true)}
-        onBlur={() => window.setTimeout(() => setOpen(false), 120)}
-        onKeyDown={handleKeyDown}
-      />
-      {query && <button type="button" className="absolute right-3 text-muted-foreground" aria-label="清除搜索" onMouseDown={event => event.preventDefault()} onClick={() => { setQuery(''); inputRef.current?.focus() }}><X size={14} /></button>}
+        <Search size={14} className="pointer-events-none absolute left-2.5 text-muted-foreground" />
+        <Input
+          ref={inputRef}
+          className="h-8 bg-background pl-8 pr-12 text-sm shadow-none"
+          aria-label="全局搜索"
+          placeholder="全局搜索"
+          value={query}
+          autoComplete="off"
+          onChange={event => {
+            const value = event.target.value
+            setQuery(value)
+            setOpen(value.trim().length >= 2 || value.trim().length === 0)
+          }}
+          onFocus={() => setOpen(true)}
+          onClick={() => setOpen(true)}
+          onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+          onKeyDown={handleKeyDown}
+        />
+        {query ? (
+          <button
+            type="button"
+            className="absolute right-2 inline-flex size-5 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="清除搜索"
+            onMouseDown={event => event.preventDefault()}
+            onClick={() => { setQuery(''); inputRef.current?.focus() }}
+          >
+            <X size={14} />
+          </button>
+        ) : (
+          <kbd
+            aria-hidden="true"
+            className="pointer-events-none absolute right-2 hidden h-5 select-none items-center gap-0.5 rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:inline-flex"
+          >
+            ⌘K
+          </kbd>
+        )}
       </div>
       {visible && (
-        <div className="global-search-panel" onMouseDown={event => event.preventDefault()}>
+        <div
+          className="global-search-panel rounded-lg border border-border bg-popover text-popover-foreground shadow-lg"
+          onMouseDown={event => event.preventDefault()}
+        >
           {!query.trim() ? (
             <>
               <div className="global-search-group">
-                <div className="global-search-group-title">最近搜索</div>
+                <div className="global-search-group-title text-muted-foreground">最近搜索</div>
                 {recent.map(term => (
-                  <button key={term} type="button" className="global-search-recent" onClick={() => runRecent(term)}>
-                    <History size={14} />
+                  <button
+                    key={term}
+                    type="button"
+                    className="global-search-recent text-foreground hover:bg-accent"
+                    onClick={() => runRecent(term)}
+                  >
+                    <History size={14} className="text-muted-foreground" />
                     <span>{term}</span>
                   </button>
                 ))}
               </div>
-              <button type="button" className="global-search-clear" onClick={clearRecent}>清空最近搜索</button>
+              <button
+                type="button"
+                className="global-search-clear text-muted-foreground hover:text-foreground"
+                onClick={clearRecent}
+              >
+                清空最近搜索
+              </button>
             </>
           ) : (
             <>
-              {loading && <div className="global-search-state"><LoaderCircle size={14} className="animate-spin" /> 搜索中…</div>}
-              {!loading && error && <div className="global-search-state">{error}</div>}
-              {!loading && !error && results.length === 0 && <div className="global-search-state">没有匹配结果</div>}
+              {loading && <div className="global-search-state text-muted-foreground"><LoaderCircle size={14} className="animate-spin" /> 搜索中…</div>}
+              {!loading && error && <div className="global-search-state text-muted-foreground">{error}</div>}
+              {!loading && !error && results.length === 0 && <div className="global-search-state text-muted-foreground">没有匹配结果</div>}
               {!loading && !error && grouped.map(group => (
                 <div key={group.type} className="global-search-group">
-                  <div className="global-search-group-title">{typeMeta[group.type].label}</div>
+                  <div className="global-search-group-title text-muted-foreground">{typeMeta[group.type].label}</div>
                   {group.items.map(result => {
                     const index = flat.findIndex(item => item.type === result.type && item.id === result.id)
                     return (
                       <button
                         key={`${result.type}-${result.id}`} type="button"
-                        className={`global-search-result${index === active ? ' active' : ''}`}
+                        className={`global-search-result transition-colors${index === active ? ' active bg-accent text-accent-foreground' : ' hover:bg-accent/60'}`}
                         onMouseEnter={() => setActive(index)}
                         onClick={() => choose(result)}
                       >
-                        <span className="global-search-icon">{typeMeta[result.type].icon}</span>
-                        <span className="global-search-copy">
-                          <strong>{result.label}</strong>
-                          <span>{resultDetail(result)}</span>
+                        <span className="global-search-icon inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-muted/60 text-muted-foreground">
+                          {typeMeta[result.type].icon}
                         </span>
-                        <span className="global-search-type">{typeMeta[result.type].label}</span>
+                        <span className="global-search-copy">
+                          <strong className="text-foreground">{result.label}</strong>
+                          <span className="text-muted-foreground">{resultDetail(result)}</span>
+                        </span>
+                        <span className="global-search-type rounded border border-border bg-muted/50 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                          {typeMeta[result.type].label}
+                        </span>
                       </button>
                     )
                   })}

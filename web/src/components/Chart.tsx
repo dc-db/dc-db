@@ -22,7 +22,7 @@ export function Chart({ option, height = 240, dark = false }: { option: EChartsO
     chart.current?.setOption({
       ...option,
       backgroundColor: 'transparent',
-      textStyle: { color: dark ? '#eceef2' : '#1c1c1a', ...(option.textStyle ?? {}) },
+      textStyle: { color: dark ? '#fafafa' : '#0a0a0a', ...(option.textStyle ?? {}) },
     }, true)
   }, [option, dark])
 

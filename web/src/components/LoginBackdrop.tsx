@@ -29,8 +29,8 @@ interface TrailPoint {
 const COL_GAP = 18
 const ROW_H = 24
 const FONT = '400 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
-const BASE_COLOR = '#9a9ea6'
-const ACCENT_COLOR = '#3b82f6'
+const BASE_COLOR = '#666666'
+const ACCENT_COLOR = '#e5e5e5'
 
 // Cloudflare-Domains-inspired hover trail parameters
 const HOVER_RADIUS = 128
@@ -64,7 +64,7 @@ function shuffledRowOrder(seedIndex: number): number[] {
 /**
  * Pure typographic interactive backdrop inspired by Cloudflare Domains:
  * quiet monochrome infrastructure terms in centered wrapped rows that softly
- * illuminate in DC-DB blue within a trailing pointer region and fade away.
+ * illuminate in crisp silver monochrome within a trailing pointer region and fade away.
  */
 export function LoginBackdrop({ children }: { children: ReactNode }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)

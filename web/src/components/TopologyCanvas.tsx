@@ -256,8 +256,8 @@ export function TopologyCanvas({
   }, [activeChain, layout.nodes])
 
   const styledEdges = useMemo<Edge[]>(() => {
-    const baseStroke = dark ? '#3c4250' : '#cbcac4'
-    const activeStroke = dark ? '#60a5fa' : '#2563eb'
+    const baseStroke = dark ? '#404040' : '#d4d4d4'
+    const activeStroke = dark ? '#fafafa' : '#171717'
     return layout.links.map(edge => {
       const isHighlighted = activeChain ? activeChain.edgeIds.has(edge.id) : false
       const isDimmed = activeChain ? !isHighlighted : false
@@ -394,7 +394,7 @@ export function TopologyCanvas({
               variant={BackgroundVariant.Dots}
               gap={24}
               size={1}
-              color={dark ? '#262b36' : '#dcdbd5'}
+              color={dark ? '#262626' : '#e5e5e5'}
             />
             <Controls showInteractive={false} />
           </ReactFlow>

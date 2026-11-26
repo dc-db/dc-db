@@ -14,14 +14,18 @@ import { Button } from './ui/button'
 import { UsageBar } from './UsageBar'
 
 const subnetStatusMeta: Record<string, { label: string; className: string }> = {
-  container: { label: '聚合', className: 'border-border bg-muted text-muted-foreground' },
-  active: { label: '启用', className: 'border-success-border bg-success-soft text-success' },
-  reserved: { label: '预留', className: 'border-warning-border bg-warning-soft text-warning' },
-  deprecated: { label: '停用', className: 'border-border bg-muted text-muted-foreground' },
+  container: { label: '聚合', className: 'border-border bg-secondary text-secondary-foreground' },
+  active: { label: '启用', className: 'border-border bg-transparent text-foreground gap-1.5 before:size-1.5 before:rounded-full before:bg-success before:content-[""]' },
+  reserved: { label: '预留', className: 'border-border bg-transparent text-foreground gap-1.5 before:size-1.5 before:rounded-full before:bg-warning before:content-[""]' },
+  deprecated: { label: '停用', className: 'border-border bg-muted/60 text-muted-foreground' },
 }
 
-const ipStateMeta: Record<string, string> = {
-  active: '启用', reserved: '预留', deprecated: '停用', dhcp: 'DHCP', slaac: 'SLAAC',
+const ipStateMeta: Record<string, { label: string; className: string }> = {
+  active: { label: '启用', className: 'border-border bg-transparent text-foreground gap-1.5 before:size-1.5 before:rounded-full before:bg-success before:content-[""]' },
+  reserved: { label: '预留', className: 'border-border bg-transparent text-foreground gap-1.5 before:size-1.5 before:rounded-full before:bg-warning before:content-[""]' },
+  deprecated: { label: '停用', className: 'border-border bg-muted/60 text-muted-foreground' },
+  dhcp: { label: 'DHCP', className: 'border-border bg-transparent text-foreground gap-1.5 before:size-1.5 before:rounded-full before:bg-foreground before:content-[""]' },
+  slaac: { label: 'SLAAC', className: 'border-border bg-transparent text-foreground gap-1.5 before:size-1.5 before:rounded-full before:bg-foreground before:content-[""]' },
 }
 const ipSourceMeta: Record<string, string> = {
   allocated: '手工分配', asset: '资产地址', gateway: '网关',
@@ -116,7 +120,10 @@ export function SubnetDetailView({
       header: '状态',
       enableSorting: false,
       meta: { cellClassName: 'whitespace-nowrap' },
-      cell: ({ row }) => <Badge variant="outline">{ipStateMeta[row.original.state] ?? row.original.state}</Badge>,
+      cell: ({ row }) => {
+        const meta = ipStateMeta[row.original.state]
+        return <Badge variant="outline" className={meta?.className}>{meta?.label ?? row.original.state}</Badge>
+      },
     },
     {
       accessorKey: 'source',

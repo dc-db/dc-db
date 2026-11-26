@@ -28,7 +28,7 @@ const STATUS: Record<string, StatusStyle> = {
   offline: { fill: '#cf222e' },
   stopped: { fill: '#cf222e' },
   paused: { fill: '#bf8700' },
-  unknown: { fill: '#6e7781' },
+  unknown: { fill: '#525252' },
 }
 
 function statusStyle(status?: string): StatusStyle {
@@ -54,11 +54,11 @@ export interface RackSvg {
 // Light defaults are written as attributes so a downloaded file renders on its
 // own; the app overrides them per theme through the classes.
 const LIGHT = {
-  bg: '#f6f8fb',
-  slot: '#e9ecef',
-  slotBorder: '#adb5bd',
-  frame: '#000000',
-  unit: '#6c757d',
+  bg: '#fafafa',
+  slot: '#f5f5f5',
+  slotBorder: '#d4d4d4',
+  frame: '#171717',
+  unit: '#737373',
 }
 
 export function rackElevationSvg(
@@ -82,7 +82,7 @@ export function rackElevationSvg(
   const rackX = LEGEND_WIDTH + BORDER
   const body: string[] = []
 
-  body.push('<defs><pattern id="rack-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="var(--hatch-bg, #f7f7f7)"/><rect width="4" height="8" fill="var(--hatch-line, #e9b3b3)"/></pattern></defs>')
+  body.push('<defs><pattern id="rack-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="var(--hatch-bg, #f7f7f7)"/><rect width="4" height="8" fill="var(--hatch-line, #ffc0c0)"/></pattern></defs>')
   body.push(`<rect class="rack-bg" x="0" y="0" width="${width}" height="${height}" fill="${LIGHT.bg}"/>`)
 
   // One slot per U, top to bottom, plus the unit legend on the left.
@@ -118,7 +118,7 @@ export function rackElevationSvg(
       `<g class="device-bar${isOpposite(device) ? ' opposite' : ''}"${interactive ? ` data-asset="${device.assetId}" tabindex="0" role="button" aria-label="查看 ${esc(label)}"` : ''}><title>${esc(`${label} · ${uRange(device)}`)}</title>` +
       `<rect x="${rackX}" y="${top}" width="${UNIT_WIDTH}" height="${blockHeight}" fill="${isOpposite(device) ? 'url(#rack-hatch)' : style.fill}"/>` +
       `<text class="device" x="${rackX + UNIT_WIDTH / 2}" y="${top + blockHeight / 2}" font-size="14" ` +
-      `text-anchor="middle" dominant-baseline="middle" fill="${isOpposite(device) ? 'var(--hatch-text, #5c1a1a)' : '#ffffff'}">` +
+      `text-anchor="middle" dominant-baseline="middle" fill="${isOpposite(device) ? 'var(--hatch-text, #1a1a1a)' : '#ffffff'}">` +
       `${esc(fit(label, UNIT_WIDTH - 10, 14))}</text></g>`,
     )
   }

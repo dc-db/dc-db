@@ -183,8 +183,8 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
     <>
       <PageHeader
         title={hideTitle ? undefined : title}
-        filters={<Input className="max-w-sm" placeholder={`搜索${title}名称或备注`} value={keyword} onChange={event => setKeyword(event.target.value)} />}
-        actions={editable && <Button onClick={() => showForm(null)}><Plus />新增{title}</Button>}
+        filters={<Input className="h-8 w-[240px]" placeholder={`搜索${title}名称或备注`} value={keyword} onChange={event => setKeyword(event.target.value)} />}
+        actions={editable && <Button size="sm" onClick={() => showForm(null)}><Plus />新增{title}</Button>}
       />
       {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
       <DataTable

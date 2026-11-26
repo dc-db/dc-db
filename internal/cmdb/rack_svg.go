@@ -24,9 +24,9 @@ type rackPalette struct {
 }
 
 var rackPalettes = map[bool]rackPalette{
-	false: {bg: "#f6f8fb", slot: "#e9ecef", slotBorder: "#adb5bd", frame: "#000000", unit: "#6c757d",
+	false: {bg: "#fafafa", slot: "#f5f5f5", slotBorder: "#d4d4d4", frame: "#171717", unit: "#737373",
 		hatchBg: "#f7f7f7", hatchLine: "#ffc0c0", hatchText: "#1a1a1a"},
-	true: {bg: "#141414", slot: "#232323", slotBorder: "#303030", frame: "#6e6e6e", unit: "#adb5bd",
+	true: {bg: "#0a0a0a", slot: "#171717", slotBorder: "#262626", frame: "#525252", unit: "#a1a1a1",
 		hatchBg: "#f7f7f7", hatchLine: "#ffc0c0", hatchText: "#1a1a1a"},
 }
 
@@ -42,7 +42,7 @@ func rackStatusColor(status string) string {
 	if color, ok := rackStatusColors[status]; ok {
 		return color
 	}
-	return "#6e7781"
+	return "#525252"
 }
 
 // RackElevationSVG draws one face of a rack at NetBox's proportions: a 30px

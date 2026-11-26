@@ -80,11 +80,11 @@ export function RackDetailDrawer({
                 const asset = assets.get(item.assetId)
                 return (
                   <li key={item.assetId}>
-                    <span className={`rack-drawer-device-dot ${asset?.status ?? ''}`} />
+                    <span className={`rack-drawer-device-dot ${asset?.status === 'offline' ? 'offline' : asset?.status === 'paused' ? 'paused' : !asset?.status || asset.status === 'stopped' || asset.status === 'unknown' ? '!bg-muted-foreground' : ''}`} />
                     <div className="rack-side-device-main">
                       <Button variant="link" onClick={() => { setDevicesOpen(false); onOpenAsset(item.assetId) }}>{nameOf(assets, item.assetId)}</Button>
                       <span className="rack-side-device-meta">
-                        {asset ? mountKinds[asset.kind as MountKind] : '设备'} · {uRange(item)} · {placementFaceLabel(item)}
+                        {asset ? mountKinds[asset.kind as MountKind] : '设备'} · {statusLabel(asset?.status)} · {uRange(item)} · {placementFaceLabel(item)}
                       </span>
                     </div>
                     {editable && (

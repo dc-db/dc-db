@@ -22,7 +22,7 @@ func TestRackElevationSVG(t *testing.T) {
 	if !strings.Contains(front, `width="269"`) || !strings.Contains(front, `height="928"`) {
 		t.Fatalf("unexpected size: %s", front[:120])
 	}
-	for _, want := range []string{"demo-host-01", `fill="#2ea043"`, `fill="#cf222e"`, `>42</text>`, `>1</text>`, "#f6f8fb"} {
+	for _, want := range []string{"demo-host-01", `fill="#2ea043"`, `fill="#cf222e"`, `>42</text>`, `>1</text>`, "#fafafa"} {
 		if !strings.Contains(front, want) {
 			t.Fatalf("front drawing missing %q", want)
 		}
@@ -43,7 +43,7 @@ func TestRackElevationSVG(t *testing.T) {
 	}
 
 	dark := RackElevationSVG(rack, placements, assets, "front", rackSVGOptions{Dark: true})
-	if !strings.Contains(dark, "#141414") || strings.Contains(dark, "#f6f8fb") {
+	if !strings.Contains(dark, "#0a0a0a") || strings.Contains(dark, "#fafafa") {
 		t.Fatal("dark palette not applied")
 	}
 

@@ -336,17 +336,17 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
     <PageHeader
       title={hideTitle ? undefined : '网段'}
       filters={<>
-        <Input className="max-w-sm" placeholder="搜索名称、CIDR、VLAN、用途" value={subnetSearch} onChange={event => setSubnetSearch(event.target.value)} />
+        <Input className="h-8 w-[240px]" placeholder="搜索名称、CIDR、VLAN、用途" value={subnetSearch} onChange={event => setSubnetSearch(event.target.value)} />
         <Select
-          style={{ width: 140 }} allowClear searchable={false} placeholder="全部状态" value={subnetStatus}
+          size="small" style={{ width: 140 }} allowClear searchable={false} placeholder="全部状态" value={subnetStatus}
           onChange={(value: string | undefined) => setSubnetStatus(value ?? undefined)}
           options={Object.entries(subnetStatusMeta).map(([value, meta]) => ({ value, label: meta.label }))}
         />
       </>}
       actions={<>
-        <Button variant="outline" disabled={!subnetRows.length} onClick={exportSubnets}><Download />导出</Button>
-        {editable && <Button variant="outline" onClick={() => { setImportFile(null); setImportError(''); setImportOpen(true) }}><Upload />导入</Button>}
-        {editable && <Button onClick={event => addSubnet(event.currentTarget)}><Plus />新增网段</Button>}
+        {editable && <Button size="sm" variant="outline" onClick={() => { setImportFile(null); setImportError(''); setImportOpen(true) }}><Download />导入</Button>}
+        <Button size="sm" variant="outline" disabled={!subnetRows.length} onClick={exportSubnets}><Upload />导出</Button>
+        {editable && <Button size="sm" onClick={event => addSubnet(event.currentTarget)}><Plus />新增网段</Button>}
       </>}
     />
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}

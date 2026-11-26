@@ -33,9 +33,9 @@ export function DataTable<T>({
   return (
     <div className="data-table-shell">
       <Table className={className}>
-        <TableHeader>
+        <TableHeader className="bg-muted/40">
           {table.getHeaderGroups().map(group => (
-            <TableRow key={group.id}>
+            <TableRow key={group.id} className="hover:bg-transparent">
               {group.headers.map(header => {
                 const canSort = header.column.getCanSort()
                 const sorted = header.column.getIsSorted()
@@ -49,11 +49,14 @@ export function DataTable<T>({
                     {header.isPlaceholder ? null : canSort ? (
                       <button
                         type="button"
-                        className={`data-table-sort${sorted ? ' is-sorted' : ''}`}
+                        className={`data-table-sort -ml-1.5 inline-flex h-7 items-center gap-1.5 rounded-md px-1.5 text-[13px] font-medium transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring${sorted ? ' is-sorted text-foreground' : ' text-muted-foreground'}`}
                         onClick={header.column.getToggleSortingHandler()}
                       >
                         <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>
-                        <span className="data-table-sort-icon" aria-hidden="true">
+                        <span
+                          className={`data-table-sort-icon inline-flex items-center ${sorted ? 'text-foreground' : 'text-muted-foreground/60'}`}
+                          aria-hidden="true"
+                        >
                           {sorted === 'asc'
                             ? <ArrowUp className="size-3.5" />
                             : sorted === 'desc'
@@ -73,9 +76,9 @@ export function DataTable<T>({
         <TableBody>
           {loading ? (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={columnCount} className="py-12 text-center text-muted-foreground">
-                <span className="inline-flex items-center gap-2 text-sm">
-                  <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+              <TableCell colSpan={columnCount} className="h-28 text-center text-muted-foreground">
+                <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                  <LoaderCircle className="size-4 animate-spin text-muted-foreground" aria-hidden="true" />
                   加载中…
                 </span>
               </TableCell>
@@ -85,7 +88,7 @@ export function DataTable<T>({
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() ? 'selected' : undefined}
-                className={[onRowClick ? 'cursor-pointer' : '', rowClassName?.(row.original) ?? ''].filter(Boolean).join(' ') || undefined}
+                className={['transition-colors data-[state=selected]:bg-muted/60', onRowClick ? 'cursor-pointer' : '', rowClassName?.(row.original) ?? ''].filter(Boolean).join(' ') || undefined}
                 onClick={onRowClick ? event => onRowClick(row.original, event) : undefined}
               >
                 {row.getVisibleCells().map(cell => {
@@ -100,7 +103,7 @@ export function DataTable<T>({
             ))
           ) : (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={columnCount} className="py-12 text-center text-sm text-muted-foreground">
+              <TableCell colSpan={columnCount} className="h-28 text-center text-sm text-muted-foreground">
                 {emptyMessage}
               </TableCell>
             </TableRow>

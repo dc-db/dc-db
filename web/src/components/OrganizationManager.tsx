@@ -5,6 +5,7 @@ import { APIError, api, type DirectoryEntry, type Person, type Team, type User }
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 import { SearchableSelect } from './SearchableSelect'
+import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
@@ -119,35 +120,68 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
     return namesByPerson
   }, [teams])
   const columns: ColumnDef<Entry>[] = [
-    { accessorKey: 'name', header: '名称' },
+    {
+      accessorKey: 'name',
+      header: '名称',
+      sortingFn: (a, b) => a.original.name.localeCompare(b.original.name, 'zh-CN'),
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+    },
     ...(teamPage ? [{
       id: 'members',
       header: '成员',
       enableSorting: false,
       cell: ({ row }: { row: { original: Entry } }) => {
         const team = row.original as Team
-        return team.memberIds.map(id => peopleById.get(id)?.name).filter(Boolean).join('、') || '—'
+        const names = team.memberIds.map(id => peopleById.get(id)?.name).filter(Boolean).join('、')
+        return names || <span className="text-muted-foreground">—</span>
       },
     }] : canLinkAccount ? [{
       id: 'account',
       header: '登录账号',
       enableSorting: false,
-      cell: ({ row }: { row: { original: Entry } }) => (row.original as Person).username || '—',
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }: { row: { original: Entry } }) => {
+        const username = (row.original as Person).username
+        return username ? <span className="font-mono text-xs">{username}</span> : <span className="text-muted-foreground">—</span>
+      },
     }] : []),
     ...(!teamPage ? [{
       id: 'teams',
       header: '所属团队',
       enableSorting: false,
-      cell: ({ row }: { row: { original: Entry } }) => teamNamesByPerson.get(row.original.id)?.join('、') || '—',
+      cell: ({ row }: { row: { original: Entry } }) => {
+        const names = teamNamesByPerson.get(row.original.id)?.join('、')
+        return names || <span className="text-muted-foreground">—</span>
+      },
     }] : []),
-    { accessorKey: 'assetCount', header: '关联资产' },
-    { accessorKey: 'description', header: '备注', cell: ({ row }) => row.original.description || '—' },
+    {
+      accessorKey: 'assetCount',
+      header: '关联资产',
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => (
+        <Badge variant={row.original.assetCount ? 'secondary' : 'outline'} className="tabular-nums">
+          {row.original.assetCount}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: 'description',
+      header: '备注',
+      enableSorting: false,
+      cell: ({ row }) => row.original.description
+        ? <span className="text-muted-foreground">{row.original.description}</span>
+        : <span className="text-muted-foreground">—</span>,
+    },
     ...(editable ? [{
       id: 'actions',
-      header: '操作',
       enableSorting: false,
+      meta: { headerClassName: 'w-[88px] text-right', cellClassName: 'w-[88px] whitespace-nowrap text-right' },
+      header: () => <div className="text-right">操作</div>,
       cell: ({ row }: { row: { original: Entry } }) => (
-        <Button variant="ghost" size="sm" onClick={() => { void openEditor(row.original) }}><Pencil />编辑</Button>
+        <div className="table-row-action flex justify-end gap-1">
+          <Button variant="ghost" size="sm" onClick={() => { void openEditor(row.original) }}><Pencil />编辑</Button>
+        </div>
       ),
     }] : []),
   ]
@@ -167,8 +201,8 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
   return <>
     <PageHeader
       title={title}
-      filters={<Input type="search" aria-label={`搜索${title}`} placeholder={`搜索${title}名称或备注`} className="max-w-sm" value={keyword} onChange={event => setKeyword(event.target.value)} />}
-      actions={editable && <Button onClick={() => { void openEditor(null) }}><Plus />新增{title}</Button>}
+      filters={<Input type="search" aria-label={`搜索${title}`} placeholder={`搜索${title}名称或备注`} className="h-8 w-[240px]" value={keyword} onChange={event => setKeyword(event.target.value)} />}
+      actions={editable && <Button size="sm" onClick={() => { void openEditor(null) }}><Plus />新增{title}</Button>}
     />
     <DataTable table={table} loading={loading} emptyMessage={keyword ? `未找到匹配的${title}` : `暂无${title}`} />
 

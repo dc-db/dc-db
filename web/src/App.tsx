@@ -155,7 +155,7 @@ export default function App() {
     } catch {
       // Storage may be unavailable in private browsing.
     }
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#111215' : '#f6f6f4')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0a0a0a' : '#ffffff')
   }, [dark])
 
   return (
@@ -164,11 +164,11 @@ export default function App() {
       theme={{
         algorithm: dark ? theme.darkAlgorithm : theme.defaultAlgorithm,
         token: {
-          colorPrimary: dark ? '#eceef2' : '#1c1c1a',
+          colorPrimary: dark ? '#e5e5e5' : '#171717',
           borderRadius: 8,
-          colorBgContainer: dark ? '#181a1f' : '#ffffff',
-          colorBgLayout: dark ? '#111215' : '#f6f6f4',
-          colorBgElevated: dark ? '#1f2229' : '#ffffff',
+          colorBgContainer: dark ? '#141414' : '#ffffff',
+          colorBgLayout: dark ? '#0a0a0a' : '#ffffff',
+          colorBgElevated: dark ? '#171717' : '#ffffff',
         },
       }}
     >
@@ -1170,7 +1170,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         {editable && (
           <Upload accept=".csv,text/csv" showUploadList={false}
             beforeUpload={(file: File) => { void previewCSV(file); return false }}>
-            <Button icon={<UploadOutlined />}>导入 CSV</Button>
+            <Button icon={<DownloadOutlined />}>导入 CSV</Button>
           </Upload>
         )}
       </Space>
@@ -1185,7 +1185,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
   return (
     <Layout className="app-layout">
-      <Sider className="app-sider" width={200}>
+      <Sider className="app-sider" width={220}>
         <div className="brand">
           <span className="brand-word" onClick={() => goTo('home')}><Wordmark /></span>
         </div>
@@ -1299,14 +1299,14 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                         <Form layout="inline" className="relation-form" onFinish={() => void updateLink()}>
                           <Form.Item>
                             <Select
-                              style={{ width: 150 }} value={relationChoice} placeholder="关系类型"
+                              size="small" style={{ width: 150 }} value={relationChoice} placeholder="关系类型"
                               onChange={value => { setRelationChoice(value); setRelationTarget(0) }}
                               options={relationOptions.map(option => ({ value: option.id, label: option.label }))}
                             />
                           </Form.Item>
                           <Form.Item>
                             <Select
-                              style={{ width: 170 }} value={relationTarget || undefined} placeholder="选择资源"
+                              size="small" style={{ width: 170 }} value={relationTarget || undefined} placeholder="选择资源"
                               onChange={setRelationTarget}
                               options={targets.map(target => ({ value: target.id, label: target.name }))}
                             />
@@ -1501,21 +1501,21 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                 title={pageLabel}
                 filters={<Space wrap>
                   <Input
-                    type="search" className="w-[200px]"
+                    size="small" type="search" className="w-[200px]"
                     aria-label={`搜索${pageLabel}`}
                     placeholder={`搜索${pageLabel}…`}
                     value={keyword} onChange={(event: React.ChangeEvent<HTMLInputElement>) => setKeyword(event.target.value)}
                   />
                   {page === 'network_devices' ? (
                     <Select
-                      style={{ width: 135 }} allowClear searchable={false} placeholder="全部类型"
+                      size="small" style={{ width: 135 }} allowClear searchable={false} placeholder="全部类型"
                       value={networkKindFilter || undefined}
                       onChange={(value: NetworkKind | undefined) => setNetworkKindFilter(value ?? '')}
                       options={NETWORK_KINDS.map(kind => ({ value: kind, label: KIND_LABELS[kind] }))}
                     />
                   ) : page === 'vm' ? (
                     <Select
-                      style={{ width: 145 }} allowClear searchable={false} placeholder="全部平台" value={platformFilter}
+                      size="small" style={{ width: 145 }} allowClear searchable={false} placeholder="全部平台" value={platformFilter}
                       onChange={setPlatformFilter}
                       options={[{ value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM' }]}
                     />
@@ -1541,15 +1541,33 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                   </Popover>
                 </Space>}
                 actions={<Space wrap>
-                  {editable && <Button onClick={() => { setAssetImportFile(null); setAssetImportOpen(true) }}><DownloadOutlined /> 导入</Button>}
-                  <Button disabled={!filtered.length} onClick={exportCSV}><UploadOutlined /> 导出</Button>
-                  {editable && <Button type="primary" onClick={() => startNew()}><PlusOutlined /> 新增{pageLabel}</Button>}
+                  {editable && <Button size="small" onClick={() => { setAssetImportFile(null); setAssetImportOpen(true) }}><DownloadOutlined /> 导入</Button>}
+                  <Button size="small" disabled={!filtered.length} onClick={exportCSV}><UploadOutlined /> 导出</Button>
+                  {editable && <Button size="small" type="primary" onClick={() => startNew()}><PlusOutlined /> 新增{pageLabel}</Button>}
                 </Space>}
               />
               {editable && page === 'network_devices' && selectedAssetIds.length > 0 && (
-                <div className="bulk-bar">
-                  <span>已选择 <strong>{selectedAssetIds.length}</strong> 条资产</span>
-                  <Space>
+                <div
+                  role="region"
+                  aria-label="批量操作栏"
+                  className="bulk-bar fixed bottom-6 left-1/2 z-40 -translate-x-1/2 flex items-center gap-2 rounded-lg border border-border bg-popover px-3 py-2 text-popover-foreground shadow-xl"
+                >
+                  <div className="inline-flex h-7 items-center rounded-md border border-border bg-muted/50 text-xs font-medium">
+                    <span className="px-2.5 tabular-nums">
+                      已选择 <strong>{selectedAssetIds.length}</strong> 条资产
+                    </span>
+                    <button
+                      type="button"
+                      className="inline-flex h-full items-center justify-center border-l border-border px-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      aria-label="清空已选"
+                      title="取消选择"
+                      onClick={() => setSelectedAssetIds([])}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="h-4 w-px bg-border" aria-hidden="true" />
+                  <Space size={6}>
                     <Button size="small" type="primary" onClick={openBulkEdit}>批量编辑</Button>
                     <Button size="small" onClick={() => setSelectedAssetIds([])}>取消选择</Button>
                   </Space>

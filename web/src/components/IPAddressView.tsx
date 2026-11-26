@@ -1,7 +1,7 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
-import { Download, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { Pencil, Plus, RefreshCw, Trash2, Upload } from 'lucide-react'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
 import type { Asset, IPAddress, Link, Subnet } from '../api'
@@ -36,6 +36,13 @@ interface Props {
   onChanged: () => void
 }
 const stateMeta: Record<string, string> = { active: '启用', reserved: '预留', deprecated: '停用', dhcp: 'DHCP', slaac: 'SLAAC' }
+const stateBadgeClass: Record<string, string> = {
+  active: 'border-border bg-transparent text-foreground gap-1.5 before:size-1.5 before:rounded-full before:bg-success before:content-[""]',
+  reserved: 'border-border bg-transparent text-foreground gap-1.5 before:size-1.5 before:rounded-full before:bg-warning before:content-[""]',
+  deprecated: 'border-border bg-muted/60 text-muted-foreground',
+  dhcp: 'border-border bg-transparent text-foreground gap-1.5 before:size-1.5 before:rounded-full before:bg-foreground before:content-[""]',
+  slaac: 'border-border bg-transparent text-foreground gap-1.5 before:size-1.5 before:rounded-full before:bg-foreground before:content-[""]',
+}
 const sourceMeta: Record<string, string> = { allocated: '手工分配', asset: '资产地址', gateway: '网关' }
 const roleLabels: Record<string, string> = { loopback: '环回', secondary: '辅助', vip: 'VIP', vrrp: 'VRRP', hsrp: 'HSRP', glbp: 'GLBP', anycast: 'Anycast' }
 interface AddressFields { subnetId?: number; ip: string; status: string; dnsName: string; role: string; assetId?: number; label: string; notes: string }
@@ -111,10 +118,9 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
     const query = keyword.trim().toLowerCase()
     return addresses.filter(address => matchesRoomFilter(resolveAddressRoomId(address), roomFilter) && (!source || address.source === source) && (!state || address.state === state) && (!subnetId || address.subnetId === Number(subnetId)) && (!query || [address.ip, address.dnsName, address.assetName, address.label, address.notes, address.subnetName, stateMeta[address.state], sourceMeta[address.source]].some(value => value?.toLowerCase().includes(query))))
   }, [addresses, keyword, resolveAddressRoomId, roomFilter, source, state, subnetId])
-  const stats = [['全部地址', addresses.length], ['手工分配', addresses.filter(a => a.source === 'allocated').length], ['资产地址', addresses.filter(a => a.source === 'asset').length], ['网关', addresses.filter(a => a.source === 'gateway').length]] as const
   const columns: ColumnDef<IPAddress>[] = [
     { accessorKey: 'ip', header: 'IP 地址', sortingFn: (a, b) => a.original.ip.localeCompare(b.original.ip, undefined, { numeric: true }), meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <span className="font-mono text-xs font-medium tabular-nums">{row.original.ip}</span> },
-    { accessorKey: 'state', header: '状态', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <Badge variant="outline">{stateMeta[row.original.state] ?? row.original.state}</Badge> },
+    { accessorKey: 'state', header: '状态', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <Badge variant="outline" className={stateBadgeClass[row.original.state]}>{stateMeta[row.original.state] ?? row.original.state}</Badge> },
     { accessorKey: 'source', header: '来源', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <Badge variant="secondary">{sourceMeta[row.original.source] ?? row.original.source}</Badge> },
     { accessorKey: 'dnsName', header: 'DNS 名称', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <span className="font-mono text-xs">{row.original.dnsName || <span className="text-muted-foreground">—</span>}</span> },
     { accessorKey: 'role', header: '角色', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => roleLabels[row.original.role ?? ''] ?? (row.original.role || <span className="text-muted-foreground">—</span>) },
@@ -155,27 +161,27 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
     <PageHeader
       title={hideTitle ? undefined : 'IP 地址'}
       filters={<>
-        <Input className="max-w-sm" placeholder="搜索 IP、DNS、资产、用途或网段" value={keyword} onChange={event => setKeyword(event.target.value)} />
+        <Input className="h-8 w-[240px]" placeholder="搜索 IP、DNS、资产、用途或网段" value={keyword} onChange={event => setKeyword(event.target.value)} />
         <Select
-          style={{ width: 220 }} allowClear placeholder="全部网段" value={subnetId || undefined}
+          size="small" style={{ width: 220 }} allowClear placeholder="全部网段" value={subnetId || undefined}
           onChange={(value: string | undefined) => setSubnetId(value ?? '')}
           options={subnets.map(subnet => ({ value: String(subnet.id), label: `${subnet.name} · ${subnet.cidr}` }))}
         />
         <Select
-          style={{ width: 140 }} allowClear searchable={false} placeholder="全部来源" value={source || undefined}
+          size="small" style={{ width: 140 }} allowClear searchable={false} placeholder="全部来源" value={source || undefined}
           onChange={(value: string | undefined) => setSource(value ?? '')}
           options={Object.entries(sourceMeta).map(([value, label]) => ({ value, label }))}
         />
         <Select
-          style={{ width: 130 }} allowClear searchable={false} placeholder="全部状态" value={state || undefined}
+          size="small" style={{ width: 130 }} allowClear searchable={false} placeholder="全部状态" value={state || undefined}
           onChange={(value: string | undefined) => setState(value ?? '')}
           options={Object.entries(stateMeta).map(([value, label]) => ({ value, label }))}
         />
       </>}
       actions={<>
-        <Button variant="outline" disabled={!visible.length} onClick={exportCSV}><Download />导出</Button>
-        <Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
-        {editable && <Button onClick={() => showForm(null)}><Plus />分配 IP</Button>}
+        <Button size="sm" variant="outline" disabled={!visible.length} onClick={exportCSV}><Upload />导出</Button>
+        <Button size="sm" variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
+        {editable && <Button size="sm" onClick={() => showForm(null)}><Plus />分配 IP</Button>}
       </>}
     />
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}

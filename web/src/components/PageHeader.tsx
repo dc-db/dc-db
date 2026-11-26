@@ -16,22 +16,22 @@ export function PageHeader({ title, filters, actions }: Props) {
   return (
     <>
       {title && (
-        <h2 className="asset-view-title">
+        <h2 className="asset-view-title flex items-center gap-1.5 text-base font-semibold tracking-tight text-foreground">
           <span>{title}</span>
           {scope && (
             <>
-              <span className="page-scope-slash" aria-hidden="true">
+              <span className="page-scope-slash font-normal text-muted-foreground/60" aria-hidden="true">
                 /
               </span>
-              <span>{scope.label}</span>
+              <span className="text-sm font-normal text-muted-foreground">{scope.label}</span>
             </>
           )}
         </h2>
       )}
       {(filters || actions) && (
-        <div className="table-toolbar">
-          <div className="page-header-filters">{filters}</div>
-          <div className="page-header-actions">{actions}</div>
+        <div className="table-toolbar flex flex-wrap items-center justify-between gap-2 py-2">
+          <div className="page-header-filters flex flex-wrap items-center gap-2">{filters}</div>
+          <div className="page-header-actions flex flex-wrap items-center gap-2">{actions}</div>
         </div>
       )}
     </>

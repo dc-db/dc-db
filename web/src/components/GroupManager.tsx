@@ -143,8 +143,8 @@ export function GroupManager({ editable, hideTitle, onSessionError, onChanged }:
   return <>
     <PageHeader
       title={hideTitle ? undefined : '项目'}
-      filters={<Input className="max-w-sm" placeholder="搜索项目名称或备注" value={keyword} onChange={event => setKeyword(event.target.value)} />}
-      actions={editable && <Button onClick={() => showForm(null)}><Plus />新增项目</Button>}
+      filters={<Input className="h-8 w-[240px]" placeholder="搜索项目名称或备注" value={keyword} onChange={event => setKeyword(event.target.value)} />}
+      actions={editable && <Button size="sm" onClick={() => showForm(null)}><Plus />新增项目</Button>}
     />
     {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
     <DataTable

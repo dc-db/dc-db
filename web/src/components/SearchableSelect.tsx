@@ -25,10 +25,32 @@ export function SearchableSelect({ value, onChange, options, label, placeholder 
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const chosen = options.find(option => option.value === value)
+  const hasValue = Boolean(chosen || value)
   const displayValue = chosen?.label ?? (value || placeholder)
   function choose(next: string) { onChange(next); setOpen(false); setQuery('') }
   return <Popover open={open} onOpenChange={next => { setOpen(next); if (!next) setQuery('') }}>
-    <PopoverTrigger asChild><Button type="button" variant={triggerVariant} disabled={disabled} aria-label={`${label}：${displayValue}`} className={cn("w-full justify-between font-normal", triggerClassName)}><span className="truncate">{displayValue}</span>{indicator === 'down' ? <ChevronDown className="opacity-70" /> : <ChevronsUpDown className="opacity-50" />}</Button></PopoverTrigger>
+    <PopoverTrigger asChild>
+      <Button
+        type="button"
+        variant={triggerVariant}
+        disabled={disabled}
+        aria-label={`${label}：${displayValue}`}
+        className={cn(
+          'w-full justify-between rounded-md text-sm font-normal',
+          triggerVariant === 'outline' &&
+            'border-border bg-background hover:bg-accent hover:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
+          hasValue ? 'text-foreground' : 'text-muted-foreground',
+          triggerClassName
+        )}
+      >
+        <span className="truncate">{displayValue}</span>
+        {indicator === 'down' ? (
+          <ChevronDown className={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-150', open && 'rotate-180')} />
+        ) : (
+          <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground opacity-60" />
+        )}
+      </Button>
+    </PopoverTrigger>
     <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] min-w-56 p-0">
       <Command label={`搜索${label}`}><CommandInput aria-label={`搜索${label}`} placeholder={`搜索${label}`} maxLength={allowCustom ? 160 : undefined} value={query} onValueChange={setQuery} /><CommandList><CommandEmpty>没有匹配的选项</CommandEmpty><CommandGroup>
         {allowCustom && query.trim() && !options.some(option => option.label.toLowerCase() === query.trim().toLowerCase()) && <CommandItem value={query.trim()} onSelect={() => choose(query.trim())}>使用「{query.trim()}」</CommandItem>}

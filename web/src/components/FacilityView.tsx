@@ -454,7 +454,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
               <PageHeader
                 title="机柜"
                 filters={<>
-                  <Input type="search" className="w-[200px]" aria-label="搜索机柜" placeholder="搜索机柜…" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />
+                  <Input type="search" className="h-8 w-[200px]" aria-label="搜索机柜" placeholder="搜索机柜…" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />
                   <div className="view-toggle view-switch" role="tablist" aria-label="机柜视图">
                     <button
                       type="button" role="tab" aria-selected={view === 'table'}
@@ -500,9 +500,9 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                   </Popover>}
                 </>}
                 actions={<>
-                  {editable && <Button variant="outline" onClick={() => { setImportOpen(true); setImportFile(null); setImportError('') }}><Download />导入</Button>}
-                  <Button variant="outline" disabled={!rackRows.length} onClick={exportRacks}><Upload />导出</Button>
-                  {editable && <Button disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
+                  {editable && <Button size="sm" variant="outline" onClick={() => { setImportOpen(true); setImportFile(null); setImportError('') }}><Download />导入</Button>}
+                  <Button size="sm" variant="outline" disabled={!rackRows.length} onClick={exportRacks}><Upload />导出</Button>
+                  {editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
                 </>}
               />
               <Card className="floor-panel">

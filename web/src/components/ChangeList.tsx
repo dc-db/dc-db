@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Download } from 'lucide-react'
+import { Upload } from 'lucide-react'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -148,18 +148,18 @@ export function ChangeList({ changes, hideAsset, filterable, onOpen }: Props) {
       {filterable && (
         <div className="change-toolbar flex flex-wrap items-center gap-2">
           <Input
-            type="search" className="w-[280px]" placeholder="搜索资产、操作人或动作" aria-label="搜索资产、操作人或动作"
+            type="search" className="h-8 w-[240px]" placeholder="搜索资产、操作人或动作" aria-label="搜索资产、操作人或动作"
             value={keyword} onChange={event => setKeyword(event.target.value)}
           />
           <Select value={action ?? '__all__'} onValueChange={value => setAction(value === '__all__' ? undefined : value)}>
-            <SelectTrigger className="w-[160px]" aria-label="筛选动作"><SelectValue placeholder="全部动作" /></SelectTrigger>
+            <SelectTrigger size="sm" className="w-[160px]" aria-label="筛选动作"><SelectValue placeholder="全部动作" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">全部动作</SelectItem>
               {actions.map(item => <SelectItem key={item} value={item}>{actionLabels[item] ?? item}</SelectItem>)}
             </SelectContent>
           </Select>
-          <span className="muted">共 {visible.length} 条</span>
-          <Button variant="outline" disabled={!visible.length} onClick={() => downloadChanges(visible)}><Download aria-hidden="true" />导出当前结果</Button>
+          <span className="muted text-xs tabular-nums">共 {visible.length} 条</span>
+          <Button variant="outline" size="sm" className="ml-auto" disabled={!visible.length} onClick={() => downloadChanges(visible)}><Upload aria-hidden="true" />导出当前结果</Button>
         </div>
       )}
       {visible.length === 0 ? <div className="p-6 text-center text-sm text-muted-foreground">没有匹配的变更记录</div> : (

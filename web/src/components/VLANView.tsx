@@ -1,7 +1,7 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
-import { Download, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { Pencil, Plus, RefreshCw, Trash2, Upload } from 'lucide-react'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
 import type { VLAN, VLANFields } from '../api'
@@ -28,9 +28,9 @@ interface Props {
   onChanged: () => void
 }
 const statusMeta: Record<string, { label: string; className: string }> = {
-  active: { label: '启用', className: 'border-success-border bg-success-soft text-success' },
-  reserved: { label: '预留', className: 'border-warning-border bg-warning-soft text-warning' },
-  deprecated: { label: '停用', className: 'border-border bg-muted text-muted-foreground' },
+  active: { label: '启用', className: 'border-border bg-transparent text-foreground gap-1.5 before:size-1.5 before:rounded-full before:bg-success before:content-[""]' },
+  reserved: { label: '预留', className: 'border-border bg-transparent text-foreground gap-1.5 before:size-1.5 before:rounded-full before:bg-warning before:content-[""]' },
+  deprecated: { label: '停用', className: 'border-border bg-muted/60 text-muted-foreground' },
 }
 const emptyFields: VLANFields = { vid: 0, name: '', status: 'active', description: '', roomId: undefined }
 
@@ -139,17 +139,17 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
     <PageHeader
       title={hideTitle ? undefined : 'VLAN'}
       filters={<>
-        <Input className="max-w-sm" placeholder="搜索 VLAN ID、名称、描述或数据中心" value={keyword} onChange={event => setKeyword(event.target.value)} />
+        <Input className="h-8 w-[240px]" placeholder="搜索 VLAN ID、名称、描述或数据中心" value={keyword} onChange={event => setKeyword(event.target.value)} />
         <Select
-          style={{ width: 130 }} allowClear searchable={false} placeholder="全部状态" value={status || undefined}
+          size="small" style={{ width: 130 }} allowClear searchable={false} placeholder="全部状态" value={status || undefined}
           onChange={(value: string | undefined) => setStatus(value ?? '')}
           options={Object.entries(statusMeta).map(([value, meta]) => ({ value, label: meta.label }))}
         />
       </>}
       actions={<>
-        <Button variant="outline" disabled={!visible.length} onClick={exportCSV}><Download />导出</Button>
-        <Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
-        {editable && <Button onClick={() => showForm(null)}><Plus />新增 VLAN</Button>}
+        <Button size="sm" variant="outline" disabled={!visible.length} onClick={exportCSV}><Upload />导出</Button>
+        <Button size="sm" variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
+        {editable && <Button size="sm" onClick={() => showForm(null)}><Plus />新增 VLAN</Button>}
       </>}
     />
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}

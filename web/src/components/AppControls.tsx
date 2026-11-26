@@ -7,8 +7,8 @@ import { ArrowDown, ArrowUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLef
 import { Button as UiButton } from '@/components/ui/button'
 import { Input as UiInput } from '@/components/ui/input'
 import { Checkbox as UiCheckbox } from '@/components/ui/checkbox'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Popover as UiPopover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tabs as UiTabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -45,8 +45,8 @@ function FormItem({ children, label, name, required, rules, extra }: Common) { c
 export const Form = Object.assign(FormBase, { Item: FormItem, useForm })
 
 type Option = { value: any; label: ReactNode; title?: string; optionRender?: () => ReactNode }
-type SelectProps = Common & { value?: any; onChange?: (value: any) => void; options?: Option[]; mode?: string; placeholder?: string; allowClear?: boolean; searchable?: boolean }
-export function Select({ value, onChange, options = [], mode, placeholder, allowClear, searchable = true, style, disabled, id }: SelectProps) {
+type SelectProps = Common & { value?: any; onChange?: (value: any) => void; options?: Option[]; mode?: string; placeholder?: string; allowClear?: boolean; searchable?: boolean; size?: 'small' | 'default' }
+export function Select({ value, onChange, options = [], mode, placeholder, allowClear, searchable = true, size, className, style, disabled, id }: SelectProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const multi = mode === 'multiple'
@@ -67,7 +67,9 @@ export function Select({ value, onChange, options = [], mode, placeholder, allow
     <UiPopover open={open} onOpenChange={v => { setOpen(v); if (!v) setQuery('') }}>
       <PopoverTrigger asChild>
         <button
-          id={id} type="button" disabled={disabled} className="control-select" style={style}
+          id={id} type="button" disabled={disabled}
+          className={`control-select${size === 'small' ? ' is-sm' : ''}${className ? ` ${className}` : ''}`}
+          style={style}
           aria-haspopup="listbox" aria-expanded={open} aria-labelledby={id ? `${id}-label ${id}-value` : undefined}
         >
           <span id={id ? `${id}-value` : undefined}>{label}</span>
@@ -118,10 +120,10 @@ export function Select({ value, onChange, options = [], mode, placeholder, allow
   )
 }
 
-export function Modal({ children, open, title, onCancel, footer, width, bodyClassName }: Common) { return <Dialog open={open} onOpenChange={v => { if (!v) onCancel?.() }}><DialogContent style={{ maxWidth: width }} aria-describedby={undefined}><DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader><div className={`control-dialog-body ${bodyClassName ?? ''}`}>{children}</div>{footer}</DialogContent></Dialog> }
-export function Drawer({ children, open, title, onClose, width }: Common) { return <Sheet open={open} onOpenChange={v => { if (!v) onClose?.() }}><SheetContent style={{ width, maxWidth: '95vw' }} aria-describedby={undefined}><SheetHeader><SheetTitle>{title}</SheetTitle></SheetHeader><div className="control-sheet-body">{children}</div></SheetContent></Sheet> }
+export function Modal({ children, open, title, onCancel, footer, width, bodyClassName }: Common) { return <Dialog open={open} onOpenChange={v => { if (!v) onCancel?.() }}><DialogContent style={{ maxWidth: width }} aria-describedby={undefined}><DialogHeader className="border-b border-border pb-3 pr-8"><DialogTitle>{title}</DialogTitle></DialogHeader><div className={`control-dialog-body ${bodyClassName ?? ''}`}>{children}</div>{footer !== null && footer !== undefined && footer !== false && <DialogFooter>{footer}</DialogFooter>}</DialogContent></Dialog> }
+export function Drawer({ children, open, title, onClose, width, footer }: Common) { return <Sheet open={open} onOpenChange={v => { if (!v) onClose?.() }}><SheetContent style={{ width, maxWidth: '95vw' }} aria-describedby={undefined}><SheetHeader className="pr-10"><SheetTitle>{title}</SheetTitle></SheetHeader><div className="control-sheet-body flex-1 overflow-y-auto p-5">{children}</div>{footer !== null && footer !== undefined && footer !== false && <SheetFooter>{footer}</SheetFooter>}</SheetContent></Sheet> }
 export function Popover({ children, content, open, onOpenChange }: Common) { return <UiPopover open={open} onOpenChange={onOpenChange}><PopoverTrigger asChild>{children}</PopoverTrigger><PopoverContent align="end">{content}</PopoverContent></UiPopover> }
-export function Dropdown({ children, menu }: Common) { return <DropdownMenu><DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger><DropdownMenuContent align="end">{menu.items.map((item: any) => <DropdownMenuItem key={item.key} onSelect={() => menu.onClick({ key: item.key })}>{item.icon}{item.label}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu> }
+export function Dropdown({ children, menu }: Common) { return <DropdownMenu><DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger><DropdownMenuContent align="end">{menu.items.map((item: any) => <DropdownMenuItem key={item.key} variant={item.danger ? 'destructive' : 'default'} onSelect={() => menu.onClick({ key: item.key })}>{item.icon}{item.label}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu> }
 const CheckboxContext = createContext<any>(null)
 function CheckboxBase({ children, value }: Common) { const group = useContext(CheckboxContext); return <label className="control-checkbox"><UiCheckbox checked={group?.value.includes(value)} onCheckedChange={checked => group?.onChange(checked ? [...group.value, value] : group.value.filter((v: any) => v !== value))} />{children}</label> }
 export const Checkbox = Object.assign(CheckboxBase, { Group: ({ children, value, onChange }: Common) => <CheckboxContext.Provider value={{ value, onChange }}>{children}</CheckboxContext.Provider> })

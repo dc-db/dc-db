@@ -18,9 +18,9 @@ interface Props {
   onSessionError: (error: unknown) => void
 }
 const roleMeta: Record<Role, { label: string; className: string; description: string }> = {
-  admin: { label: '管理员', className: 'border-danger-border bg-danger-soft text-danger', description: '全部权限，可管理账号' },
-  operator: { label: '运维', className: 'border-info-border bg-info-soft text-info', description: '可维护资产、IPAM 和数据中心' },
-  viewer: { label: '只读', className: 'border-border bg-muted text-muted-foreground', description: '只能查看，不能修改数据' },
+  admin: { label: '管理员', className: 'border-primary bg-primary text-primary-foreground', description: '全部权限，可管理账号' },
+  operator: { label: '运维', className: 'border-border bg-secondary text-secondary-foreground', description: '可维护资产、IPAM 和数据中心' },
+  viewer: { label: '只读', className: 'border-border bg-transparent text-muted-foreground', description: '只能查看，不能修改数据' },
 }
 const roles: Role[] = ['admin', 'operator', 'viewer']
 const initialFields: UserFields = { username: '', role: 'viewer', password: '' }
@@ -146,8 +146,8 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
         </div>
       )}
       actions={canManageUsers && <>
-        <Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
-        <Button onClick={() => showForm(null)}><Plus />新增账号</Button>
+        <Button size="sm" variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
+        <Button size="sm" onClick={() => showForm(null)}><Plus />新增账号</Button>
       </>}
     />
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}

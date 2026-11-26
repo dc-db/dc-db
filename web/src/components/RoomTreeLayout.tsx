@@ -286,20 +286,20 @@ export function RoomTreeLayout({
   function renderRoomItem(item: Room) {
     const count = counts?.byRoom?.get(item.id)
     return (
-      <div key={item.id} className="facility-tree-room">
+      <div key={item.id} className="facility-tree-room group">
         <button
           type="button"
-          className={`facility-tree-item${value === item.id ? ' active' : ''}`}
+          className={`facility-tree-item transition-colors${value === item.id ? ' active bg-accent font-medium text-foreground' : ' text-muted-foreground hover:bg-accent/60 hover:text-foreground'}`}
           title={item.name}
           onClick={() => onChange(item.id)}
         >
           <span className="facility-tree-name">{item.name}</span>
-          {count !== undefined && <span className="facility-tree-count tabular-nums">{count}</span>}
+          {count !== undefined && <span className="facility-tree-count text-muted-foreground tabular-nums">{count}</span>}
         </button>
         {editable && (
           <button
             type="button"
-            className="facility-tree-room-action"
+            className="facility-tree-room-action text-muted-foreground transition-colors hover:text-foreground"
             aria-label={`编辑数据中心 ${item.name}`}
             title={`编辑 ${item.name}`}
             onClick={() => editRoom(item)}
@@ -317,10 +317,11 @@ export function RoomTreeLayout({
         className={treeCollapsed ? 'facility-layout is-collapsed' : 'facility-layout'}
         style={{ gridTemplateColumns: `${treeCollapsed ? 0 : treeWidth}px 6px minmax(0, 1fr)` }}
       >
-        <aside className="facility-sidebar" aria-hidden={treeCollapsed}>
-          <div className="facility-sidebar-search">
+        <aside className="facility-sidebar border-border bg-background" aria-hidden={treeCollapsed}>
+          <div className="facility-sidebar-search flex items-center gap-1.5">
             <Input
               type="search"
+              className="h-8 bg-background text-xs shadow-none"
               placeholder="搜索数据中心"
               aria-label="搜索数据中心"
               value={roomSearch}
@@ -329,8 +330,8 @@ export function RoomTreeLayout({
             {editable && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" aria-label="数据中心操作">
-                    <MoreHorizontal />
+                  <Button variant="ghost" size="icon-sm" className="shrink-0 text-muted-foreground hover:text-foreground" aria-label="数据中心操作">
+                    <MoreHorizontal className="size-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -350,22 +351,22 @@ export function RoomTreeLayout({
             {showAll && (
               <button
                 type="button"
-                className={`facility-tree-item${value === 'all' ? ' active' : ''}`}
+                className={`facility-tree-item transition-colors${value === 'all' ? ' active bg-accent font-medium text-foreground' : ' text-muted-foreground hover:bg-accent/60 hover:text-foreground'}`}
                 onClick={() => onChange('all')}
               >
                 <span className="facility-tree-name">全部</span>
-                {counts?.all !== undefined && <span className="facility-tree-count tabular-nums">{counts.all}</span>}
+                {counts?.all !== undefined && <span className="facility-tree-count text-muted-foreground tabular-nums">{counts.all}</span>}
               </button>
             )}
             {showUnassigned && (
               <button
                 type="button"
-                className={`facility-tree-item${value === 'unassigned' ? ' active' : ''}`}
+                className={`facility-tree-item transition-colors${value === 'unassigned' ? ' active bg-accent font-medium text-foreground' : ' text-muted-foreground hover:bg-accent/60 hover:text-foreground'}`}
                 onClick={() => onChange('unassigned')}
               >
                 <span className="facility-tree-name">{unassignedLabel}</span>
                 {counts?.unassigned !== undefined && (
-                  <span className="facility-tree-count tabular-nums">{counts.unassigned}</span>
+                  <span className="facility-tree-count text-muted-foreground tabular-nums">{counts.unassigned}</span>
                 )}
               </button>
             )}
@@ -373,11 +374,11 @@ export function RoomTreeLayout({
               group.region ? (
                 <div key={group.key} className="facility-tree-group">
                   <div className="facility-tree-region">
-                    <span className="facility-tree-region-name">{group.region.name}</span>
+                    <span className="facility-tree-region-name text-xs font-medium text-muted-foreground">{group.region.name}</span>
                     {editable && (
                       <button
                         type="button"
-                        className="facility-tree-region-action"
+                        className="facility-tree-region-action text-muted-foreground transition-colors hover:text-foreground"
                         aria-label={`编辑区域 ${group.region.name}`}
                         onClick={() => editRegion(group.region)}
                       >
@@ -391,7 +392,7 @@ export function RoomTreeLayout({
                 group.rooms.map(renderRoomItem)
               ),
             )}
-            {!filteredRooms.length && <div className="facility-tree-empty">暂无匹配的数据中心</div>}
+            {!filteredRooms.length && <div className="facility-tree-empty text-xs text-muted-foreground">暂无匹配的数据中心</div>}
           </div>
         </aside>
         <div
