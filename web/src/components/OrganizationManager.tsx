@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { APIError, api, type DirectoryEntry, type Person, type Team, type User } from '../api'
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
+import { RowActionsMenu } from './RowActionsMenu'
 import { SearchableSelect } from './SearchableSelect'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -176,11 +177,17 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
     ...(editable ? [{
       id: 'actions',
       enableSorting: false,
-      meta: { headerClassName: 'w-[88px] text-right', cellClassName: 'w-[88px] whitespace-nowrap text-right' },
-      header: () => <div className="text-right">操作</div>,
+      size: 48,
+      meta: { headerClassName: 'w-10 text-right', cellClassName: 'w-10 whitespace-nowrap text-right' },
+      header: () => <span className="sr-only">操作</span>,
       cell: ({ row }: { row: { original: Entry } }) => (
-        <div className="table-row-action flex justify-end gap-1">
-          <Button variant="ghost" size="sm" onClick={() => { void openEditor(row.original) }}><Pencil />编辑</Button>
+        <div className="flex justify-end">
+          <RowActionsMenu
+            ariaLabel={`${title} ${row.original.name} 操作`}
+            onEdit={() => { void openEditor(row.original) }}
+            onDelete={() => { setFailure(''); setDeleting(row.original) }}
+            deleteDisabled={busy}
+          />
         </div>
       ),
     }] : []),

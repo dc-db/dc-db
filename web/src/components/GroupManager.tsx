@@ -3,11 +3,12 @@ import {
   getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
   type ColumnDef, type SortingState,
 } from '@tanstack/react-table'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Group, GroupFields } from '../api'
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
+import { RowActionsMenu } from './RowActionsMenu'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
@@ -114,11 +115,16 @@ export function GroupManager({ editable, hideTitle, onSessionError, onChanged }:
     ...(editable ? [{
       id: 'actions',
       enableSorting: false,
-      meta: { headerClassName: 'w-[88px] text-right', cellClassName: 'w-[88px] whitespace-nowrap text-right' },
-      header: () => <div className="text-right">操作</div>,
+      size: 48,
+      meta: { headerClassName: 'w-10 text-right', cellClassName: 'w-10 whitespace-nowrap text-right' },
+      header: () => <span className="sr-only">操作</span>,
       cell: ({ row }: { row: { original: Group } }) => (
-        <div className="table-row-action flex justify-end gap-1">
-          <Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button>
+        <div className="flex justify-end">
+          <RowActionsMenu
+            ariaLabel={`项目 ${row.original.name} 操作`}
+            onEdit={() => showForm(row.original)}
+            onDelete={() => setDeleting(row.original)}
+          />
         </div>
       ),
     }] : []),

@@ -3,7 +3,7 @@ import React, { createContext, useContext, useRef, useState } from 'react'
 import type { ReactNode, CSSProperties } from 'react'
 import { flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table'
 import type { ColumnDef, SortingState } from '@tanstack/react-table'
-import { ArrowDown, ArrowUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronsUpDown, CircleAlert, CircleCheck, Eye, EyeOff, LoaderCircle, X } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsLeft, ChevronsRight, ChevronsUpDown, CircleAlert, CircleCheck, Eye, EyeOff, LoaderCircle, X } from 'lucide-react'
 import { Button as UiButton } from '@/components/ui/button'
 import { Input as UiInput } from '@/components/ui/input'
 import { Checkbox as UiCheckbox } from '@/components/ui/checkbox'
@@ -152,9 +152,19 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, p
     const sorted = header.column.getIsSorted()
     if (!header.column.getCanSort()) return flexRender(header.column.columnDef.header, header.getContext())
     return (
-      <button type="button" className={`control-sort-button${sorted ? ' is-sorted' : ''}`} onClick={header.column.getToggleSortingHandler()}>
-        {flexRender(header.column.columnDef.header, header.getContext())}{' '}
-        <span className="control-sort-icon" aria-hidden>{sorted === 'asc' ? <ArrowUp size={14} /> : sorted === 'desc' ? <ArrowDown size={14} /> : <ChevronsUpDown size={14} />}</span>
+      <button
+        type="button"
+        className={`control-sort-button -ml-1.5 inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[state=open]:bg-accent${sorted ? ' is-sorted' : ''}`}
+        onClick={header.column.getToggleSortingHandler()}
+      >
+        <span className="truncate">{flexRender(header.column.columnDef.header, header.getContext())}</span>
+        <span className="control-sort-icon inline-flex shrink-0 items-center text-muted-foreground" aria-hidden="true">
+          {sorted === 'asc'
+            ? <ChevronUp className="size-4 shrink-0 text-muted-foreground" />
+            : sorted === 'desc'
+              ? <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+              : <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />}
+        </span>
       </button>
     )
   }

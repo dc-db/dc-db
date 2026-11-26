@@ -1,21 +1,32 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
-import { Pencil, Plus, RefreshCw, Trash2, Upload } from 'lucide-react'
+import { Plus, RefreshCw, Upload } from 'lucide-react'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
 import type { Asset, IPAddress, Link, Subnet } from '../api'
 import { assetLocations, assetRoomId, buildRoomCounts, matchesRoomFilter } from '../facilities'
 import type { Facilities } from '../facilities'
 import { kindLabel } from '../kinds'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 import { SearchableSelect } from './SearchableSelect'
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
+import { RowActionsMenu } from './RowActionsMenu'
 import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
 import { Select } from './AppControls'
 
@@ -130,11 +141,18 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
     ...(editable ? [{
       id: 'actions',
       enableSorting: false,
-      meta: { headerClassName: 'w-[120px] text-right', cellClassName: 'w-[120px] whitespace-nowrap text-right' },
-      header: () => <div className="text-right">操作</div>,
-      cell: ({ row }: { row: { original: IPAddress } }) => row.original.allocationId
-        ? <div className="table-row-action flex justify-end gap-1"><Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button><Button variant="ghost" size="icon-sm" className="text-destructive" aria-label={`释放 ${row.original.ip}`} onClick={() => setReleasing(row.original)}><Trash2 /></Button></div>
-        : <span className="text-muted-foreground">—</span>,
+      meta: { headerClassName: 'w-10 text-right', cellClassName: 'w-10 whitespace-nowrap text-right' },
+      header: () => <span className="sr-only">操作</span>,
+      cell: ({ row }: { row: { original: IPAddress } }) => row.original.allocationId ? (
+        <div className="flex justify-end" onClick={event => event.stopPropagation()}>
+          <RowActionsMenu
+            ariaLabel={`IP ${row.original.ip} 更多操作`}
+            onEdit={() => showForm(row.original)}
+            onDelete={() => setReleasing(row.original)}
+            deleteLabel="释放"
+          />
+        </div>
+      ) : null,
     }] : []),
   ]
   const table = useReactTable({ data: visible, columns, state: { sorting }, onSortingChange: setSorting, initialState: { pagination: { pageIndex: 0, pageSize: 20 } }, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getPaginationRowModel: getPaginationRowModel() })
@@ -203,7 +221,27 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       <div className="col-span-2 space-y-2"><label htmlFor="address-label" className="text-sm font-medium">用途</label><Input id="address-label" maxLength={160} placeholder="例如：VIP、数据库主地址" value={fields.label} onChange={event => setFields({ ...fields, label: event.target.value })} /></div>
       <div className="col-span-2 space-y-2"><label htmlFor="address-notes" className="text-sm font-medium">备注</label><Textarea id="address-notes" rows={2} maxLength={2000} placeholder="可选" value={fields.notes} onChange={event => setFields({ ...fields, notes: event.target.value })} /></div>
     </div><DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={() => setModalOpen(false)}>取消</Button><Button type="submit" disabled={busy}>{busy ? '保存中...' : '保存'}</Button></DialogFooter></form></DialogContent></Dialog>
-    <Dialog open={!!releasing} onOpenChange={next => { if (!next && !busy) setReleasing(null) }}><DialogContent><DialogHeader><DialogTitle>释放该 IP？</DialogTitle><DialogDescription>确认释放 {releasing?.ip}。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setReleasing(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (releasing) void release(releasing) }}>释放</Button></DialogFooter></DialogContent></Dialog>
+    <AlertDialog open={!!releasing} onOpenChange={open => { if (!open && !busy) setReleasing(null) }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>释放该 IP？</AlertDialogTitle>
+          <AlertDialogDescription>确认释放 {releasing?.ip}？释放后该地址将重新变为空闲。</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={busy}>取消</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={busy}
+            onClick={event => {
+              event.preventDefault()
+              if (releasing) void release(releasing)
+            }}
+          >
+            {busy ? '释放中…' : '释放'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </RoomTreeLayout>
   )
 }

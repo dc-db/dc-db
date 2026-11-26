@@ -42,6 +42,7 @@ import { MetadataManager } from './components/MetadataManager'
 import { SubnetDetailView, VLANDetailView } from './components/NetworkDetailViews'
 import { OrganizationManager } from './components/OrganizationManager'
 import { PageHeader } from './components/PageHeader'
+import { RowActionsMenu } from './components/RowActionsMenu'
 import { ServiceIcon } from './components/ServiceIcon'
 import { serviceCategory } from './serviceCatalog'
 import { UserManager } from './components/UserManager'
@@ -692,11 +693,11 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     syncAssetParam(null)
   }
 
-  async function openAsset(id: number) {
+  async function openAsset(id: number, startInEditor = false) {
     setSelectedId(id)
     setAssetChanges([])
     setAssetTab('overview')
-    setEditor(false)
+    setEditor(startInEditor)
     setDrawerError('')
     setShowRelationForm(false)
     setDrawerOpen(true)
@@ -1063,7 +1064,34 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         .sort((a, b) => ['name', 'kind', 'address', 'group', 'team', 'owner', 'environment', 'updated'].indexOf(a.key) - ['name', 'kind', 'address', 'group', 'team', 'owner', 'environment', 'updated'].indexOf(b.key))
     : assetColumns.filter(item => item.key !== 'kind' && item.key !== 'environment' && (page !== 'host' || (item.key !== 'meta' && item.key !== 'platform')))
         .sort((a, b) => assetColumnKeys.indexOf(a.key) - assetColumnKeys.indexOf(b.key))
-  const columns = availableAssetColumns.filter(item => visibleColumns.includes(item.key)).map(item => item.column)
+  const columns: TableColumnsType<Asset> = [
+    ...availableAssetColumns.filter(item => visibleColumns.includes(item.key)).map(item => item.column),
+    ...(editable ? [{
+      title: <span className="sr-only">操作</span>,
+      key: 'actions',
+      width: 48,
+      render: (_: unknown, asset: Asset) => (
+        <div className="flex justify-end" onClick={event => event.stopPropagation()}>
+          <RowActionsMenu
+            ariaLabel={`更多操作：${asset.name}`}
+            onEdit={() => void openAsset(asset.id, true)}
+            extraItems={[
+              {
+                key: 'detail',
+                label: '查看详情',
+                onSelect: () => void openAsset(asset.id),
+              },
+              {
+                key: 'bookmark',
+                label: bookmarks.includes(asset.id) ? '取消收藏' : '收藏',
+                onSelect: () => toggleBookmark(asset.id),
+              },
+            ]}
+          />
+        </div>
+      ),
+    }] : []),
+  ]
 
   const descriptions = selected ? [
     ...(!isNetworkKind(selected.kind) ? [{ key: 'platform', label: '平台', children: platformLabel(selected) }] : []),
@@ -1580,7 +1608,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                 showSorterTooltip={{ title: '点击排序' }}
                 rowClassName={asset => (asset.id === highlightId ? 'row-highlight' : '')}
                 onRowClick={(asset, event) => {
-                  if ((event.target as HTMLElement).closest('button, a, input, label, [role="checkbox"]')) return
+                  if ((event.target as HTMLElement).closest('button, a, input, label, [role="checkbox"], [role="menu"], [role="menuitem"]')) return
                   void openAsset(asset.id)
                 }}
                 sharedStyle={page === 'host' || page === 'vm'}

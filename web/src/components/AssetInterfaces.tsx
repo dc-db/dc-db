@@ -1,9 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
-import { Link2, Pencil, Plus, Trash2, Unlink } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { api } from '../api'
 import type { Asset, InterfaceFields, NetworkInterface } from '../api'
 import { Alert, Button, Input, Modal, Select, Space, Table, Tag } from './AppControls'
+import type { TableColumnsType } from './AppControls'
+import { RowActionsMenu } from './RowActionsMenu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog'
 
 interface Props {
   assetId: number
@@ -49,6 +61,7 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
   const [peerAssetId, setPeerAssetId] = useState<number | null>(null)
   const [peerItems, setPeerItems] = useState<NetworkInterface[]>([])
   const [peerId, setPeerId] = useState<number | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<NetworkInterface | null>(null)
 
   const load = useCallback(async () => {
     setError('')
@@ -100,7 +113,6 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
   }
 
   async function remove(item: NetworkInterface) {
-    if (!window.confirm(`删除接口「${item.name}」？`)) return
     setBusy(true)
     setError('')
     try {
@@ -161,8 +173,8 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
     }
   }
 
-  const columns = [
-    { title: '名称', dataIndex: 'name' as const, key: 'name' },
+  const columns: TableColumnsType<NetworkInterface> = [
+    { title: '名称', dataIndex: 'name', key: 'name' },
     {
       title: '介质', key: 'medium',
       render: (_: unknown, item: NetworkInterface) => (
@@ -184,15 +196,34 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
         : <span className="muted">未连接</span>,
     },
     ...(editable ? [{
-      title: '操作', key: 'actions',
+      title: <span className="sr-only">操作</span>,
+      key: 'actions',
+      width: 48,
       render: (_: unknown, item: NetworkInterface) => (
-        <Space size={4} wrap>
-          {item.peerId
-            ? <Button size="small" onClick={() => void disconnect(item)}><Unlink size={14} />断开</Button>
-            : <Button size="small" onClick={() => void openConnect(item)}><Link2 size={14} />连接</Button>}
-          <Button size="small" onClick={() => startEdit(item)}><Pencil size={14} /></Button>
-          <Button size="small" danger onClick={() => void remove(item)}><Trash2 size={14} /></Button>
-        </Space>
+        <div className="flex justify-end">
+          <RowActionsMenu
+            ariaLabel={`更多操作：${item.name}`}
+            onEdit={() => startEdit(item)}
+            editDisabled={busy}
+            extraItems={[
+              item.peerId
+                ? {
+                    key: 'disconnect',
+                    label: '断开连接',
+                    disabled: busy,
+                    onSelect: () => void disconnect(item),
+                  }
+                : {
+                    key: 'connect',
+                    label: '连接对端',
+                    disabled: busy,
+                    onSelect: () => void openConnect(item),
+                  },
+            ]}
+            onDelete={() => setPendingDelete(item)}
+            deleteDisabled={busy}
+          />
+        </div>
       ),
     }] : []),
   ]
@@ -259,6 +290,34 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
           {peerAssetId && peerItems.length === 0 && <p className="muted">该设备没有空闲接口。</p>}
         </div>
       </Modal>
+
+      <AlertDialog open={pendingDelete !== null} onOpenChange={open => { if (!open) setPendingDelete(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除接口「{pendingDelete?.name}」？</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete?.peerId
+                ? `该操作将同时断开与「${pendingDelete.peerAssetName ?? ''} / ${pendingDelete.peerName ?? ''}」的连接，删除后无法恢复。`
+                : '删除后该接口记录将无法恢复，此操作无法撤销。'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (pendingDelete) {
+                  const target = pendingDelete
+                  setPendingDelete(null)
+                  void remove(target)
+                }
+              }}
+            >
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

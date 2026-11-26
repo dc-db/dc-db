@@ -4,13 +4,14 @@ import {
   getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
   type ColumnDef, type SortingState,
 } from '@tanstack/react-table'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { MetadataEntry, MetadataFields } from '../api'
 import { buildRoomCounts, matchesRoomFilter } from '../facilities'
 import type { Facilities } from '../facilities'
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
+import { RowActionsMenu } from './RowActionsMenu'
 import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -158,15 +159,20 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
     ...(editable ? [{
       id: 'actions',
       enableSorting: false,
-      meta: { headerClassName: 'w-[88px] text-right', cellClassName: 'w-[88px] whitespace-nowrap text-right' },
-      header: () => <div className="text-right">操作</div>,
+      size: 48,
+      meta: { headerClassName: 'w-10 text-right', cellClassName: 'w-10 whitespace-nowrap text-right' },
+      header: () => <span className="sr-only">操作</span>,
       cell: ({ row }: { row: { original: MetadataEntry } }) => (
-        <div className="table-row-action flex justify-end gap-1">
-          <Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button>
+        <div className="flex justify-end">
+          <RowActionsMenu
+            ariaLabel={`${title} ${row.original.name} 操作`}
+            onEdit={() => showForm(row.original)}
+            onDelete={() => setDeleting(row.original)}
+          />
         </div>
       ),
     }] : []),
-  ], [editable, kind, withRoomTree])
+  ], [editable, kind, title, withRoomTree])
 
   const table = useReactTable({
     data: visible,

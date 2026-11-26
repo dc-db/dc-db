@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { ArrowDown, ArrowUp, ChevronsUpDown, Download, Plus, Settings2, Upload } from 'lucide-react'
+import { ChevronDown, ChevronUp, ChevronsUpDown, Download, Plus, Settings2, Upload } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
@@ -20,6 +20,7 @@ import { downloadCSV } from '../csv'
 import { PageHeader } from './PageHeader'
 import { RackDetailDrawer } from './RackDetailDrawer'
 import { RoomTreeLayout } from './RoomTreeLayout'
+import { RowActionsMenu } from './RowActionsMenu'
 
 interface Props {
   roomId: number | null
@@ -89,7 +90,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function ConfirmDelete({ title, disabled, onConfirm, children }: { title: string; disabled: boolean; onConfirm: () => void; children: ReactNode }) {
-  return <AlertDialog><AlertDialogTrigger asChild><Button type="button" variant="destructive" disabled={disabled}>{children}</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{title}</AlertDialogTitle><AlertDialogDescription>此操作无法撤销。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={onConfirm}>删除</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+  return <AlertDialog><AlertDialogTrigger asChild><Button type="button" variant="destructive" disabled={disabled}>{children}</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{title}</AlertDialogTitle><AlertDialogDescription>此操作无法撤销。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={onConfirm}>删除</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
 }
 
 export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, layout, assets, links, editable, focus, reload, onOpenAsset, bookmarkedRacks, onToggleRackBookmark, onSessionError }: Props) {
@@ -110,6 +111,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   const [importError, setImportError] = useState('')
   const [importBusy, setImportBusy] = useState(false)
   const [rackDrawerOpen, setRackDrawerOpen] = useState(false)
+  const [pendingDeleteRack, setPendingDeleteRack] = useState<Rack | null>(null)
 
   function updateRackColumns(columns: RackColumn[]) {
     if (!columns.length) return
@@ -515,10 +517,10 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                           const direction = sortKey && rackSort?.key === sortKey ? rackSort.direction : null
                           return <th key={column.key} aria-sort={direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : undefined}>
                             {sortKey ? <button type="button" className={`data-table-sort${direction ? ' is-sorted' : ''}`} onClick={() => setRackSort(current => ({ key: sortKey, direction: current?.key === sortKey && current.direction === 'asc' ? 'desc' : 'asc' }))}>
-                              <span>{column.label}</span><span className="data-table-sort-icon" aria-hidden="true">{direction === 'asc' ? <ArrowUp size={14} /> : direction === 'desc' ? <ArrowDown size={14} /> : <ChevronsUpDown size={14} />}</span>
+                              <span>{column.label}</span><span className="data-table-sort-icon" aria-hidden="true">{direction === 'asc' ? <ChevronUp className="size-4 shrink-0" /> : direction === 'desc' ? <ChevronDown className="size-4 shrink-0" /> : <ChevronsUpDown className="size-4 shrink-0" />}</span>
                             </button> : column.label}
                           </th>
-                        })}<th>操作</th></tr></thead>
+                        })}{editable && <th className="w-10"><span className="sr-only">操作</span></th>}</tr></thead>
                         <tbody>
                           {sortedRackRows.map(item => {
                             const { used, free, usage: rate, devices: deviceCount } = rackMetrics.get(item.id)!
@@ -533,11 +535,23 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                                 {visibleRackColumns.includes('usage') && <td><UsageBar value={rate} label={`${item.name} 机柜占用率`} /></td>}
                                 {visibleRackColumns.includes('createdAt') && <td className="whitespace-nowrap">{formatDateTime(item.createdAt)}</td>}
                                 {visibleRackColumns.includes('updatedAt') && <td className="whitespace-nowrap">{formatDateTime(item.updatedAt)}</td>}
-                                <td><Button size="sm" variant="outline" onClick={event => { event.stopPropagation(); editRack(item) }}>编辑</Button></td>
+                                {editable && (
+                                  <td className="w-10 text-right" onClick={event => event.stopPropagation()}>
+                                    <div className="flex justify-end">
+                                      <RowActionsMenu
+                                        ariaLabel={`更多操作：${item.name}`}
+                                        onEdit={() => editRack(item)}
+                                        editDisabled={busy}
+                                        onDelete={() => setPendingDeleteRack(item)}
+                                        deleteDisabled={busy || deviceCount > 0}
+                                      />
+                                    </div>
+                                  </td>
+                                )}
                               </tr>
                             )
                           })}
-                          {!rackRows.length && <tr><td colSpan={visibleRackColumns.length + 1} className="facility-table-empty">{rackKeyword ? '没有匹配的机柜' : '还没有机柜，点右上角「新增机柜」开始'}</td></tr>}
+                          {!rackRows.length && <tr><td colSpan={visibleRackColumns.length + (editable ? 1 : 0)} className="facility-table-empty">{rackKeyword ? '没有匹配的机柜' : '还没有机柜，点右上角「新增机柜」开始'}</td></tr>}
                         </tbody>
                       </table>
                     </div>
@@ -643,6 +657,29 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
           )}
         </DialogContent>
       </Dialog>
+      <AlertDialog open={pendingDeleteRack !== null} onOpenChange={open => { if (!open) setPendingDeleteRack(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除机柜「{pendingDeleteRack?.name}」？</AlertDialogTitle>
+            <AlertDialogDescription>删除后该空机柜将无法恢复，此操作无法撤销。</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (pendingDeleteRack) {
+                  const target = pendingDeleteRack
+                  setPendingDeleteRack(null)
+                  removeRack(target)
+                }
+              }}
+            >
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

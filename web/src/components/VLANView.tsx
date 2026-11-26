@@ -1,20 +1,31 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
-import { Pencil, Plus, RefreshCw, Trash2, Upload } from 'lucide-react'
+import { Plus, RefreshCw, Upload } from 'lucide-react'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
 import type { VLAN, VLANFields } from '../api'
 import { buildRoomCounts, matchesRoomFilter } from '../facilities'
 import type { Facilities } from '../facilities'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 import { Select } from './AppControls'
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
+import { RowActionsMenu } from './RowActionsMenu'
 import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
 
 interface Props {
@@ -105,12 +116,15 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
     ...(editable ? [{
       id: 'actions',
       enableSorting: false,
-      meta: { headerClassName: 'w-[120px] text-right', cellClassName: 'w-[120px] whitespace-nowrap text-right' },
-      header: () => <div className="text-right">操作</div>,
+      meta: { headerClassName: 'w-10 text-right', cellClassName: 'w-10 whitespace-nowrap text-right' },
+      header: () => <span className="sr-only">操作</span>,
       cell: ({ row }: { row: { original: VLAN } }) => (
-        <div className="table-row-action flex justify-end gap-1">
-          <Button variant="ghost" size="sm" onClick={() => showForm(row.original)}><Pencil />编辑</Button>
-          <Button variant="ghost" size="icon-sm" className="text-destructive" aria-label={`删除 VLAN ${row.original.vid}`} onClick={() => setDeleting(row.original)}><Trash2 /></Button>
+        <div className="-mx-3 -my-2 flex items-center justify-end px-3 py-2" onClick={event => event.stopPropagation()}>
+          <RowActionsMenu
+            ariaLabel={`VLAN ${row.original.vid} 更多操作`}
+            onEdit={() => showForm(row.original)}
+            onDelete={() => setDeleting(row.original)}
+          />
         </div>
       ),
     }] : []),
@@ -159,7 +173,7 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       loading={loading}
       pagerUnit="个"
       onRowClick={onSelectVLAN ? (vlan, event) => {
-        if ((event.target as HTMLElement).closest('button, a')) return
+        if ((event.target as HTMLElement).closest('button, a, [role="menuitem"], [data-slot="dropdown-menu-content"]')) return
         onSelectVLAN(vlan)
       } : undefined}
       emptyMessage={keyword || status || roomFilter !== 'all' ? '没有匹配的 VLAN' : '暂无 VLAN，新增一个开始规划二层网络'}
@@ -174,7 +188,29 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
         <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={() => setModalOpen(false)}>取消</Button><Button type="submit" disabled={busy}>{busy ? '保存中...' : '保存'}</Button></DialogFooter>
       </form>
     </DialogContent></Dialog>
-    <Dialog open={!!deleting} onOpenChange={next => { if (!next && !busy) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>删除该 VLAN？</DialogTitle><DialogDescription>仍有网段使用时不能删除。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (deleting) void remove(deleting) }}>删除</Button></DialogFooter></DialogContent></Dialog>
+    <AlertDialog open={!!deleting} onOpenChange={open => { if (!open && !busy) setDeleting(null) }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>删除该 VLAN？</AlertDialogTitle>
+          <AlertDialogDescription>
+            确认删除 VLAN {deleting?.vid}{deleting?.name ? `（${deleting.name}）` : ''}？仍有网段使用时不能删除。
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={busy}>取消</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={busy}
+            onClick={event => {
+              event.preventDefault()
+              if (deleting) void remove(deleting)
+            }}
+          >
+            {busy ? '删除中…' : '删除'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </RoomTreeLayout>
   )
 }

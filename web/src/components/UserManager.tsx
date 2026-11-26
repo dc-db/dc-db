@@ -1,12 +1,12 @@
 import { OptionSelect } from './OptionSelect'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
-import { Eye, EyeOff, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { Eye, EyeOff, Plus, RefreshCw } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Role, User, UserFields } from '../api'
-import { ChangePassword } from './ChangePassword'
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
+import { RowActionsMenu } from './RowActionsMenu'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
@@ -36,6 +36,16 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
   const [feedback, setFeedback] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<User | null>(null)
+  const [resetting, setResetting] = useState<User | null>(null)
+  const [resetPassword, setResetPassword] = useState('')
+  const [resetError, setResetError] = useState('')
+  const [showResetPasswordField, setShowResetPasswordField] = useState(false)
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false)
+  const [passwordBusy, setPasswordBusy] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [deleting, setDeleting] = useState<User | null>(null)
   const [modalError, setModalError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -57,6 +67,29 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
     setFields(user ? { username: user.username, role: user.role, password: '' } : initialFields)
     setModalOpen(true)
   }
+  function showResetPassword(user: User) {
+    setResetting(user)
+    setResetPassword('')
+    setResetError('')
+    setShowResetPasswordField(false)
+  }
+  function openChangePassword() {
+    setCurrentPassword('')
+    setNewPassword('')
+    setConfirmPassword('')
+    setPasswordError('')
+    setChangePasswordOpen(true)
+  }
+  function handleChangePasswordOpenChange(next: boolean) {
+    if (passwordBusy) return
+    setChangePasswordOpen(next)
+    if (!next) {
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setPasswordError('')
+    }
+  }
   async function save() {
     if (!/^[\p{L}\p{N}._@-]{1,80}$/u.test(fields.username)) { setModalError('账号须为 1–80 个字符，只能包含文字、数字、点、下划线、@ 或连字符'); return }
     if (!editing && !fields.password) { setModalError('请设置初始密码'); return }
@@ -68,6 +101,47 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
       const wasEdit = !!editing
       setModalOpen(false); setEditing(null); await load(); setFeedback(wasEdit ? '账号已更新' : '账号已创建')
     } catch (e) { report(e, true) } finally { setBusy(false) }
+  }
+  async function saveResetPassword() {
+    if (!resetting) return
+    if (!resetPassword) { setResetError('请填写新密码'); return }
+    if (resetPassword.length < 12) { setResetError('密码至少 12 个字符'); return }
+    setBusy(true); setResetError('')
+    try {
+      await api<User>(`/users/${encodeURIComponent(resetting.username)}`, 'PUT', {
+        username: resetting.username,
+        role: resetting.role,
+        password: resetPassword,
+      })
+      const targetName = resetting.username
+      setResetting(null)
+      setResetPassword('')
+      await load()
+      setFeedback(`账号 ${targetName} 的密码已重置`)
+    } catch (e) {
+      if (e instanceof APIError && e.status === 401) { onSessionError(e); return }
+      setResetError(e instanceof Error ? e.message : '操作失败')
+    } finally { setBusy(false) }
+  }
+  async function submitChangePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (passwordBusy) return
+    if (newPassword.length < 12 || newPassword.length > 512) {
+      setPasswordError('新密码长度须为 12–512 个字符')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('两次输入的新密码不一致')
+      return
+    }
+    setPasswordBusy(true)
+    setPasswordError('')
+    try {
+      await onChangePassword(currentPassword, newPassword)
+    } catch (e) {
+      setPasswordError(e instanceof Error ? e.message : '密码修改失败')
+      setPasswordBusy(false)
+    }
   }
   async function remove(user: User) {
     setBusy(true); setError('')
@@ -107,16 +181,44 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
     {
       id: 'actions',
       enableSorting: false,
-      meta: { headerClassName: 'text-right', cellClassName: 'whitespace-nowrap text-right' },
-      header: () => <div className="text-right">操作</div>,
+      size: 48,
+      meta: { headerClassName: 'w-10 text-right', cellClassName: 'w-10 whitespace-nowrap text-right' },
+      header: () => <span className="sr-only">操作</span>,
       cell: ({ row }) => {
         const user = row.original
-        if (user.username === currentUsername) return <ChangePassword onSubmit={onChangePassword} />
+        if (user.username === currentUsername) {
+          return (
+            <div className="flex justify-end">
+              <RowActionsMenu
+                ariaLabel={`账号 ${user.username} 操作`}
+                extraItems={[
+                  {
+                    key: 'change-password',
+                    label: '更改密码',
+                    onSelect: openChangePassword,
+                  },
+                ]}
+              />
+            </div>
+          )
+        }
         const lastAdmin = user.role === 'admin' && adminCount <= 1
         return (
-          <div className="table-row-action flex justify-end gap-1">
-            <Button variant="ghost" size="sm" onClick={() => showForm(user)}><Pencil />编辑</Button>
-            <Button variant="ghost" size="icon-sm" className="text-destructive" disabled={busy || lastAdmin} title={lastAdmin ? '不能删除最后一个管理员' : undefined} aria-label={`删除账号 ${user.username}`} onClick={() => setDeleting(user)}><Trash2 /></Button>
+          <div className="flex justify-end">
+            <RowActionsMenu
+              ariaLabel={`账号 ${user.username} 操作`}
+              onEdit={() => showForm(user)}
+              extraItems={[
+                {
+                  key: 'reset-password',
+                  label: '重置密码',
+                  onSelect: () => showResetPassword(user),
+                  disabled: busy,
+                },
+              ]}
+              onDelete={() => setDeleting(user)}
+              deleteDisabled={busy || lastAdmin}
+            />
           </div>
         )
       },
@@ -162,6 +264,74 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
         <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={() => setModalOpen(false)}>取消</Button><Button type="submit" disabled={busy}>{busy ? '保存中…' : '保存'}</Button></DialogFooter>
       </form>
     </DialogContent></Dialog>
+    <Dialog open={!!resetting} onOpenChange={next => { if (!next && !busy) { setResetting(null); setResetPassword(''); setResetError('') } }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>重置密码 · {resetting?.username}</DialogTitle>
+          <DialogDescription>修改后该账号已有会话会失效。</DialogDescription>
+        </DialogHeader>
+        {resetError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{resetError}</div>}
+        <form className="space-y-4" onSubmit={event => { event.preventDefault(); void saveResetPassword() }}>
+          <div className="space-y-2">
+            <label htmlFor="user-reset-password" className="text-sm font-medium">新密码</label>
+            <div className="relative">
+              <Input
+                id="user-reset-password"
+                className="pr-10"
+                type={showResetPasswordField ? 'text' : 'password'}
+                required
+                minLength={12}
+                maxLength={512}
+                autoComplete="new-password"
+                placeholder="至少 12 个字符"
+                value={resetPassword}
+                onChange={event => setResetPassword(event.target.value)}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 size-9"
+                aria-label={showResetPasswordField ? '隐藏密码' : '显示密码'}
+                aria-pressed={showResetPasswordField}
+                onClick={() => setShowResetPasswordField(!showResetPasswordField)}
+              >
+                {showResetPasswordField ? <EyeOff /> : <Eye />}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">至少 12 个字符。</p>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => { setResetting(null); setResetPassword(''); setResetError('') }}>取消</Button>
+            <Button type="submit" disabled={busy}>{busy ? '保存中…' : '保存'}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+    <Dialog open={changePasswordOpen} onOpenChange={handleChangePasswordOpenChange}>
+      <DialogContent showCloseButton={!passwordBusy}>
+        <DialogHeader>
+          <DialogTitle>更改密码</DialogTitle>
+          <DialogDescription>更改成功后，当前账号的所有登录会话都会失效，请使用新密码重新登录。</DialogDescription>
+        </DialogHeader>
+        {passwordError && <p role="alert" className="text-sm text-destructive">{passwordError}</p>}
+        <form className="grid gap-4" onSubmit={event => void submitChangePassword(event)}>
+          <label className="grid gap-2 text-sm font-medium">当前密码
+            <Input type="password" autoComplete="current-password" maxLength={512} required disabled={passwordBusy} value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} />
+          </label>
+          <label className="grid gap-2 text-sm font-medium">新密码
+            <Input type="password" autoComplete="new-password" placeholder="至少 12 个字符" maxLength={512} required disabled={passwordBusy} value={newPassword} onChange={event => setNewPassword(event.target.value)} />
+          </label>
+          <label className="grid gap-2 text-sm font-medium">确认新密码
+            <Input type="password" autoComplete="new-password" maxLength={512} required disabled={passwordBusy} value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} />
+          </label>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={passwordBusy} onClick={() => handleChangePasswordOpenChange(false)}>取消</Button>
+            <Button type="submit" disabled={passwordBusy}>{passwordBusy ? '更改中…' : '保存新密码'}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
     <Dialog open={!!deleting} onOpenChange={next => { if (!next && !busy) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>删除该账号？</DialogTitle><DialogDescription>删除后该账号的登录会话会立即失效。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (deleting) void remove(deleting) }}>删除</Button></DialogFooter></DialogContent></Dialog>
   </>
 }

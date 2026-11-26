@@ -1,10 +1,21 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronRight, Download, Plus, Star, Upload } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { PageHeader } from './PageHeader'
+import { RowActionsMenu } from './RowActionsMenu'
 import { Input } from './ui/input'
 import { UsageBar } from './UsageBar'
 import { Textarea } from './ui/textarea'
@@ -231,8 +242,8 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
     setFeedback('')
   }
 
-  function editSubnet(subnet: Subnet, trigger: HTMLButtonElement) {
-    draftTriggerRef.current = trigger
+  function editSubnet(subnet: Subnet, trigger?: HTMLButtonElement | null) {
+    draftTriggerRef.current = trigger ?? null
     setDraftError('')
     setDraft({
       id: subnet.id, version: subnet.version, name: subnet.name, cidr: subnet.cidr,
@@ -276,6 +287,7 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       setFeedback('网段已删除')
       onChanged()
     } catch (e) {
+      setDeleting(null)
       report(e)
     } finally {
       setBusy(false)
@@ -355,16 +367,17 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
 
       <div className="shared-table-wrap">
         <table className="shared-table ipam-subnet-table">
-          <thead><tr><th>网段名称</th><th>CIDR</th><th>VLAN</th><th>网关</th><th>地址数</th><th>已用</th><th>空闲</th><th>利用率</th><th className="text-right">操作</th></tr></thead>
+          <thead><tr><th>网段名称</th><th>CIDR</th><th>VLAN</th><th>网关</th><th>地址数</th><th>已用</th><th>空闲</th><th>利用率</th><th className="w-10"><span className="sr-only">操作</span></th></tr></thead>
           <tbody>
             {visibleSubnetRows.length ? visibleSubnetRows.map(({ subnet: item, depth, children }) => {
               const total = item.usable
               const usedPct = total > 0 ? Math.min(100, Math.round(item.used / total * 100)) : 0
+              const bookmarked = bookmarkedSubnets.includes(item.id)
               return (
                 <tr
                   key={item.id}
                   onClick={onSelectSubnet ? event => {
-                    if ((event.target as HTMLElement).closest('button, a')) return
+                    if ((event.target as HTMLElement).closest('button, a, [role="menuitem"], [data-slot="dropdown-menu-content"]')) return
                     onSelectSubnet(item.id)
                   } : undefined}
                 >
@@ -373,22 +386,34 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
                       {children > 0
                         ? <Button type="button" variant="ghost" size="icon" className="size-6 shrink-0" aria-label={`${collapsed.has(item.id) ? '展开' : '收起'} ${item.name} 的子网`} aria-expanded={!collapsed.has(item.id)} onClick={event => { event.stopPropagation(); toggleSubnet(item.id) }}>{collapsed.has(item.id) ? <ChevronRight /> : <ChevronDown />}</Button>
                         : <span className="w-6 shrink-0" />}
-                      <strong>{item.name}</strong>
+                      <span className="font-medium">{item.name}</span>
+                      {bookmarked && <Star className="size-3.5 shrink-0 fill-current text-warning" aria-label="已收藏" />}
                       {children > 0 && <Badge variant="secondary">{children}</Badge>}
                     </span>
                   </td>
-                  <td className="font-mono">{item.cidr}</td>
-                  <td>{item.vlan ? (item.vlanName ? `${item.vlan} ${item.vlanName}` : item.vlan) : '—'}</td>
-                  <td className="font-mono">{item.gateway || '—'}</td>
-                  <td>{count(item.usable)}</td>
-                  <td>{count(item.used)}</td>
-                  <td>{count(item.free)}</td>
+                  <td><span className="font-mono text-xs tabular-nums">{item.cidr}</span></td>
+                  <td>{item.vlan ? (item.vlanName ? `${item.vlan} ${item.vlanName}` : item.vlan) : <span className="text-muted-foreground">—</span>}</td>
+                  <td>{item.gateway ? <span className="font-mono text-xs tabular-nums">{item.gateway}</span> : <span className="text-muted-foreground">—</span>}</td>
+                  <td className="tabular-nums">{count(item.usable)}</td>
+                  <td className="tabular-nums">{count(item.used)}</td>
+                  <td className="tabular-nums">{count(item.free)}</td>
                   <td><UsageBar value={usedPct} label={`${item.name} 地址使用率`} /></td>
-                  <td><div className="ipam-row-actions">
-                    <Button variant="ghost" size="sm" aria-label={bookmarkedSubnets.includes(item.id) ? `取消收藏 ${item.name}` : `收藏 ${item.name}`} onClick={() => onToggleSubnetBookmark(item.id)}><Star className={bookmarkedSubnets.includes(item.id) ? 'fill-current' : ''} /></Button>
-                    {editable && <Button variant="ghost" size="sm" onClick={event => editSubnet(item, event.currentTarget)}>编辑</Button>}
-                    {editable && <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleting(item)}>删除</Button>}
-                  </div></td>
+                  <td className="w-10" onClick={event => event.stopPropagation()}>
+                    <div className="flex justify-end">
+                      <RowActionsMenu
+                        ariaLabel={`网段 ${item.name} 更多操作`}
+                        onEdit={editable ? () => editSubnet(item) : undefined}
+                        extraItems={[
+                          {
+                            key: 'bookmark',
+                            label: bookmarked ? '取消收藏' : '收藏',
+                            onSelect: () => onToggleSubnetBookmark(item.id),
+                          },
+                        ]}
+                        onDelete={editable ? () => setDeleting(item) : undefined}
+                      />
+                    </div>
+                  </td>
                 </tr>
               )
             }) : <tr><td colSpan={9} className="facility-table-empty">没有匹配的网段</td></tr>}
@@ -447,7 +472,29 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       </div>
       <DialogFooter><Button variant="outline" disabled={importBusy} onClick={() => setImportOpen(false)}>取消</Button><Button disabled={importBusy || !importFile} onClick={() => void importSubnets()}>{importBusy ? '正在导入…' : '导入'}</Button></DialogFooter>
     </DialogContent></Dialog>
-    <Dialog open={!!deleting} onOpenChange={next => { if (!busy) setDeleting(next ? deleting : null) }}><DialogContent><DialogHeader><DialogTitle>确定删除该网段？</DialogTitle><DialogDescription>确认删除 {deleting?.name}。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (deleting) void deleteSubnet(deleting) }}>删除</Button></DialogFooter></DialogContent></Dialog>
+    <AlertDialog open={!!deleting} onOpenChange={open => { if (!open && !busy) setDeleting(null) }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>确定删除该网段？</AlertDialogTitle>
+          <AlertDialogDescription>
+            确认删除网段 {deleting?.name}{deleting?.cidr ? `（${deleting.cidr}）` : ''}？此操作无法撤销。
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={busy}>取消</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={busy}
+            onClick={event => {
+              event.preventDefault()
+              if (deleting) void deleteSubnet(deleting)
+            }}
+          >
+            {busy ? '删除中…' : '删除'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </RoomTreeLayout>
   )
 }

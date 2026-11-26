@@ -1,6 +1,6 @@
 import type { MouseEvent, ReactNode } from 'react'
 import { flexRender, type Table as TanStackTable } from '@tanstack/react-table'
-import { ArrowDown, ArrowUp, ChevronsUpDown, LoaderCircle } from 'lucide-react'
+import { ChevronDown, ChevronUp, ChevronsUpDown, LoaderCircle } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 import { TablePager } from './TablePager'
 
@@ -33,9 +33,9 @@ export function DataTable<T>({
   return (
     <div className="data-table-shell">
       <Table className={className}>
-        <TableHeader className="bg-muted/40">
+        <TableHeader>
           {table.getHeaderGroups().map(group => (
-            <TableRow key={group.id} className="hover:bg-transparent">
+            <TableRow key={group.id}>
               {group.headers.map(header => {
                 const canSort = header.column.getCanSort()
                 const sorted = header.column.getIsSorted()
@@ -49,19 +49,19 @@ export function DataTable<T>({
                     {header.isPlaceholder ? null : canSort ? (
                       <button
                         type="button"
-                        className={`data-table-sort -ml-1.5 inline-flex h-7 items-center gap-1.5 rounded-md px-1.5 text-[13px] font-medium transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring${sorted ? ' is-sorted text-foreground' : ' text-muted-foreground'}`}
+                        className={`data-table-sort -ml-1.5 inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[state=open]:bg-accent${sorted ? ' is-sorted' : ''}`}
                         onClick={header.column.getToggleSortingHandler()}
                       >
-                        <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>
+                        <span className="truncate">{flexRender(header.column.columnDef.header, header.getContext())}</span>
                         <span
-                          className={`data-table-sort-icon inline-flex items-center ${sorted ? 'text-foreground' : 'text-muted-foreground/60'}`}
+                          className="data-table-sort-icon inline-flex shrink-0 items-center text-muted-foreground"
                           aria-hidden="true"
                         >
                           {sorted === 'asc'
-                            ? <ArrowUp className="size-3.5" />
+                            ? <ChevronUp className="size-4 shrink-0 text-muted-foreground" />
                             : sorted === 'desc'
-                              ? <ArrowDown className="size-3.5" />
-                              : <ChevronsUpDown className="size-3.5" />}
+                              ? <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                              : <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />}
                         </span>
                       </button>
                     ) : (
@@ -88,7 +88,7 @@ export function DataTable<T>({
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() ? 'selected' : undefined}
-                className={['transition-colors data-[state=selected]:bg-muted/60', onRowClick ? 'cursor-pointer' : '', rowClassName?.(row.original) ?? ''].filter(Boolean).join(' ') || undefined}
+                className={[onRowClick ? 'cursor-pointer' : '', rowClassName?.(row.original) ?? ''].filter(Boolean).join(' ') || undefined}
                 onClick={onRowClick ? event => onRowClick(row.original, event) : undefined}
               >
                 {row.getVisibleCells().map(cell => {
@@ -103,7 +103,7 @@ export function DataTable<T>({
             ))
           ) : (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={columnCount} className="h-28 text-center text-sm text-muted-foreground">
+              <TableCell colSpan={columnCount} className="h-28 whitespace-normal text-center text-sm text-muted-foreground">
                 {emptyMessage}
               </TableCell>
             </TableRow>
