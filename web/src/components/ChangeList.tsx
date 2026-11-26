@@ -28,7 +28,7 @@ const actionLabels: Record<string, string> = {
 }
 const fieldLabels: Record<string, string> = {
   probeEnabled: '存活探测', intervalSeconds: '探测间隔（秒）',
-  name: '名称', status: '状态', lifecycle: '生命周期', platform: '平台', owner: '负责人',
+  name: '名称', status: '状态', lifecycle: '生命周期', platform: '平台', owner: '负责人', groupId: '所属项目', teamId: '运维团队', personId: '负责人编号',
   environment: '环境', address: '地址', cpu: 'CPU', memoryMiB: '内存（MiB）', notes: '备注',
   observed: '采集信息', missingCount: '缺失次数',
   heightU: '机柜高度（U）',

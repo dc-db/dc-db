@@ -6,7 +6,7 @@ import { SearchableSelect } from './SearchableSelect'
 import { Textarea } from './ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Plus, Trash2 } from 'lucide-react'
-import type { Asset, AssetFields, Group, Kind, ServiceInstance } from '../api'
+import type { Asset, AssetFields, Group, Kind, Person, ServiceInstance, Team } from '../api'
 import { ALL_KINDS, NETWORK_KINDS, isNetworkKind, KIND_LABELS } from '../kinds'
 import { ServicePicker } from './ServicePicker'
 import { formatMemory, parseMemory } from '../lib/memory'
@@ -17,7 +17,8 @@ interface Props {
   busy: boolean
   error: string
   groups: Group[]
-  owners: string[]
+  people: Person[]
+  teams: Team[]
   rooms?: { id: number; name: string }[]
   defaultRoomId?: number
   mountedRoomId?: number
@@ -36,7 +37,7 @@ function Choice({ value, options, onChange, disabled, className }: {
   </Select>
 }
 
-export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, rooms, defaultRoomId, mountedRoomId, createFromList = false, onSave, onCancel }: Props) {
+export function AssetEditor({ asset, defaultKind, busy, error, groups, people, teams, rooms, defaultRoomId, mountedRoomId, createFromList = false, onSave, onCancel }: Props) {
   const [fields, setFields] = useState<AssetFields>({
     kind: asset?.kind ?? defaultKind,
     name: asset?.name ?? '',
@@ -50,6 +51,8 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, r
     cpu: asset?.cpu ?? 0,
     memoryMiB: asset?.memoryMiB ?? 0,
     groupId: asset?.groupId ?? 0,
+    teamId: asset?.teamId ?? 0,
+    personId: asset?.personId ?? 0,
     notes: asset?.notes ?? '',
     roomId: asset?.roomId ?? 0,
   })
@@ -130,7 +133,20 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, owners, r
         </label>
       )}
       <label className="grid gap-2 asset-field-group">所属项目<Choice value={fields.groupId ? String(fields.groupId) : ''} onChange={value => update('groupId', Number(value || 0))} options={[{ value: '', label: '未分配' }, ...groups.map(group => ({ value: String(group.id), label: group.name }))]} /></label>
-      <div className="grid gap-2 asset-field-owner"><span>负责人</span><SearchableSelect label="负责人" placeholder="选择或搜索负责人" value={fields.owner} onChange={value => update('owner', value)} options={owners.map(name => ({ value: name, label: name }))} allowCustom indicator="down" triggerClassName="max-w-64" /></div>
+      <div className="grid gap-2"><span>运维团队</span><SearchableSelect label="运维团队" placeholder="未分配" value={fields.teamId ? String(fields.teamId) : ''} onChange={value => update('teamId', Number(value))} options={teams.map(team => ({ value: String(team.id), label: team.name }))} indicator="down" triggerClassName="max-w-64" /></div>
+      <div className="grid gap-2 asset-field-owner"><span>负责人</span><SearchableSelect
+        label="负责人" placeholder="未分配"
+        value={fields.personId ? String(fields.personId) : fields.owner ? 'legacy' : ''}
+        onChange={value => {
+          if (value === 'legacy') return
+          setFields(current => ({ ...current, personId: Number(value), owner: '' }))
+        }}
+        options={[
+          ...(fields.owner && !fields.personId ? [{ value: 'legacy', label: fields.owner }] : []),
+          ...people.map(person => ({ value: String(person.id), label: person.name })),
+        ]}
+        indicator="down" triggerClassName="max-w-64"
+      /></div>
       {!networkDevice && <div className="col-span-2 grid gap-3 asset-create-services">
         <div>运行服务</div>
         {serviceRows.map((service, index) => <div key={index} className="flex items-end gap-2">

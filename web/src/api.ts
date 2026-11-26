@@ -37,6 +37,8 @@ export interface AssetFields {
   cpu: number
   memoryMiB: number
   groupId: number
+  teamId?: number
+  personId?: number
   notes: string
   roomId: number
 }
@@ -210,6 +212,21 @@ export interface GroupFields {
 export interface Group extends GroupFields {
   id: number
   assetCount: number
+}
+
+export interface DirectoryEntry {
+  id: number
+  name: string
+  description: string
+  assetCount: number
+}
+
+export interface Person extends DirectoryEntry {
+  username?: string
+}
+
+export interface Team extends DirectoryEntry {
+  memberIds: number[]
 }
 
 export interface MetadataFields {

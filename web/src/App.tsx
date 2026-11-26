@@ -18,7 +18,7 @@ import { api, apiCSV, APIError } from './api'
 import { formatDateTime } from './lib/date'
 import { formatMemory } from './lib/memory'
 import { downloadCSV } from './csv'
-import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, NetworkKind, Subnet, User, VLAN } from './api'
+import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, NetworkKind, Person, Subnet, Team, User, VLAN } from './api'
 import { assetLocations, assetRoomId, buildRoomCounts, locationLabel, matchesRoomFilter } from './facilities'
 import type { AssetLocation, Facilities } from './facilities'
 import { isNetworkKind, KIND_LABELS, kindLabel, NETWORK_KINDS } from './kinds'
@@ -41,6 +41,7 @@ import {
 } from './components/MetadataIcons'
 import { MetadataManager } from './components/MetadataManager'
 import { SubnetDetailView, VLANDetailView } from './components/NetworkDetailViews'
+import { OrganizationManager } from './components/OrganizationManager'
 import { PageHeader } from './components/PageHeader'
 import { ServiceIcon } from './components/ServiceIcon'
 import { serviceCategory } from './serviceCatalog'
@@ -69,7 +70,7 @@ const defaultPageSize = 10
 const defaultAssetColumns = ['name', 'capacity', 'address', 'platform', 'meta', 'services', 'notes']
 const defaultHostColumns = ['name', 'capacity', 'address', 'services', 'notes']
 const defaultNetworkDeviceColumns = ['name', 'kind', 'address', 'owner']
-const assetColumnKeys = ['name', 'capacity', 'kind', 'address', 'platform', 'meta', 'services', 'group', 'owner', 'environment', 'notes', 'created', 'updated']
+const assetColumnKeys = ['name', 'capacity', 'kind', 'address', 'platform', 'meta', 'services', 'group', 'team', 'owner', 'environment', 'notes', 'created', 'updated']
 
 
 function platformLabel(asset: Pick<Asset, 'platform'>) {
@@ -94,7 +95,7 @@ function messageText(error: unknown) {
   return error instanceof Error ? error.message : '操作失败'
 }
 
-const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'network_devices', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'password', 'groups', 'owners', 'users', 'probe_settings']
+const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'network_devices', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'password', 'groups', 'teams', 'owners', 'users', 'probe_settings']
 
 function readPageParam(): Page {
   const params = new URLSearchParams(window.location.search)
@@ -252,7 +253,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   const [assetTab, setAssetTab] = useState('overview')
   const [assetChanges, setAssetChanges] = useState<Change[]>([])
   const [groups, setGroups] = useState<Group[]>([])
-  const [owners, setOwners] = useState<string[]>([])
+  const [people, setPeople] = useState<Person[]>([])
+  const [teams, setTeams] = useState<Team[]>([])
   const [bookmarks, setBookmarks] = useState<number[]>(() => {
     try {
       const parsed: unknown = JSON.parse(localStorage.getItem('dc-db-bookmarks') ?? '[]')
@@ -313,6 +315,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       key: 'reference', label: '组织', icon: <ReferenceDataIcon />,
       children: [
         { key: 'groups', label: '项目', icon: <GroupClusterIcon /> },
+        { key: 'teams', label: '团队', icon: <TeamOutlined /> },
         { key: 'owners', label: '人员', icon: <OwnerBadgeIcon /> },
       ],
     },
@@ -356,16 +359,18 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     }
   }, [assetPage, assetRoomCounts.unassigned, busy, roomFilter])
 
+  const projectNames = useMemo(() => new Map(groups.map(item => [item.id, item.name])), [groups])
+  const teamNames = useMemo(() => new Map(teams.map(item => [item.id, item.name])), [teams])
   const filtered = useMemo(() => {
     const query = keyword.trim().toLowerCase()
     return scoped.filter(asset => {
       if (!matchesRoomFilter(assetRoomId(asset, locations, byId, links), roomFilter)) return false
       if (page === 'network_devices' && networkKindFilter && asset.kind !== networkKindFilter) return false
       if (page === 'vm' && platformFilter && asset.platform !== platformFilter) return false
-      return !query || [asset.name, asset.address, asset.owner, asset.environment, ...(vmRelations.get(asset.id) ?? [])]
+      return !query || [asset.name, asset.address, asset.owner, projectNames.get(asset.groupId), teamNames.get(asset.teamId ?? 0), asset.environment, ...(vmRelations.get(asset.id) ?? [])]
         .some(value => value?.toLowerCase().includes(query))
     })
-  }, [scoped, byId, links, locations, roomFilter, page, networkKindFilter, platformFilter, keyword, vmRelations])
+  }, [scoped, byId, links, locations, roomFilter, page, networkKindFilter, platformFilter, keyword, vmRelations, projectNames, teamNames])
 
   const relationOptions = useMemo(() => {
     if (!selected) return []
@@ -495,10 +500,10 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     setBusy(true)
     setError('')
     try {
-      const [nextAssets, nextLinks, nextChanges, nextFacilities, nextSubnets, nextGroups, nextOwners] = await Promise.all([
+      const [nextAssets, nextLinks, nextChanges, nextFacilities, nextSubnets, nextGroups, nextPeople, nextTeams] = await Promise.all([
         api<Asset[]>('/assets'), api<Link[]>('/links'), api<Change[]>('/changes'),
         api<Facilities>('/facilities'), api<Subnet[]>('/subnets'), api<Group[]>('/groups'),
-        api<{ name: string }[]>('/metadata?kind=owner'),
+        api<Person[]>('/people'), api<Team[]>('/teams'),
       ])
       setAssets(nextAssets)
       setLinks(nextLinks)
@@ -506,7 +511,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       setFacilities(nextFacilities)
       setSubnets(nextSubnets)
       setGroups(nextGroups)
-      setOwners(nextOwners.map(item => item.name))
+      setPeople(nextPeople)
+      setTeams(nextTeams)
     } catch (e) {
       handleError(e)
     } finally {
@@ -596,6 +602,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       closeDrawer()
       setUser(null)
       setAssets([])
+      setPeople([])
+      setTeams([])
       setLinks([])
       setChanges([])
       setFacilities({ regions: [], rooms: [], racks: [], placements: [] })
@@ -612,6 +620,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     closeDrawer()
     setUser(null)
     setAssets([])
+    setPeople([])
+    setTeams([])
     setLinks([])
     setChanges([])
     setFacilities({ regions: [], rooms: [], racks: [], placements: [] })
@@ -928,7 +938,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
     return link.fromId === selectedId ? link.toId : link.fromId
   }
 
-  const groupName = (id: number) => groups.find(item => item.id === id)?.name ?? '—'
+  const teamName = (id?: number) => teamNames.get(id ?? 0) ?? '—'
+  const groupName = (id: number) => projectNames.get(id) ?? '—'
   const metaTitle = page === 'vm' ? '宿主机' : '平台'
   const metaValue = (asset: Asset) => page === 'vm' ? hostName(asset) : platformLabel(asset)
   const assetNameLabel = page === 'host' ? '服务器名称' : page === 'vm' ? '虚拟机名称' : '资源名称'
@@ -1000,6 +1011,14 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
       },
     },
     {
+      key: 'team', label: '运维团队',
+      column: {
+        title: '运维团队', key: 'team', width: 120,
+        sorter: (left, right) => teamName(left.teamId).localeCompare(teamName(right.teamId), 'zh-CN'),
+        render: (_, asset) => teamName(asset.teamId),
+      },
+    },
+    {
       key: 'owner', label: '负责人',
       column: { title: '负责人', dataIndex: 'owner', key: 'owner', width: 120, sorter: (left, right) => left.owner.localeCompare(right.owner, 'zh-CN'), render: value => value || '—' },
     },
@@ -1046,13 +1065,15 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   ]
   const availableAssetColumns = page === 'network_devices'
     ? assetColumns.filter(item => !['meta', 'platform', 'capacity', 'services', 'notes', 'created'].includes(item.key))
-        .sort((a, b) => ['name', 'kind', 'address', 'group', 'owner', 'environment', 'updated'].indexOf(a.key) - ['name', 'kind', 'address', 'group', 'owner', 'environment', 'updated'].indexOf(b.key))
+        .sort((a, b) => ['name', 'kind', 'address', 'group', 'team', 'owner', 'environment', 'updated'].indexOf(a.key) - ['name', 'kind', 'address', 'group', 'team', 'owner', 'environment', 'updated'].indexOf(b.key))
     : assetColumns.filter(item => item.key !== 'kind' && item.key !== 'environment' && (page !== 'host' || (item.key !== 'meta' && item.key !== 'platform')))
         .sort((a, b) => assetColumnKeys.indexOf(a.key) - assetColumnKeys.indexOf(b.key))
   const columns = availableAssetColumns.filter(item => visibleColumns.includes(item.key)).map(item => item.column)
 
   const descriptions = selected ? [
     ...(!isNetworkKind(selected.kind) ? [{ key: 'platform', label: '平台', children: platformLabel(selected) }] : []),
+    { key: 'group', label: '所属项目', children: groupName(selected.groupId) },
+    { key: 'team', label: '运维团队', children: teamName(selected.teamId) },
     { key: 'owner', label: '负责人', children: selected.owner || '—' },
     { key: 'environment', label: '环境', children: selected.environment || '—' },
     { key: 'address', label: '管理地址 / IP', children: <span className="mono">{selected.address || '—'}</span> },
@@ -1233,7 +1254,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             </div>
         {editor ? (
           <AssetEditor
-            asset={selected} defaultKind={newKind} busy={saving} error={drawerError} groups={groups} owners={owners}
+            asset={selected} defaultKind={newKind} busy={saving} error={drawerError} groups={groups} people={people} teams={teams}
             rooms={facilities.rooms}
             defaultRoomId={typeof roomFilter === 'number' ? roomFilter : undefined}
             mountedRoomId={selectedLocation?.room.id}
@@ -1368,11 +1389,18 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             />
           )}
 
-          {page === 'owners' && (
-            <MetadataManager
-              kind="owner" title="人员" editable={editable}
-              onSessionError={e => handleError(e)}
-              onChanged={() => { void api<{ name: string }[]>('/metadata?kind=owner').then(list => setOwners(list.map(i => i.name))).catch(() => {}) }}
+          {(page === 'teams' || page === 'owners') && (
+            <OrganizationManager
+              key={page}
+              kind={page === 'teams' ? 'teams' : 'people'}
+              entries={page === 'teams' ? teams : people}
+              people={people}
+              teams={teams}
+              editable={editable}
+              canLinkAccount={user?.role === 'admin'}
+              loading={busy}
+              onRefresh={loadAll}
+              onSessionError={handleError}
             />
           )}
 
@@ -1577,7 +1605,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         onCancel={() => closeCreate()}
       >
         {createOpen && <AssetEditor
-          asset={null} defaultKind={newKind} createFromList busy={saving} error={drawerError} groups={groups} owners={owners}
+          asset={null} defaultKind={newKind} createFromList busy={saving} error={drawerError} groups={groups} people={people} teams={teams}
           rooms={facilities.rooms} defaultRoomId={typeof roomFilter === 'number' ? roomFilter : undefined}
           onSave={fields => void saveAsset(fields)}
           onCancel={() => closeCreate()}
