@@ -243,7 +243,7 @@ export function SubnetDetailView({
         id: `host-${host.id}`,
         kind: host.kind,
         title: host.name,
-        subtitle: [host.address, loc ? `${loc.rack.name} ${uRange(loc.placement)}` : '未上架'].filter(Boolean).join(' · '),
+        subtitle: [host.address, loc ? `${loc.rack.name} ${uRange(loc.placement)}` : '未分配'].filter(Boolean).join(' · '),
         statusTone: st.tone,
         statusLabel: st.label,
         onClick: () => onOpenAsset(host.id),

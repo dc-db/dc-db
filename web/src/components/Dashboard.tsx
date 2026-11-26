@@ -133,7 +133,7 @@ export function Dashboard({ assets, subnets, facilities, changes, bookmarks, rac
   }, [dark, stats.vms])
 
   const platformOption = useMemo<EChartsOption>(() => {
-    const labels: Record<string, string> = { pve: 'Proxmox VE', kvm: 'KVM / libvirt', '': '未指定' }
+    const labels: Record<string, string> = { pve: 'Proxmox VE', kvm: 'KVM / libvirt', '': '未分配' }
     const counts = new Map<string, number>()
     for (const asset of [...stats.hosts, ...stats.vms]) counts.set(asset.platform, (counts.get(asset.platform) ?? 0) + 1)
     return {

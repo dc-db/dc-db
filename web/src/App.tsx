@@ -1466,7 +1466,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               value={roomFilter}
               onChange={setRoomFilter}
               editable={editable}
-              unassignedLabel={page === 'vm' ? '未关联机房' : '未上架'}
               counts={assetRoomCounts}
               onSessionError={e => handleError(e)}
             >
