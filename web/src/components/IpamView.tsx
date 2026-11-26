@@ -1,9 +1,8 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, Download, Plus, Star, Upload, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, Download, Plus, Star, Upload } from 'lucide-react'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { PageHeader } from './PageHeader'
 import { Input } from './ui/input'
@@ -139,6 +138,8 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
   const [subnets, setSubnets] = useState<Subnet[]>([])
   const [vlans, setVLANs] = useState<VLAN[]>([])
   const [draft, setDraft] = useState<SubnetDraft | null>(null)
+  const [draftError, setDraftError] = useState('')
+  const draftTriggerRef = useRef<HTMLButtonElement>(null)
   const [deleting, setDeleting] = useState<Subnet | null>(null)
   const [subnetSearch, setSubnetSearch] = useState('')
   const [subnetStatus, setSubnetStatus] = useState<string | undefined>()
@@ -220,7 +221,9 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
     })
   }
 
-  function addSubnet() {
+  function addSubnet(trigger: HTMLButtonElement) {
+    draftTriggerRef.current = trigger
+    setDraftError('')
     setDraft({
       name: '', cidr: '', gateway: '', vlan: '', notes: '', status: 'active', role: '',
       roomId: typeof roomFilter === 'number' ? roomFilter : undefined,
@@ -228,7 +231,9 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
     setFeedback('')
   }
 
-  function editSubnet(subnet: Subnet) {
+  function editSubnet(subnet: Subnet, trigger: HTMLButtonElement) {
+    draftTriggerRef.current = trigger
+    setDraftError('')
     setDraft({
       id: subnet.id, version: subnet.version, name: subnet.name, cidr: subnet.cidr,
       gateway: subnet.gateway, vlan: subnet.vlan, notes: subnet.notes,
@@ -237,25 +242,25 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
   }
 
   async function saveSubnet() {
-    if (!draft) return
+    if (!draft || busy) return
     const wasEdit = !!draft.id
     setBusy(true)
-    setError('')
+    setDraftError('')
     try {
       const body = {
         name: draft.name, cidr: draft.cidr, gateway: draft.gateway, vlan: draft.vlan,
         notes: draft.notes, status: draft.status, role: draft.role, roomId: draft.roomId ?? 0,
         version: draft.version ?? 0,
       }
-      const saved = draft.id
-        ? await api<Subnet>(`/subnets/${draft.id}`, 'PUT', body)
-        : await api<Subnet>('/subnets', 'POST', body)
+      if (draft.id) await api<Subnet>(`/subnets/${draft.id}`, 'PUT', body)
+      else await api<Subnet>('/subnets', 'POST', body)
       setDraft(null)
       await load()
       setFeedback(wasEdit ? '网段已更新' : '网段已创建')
       onChanged()
     } catch (e) {
-      report(e)
+      if (e instanceof APIError && e.status === 401) onSessionError(e)
+      else setDraftError(e instanceof Error ? e.message : '保存失败')
     } finally {
       setBusy(false)
     }
@@ -341,21 +346,11 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       actions={<>
         <Button variant="outline" disabled={!subnetRows.length} onClick={exportSubnets}><Download />导出</Button>
         {editable && <Button variant="outline" onClick={() => { setImportFile(null); setImportError(''); setImportOpen(true) }}><Upload />导入</Button>}
-        {editable && <Button onClick={addSubnet}><Plus />新增网段</Button>}
+        {editable && <Button onClick={event => addSubnet(event.currentTarget)}><Plus />新增网段</Button>}
       </>}
     />
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
     {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
-    {draft && <Card className="mb-4"><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{draft.id ? '编辑网段' : '新增网段'}</CardTitle><Button variant="ghost" size="icon" aria-label="关闭" onClick={() => setDraft(null)}><X /></Button></CardHeader><CardContent><form onSubmit={event => { event.preventDefault(); void saveSubnet() }}><div className="grid grid-cols-2 gap-3">
-      <label className={labelClass}>网段名称<Input required value={draft.name} maxLength={160} placeholder="例如：办公网" onChange={event => setDraft({ ...draft, name: event.target.value })} /></label>
-      <label className={labelClass}>CIDR<Input required value={draft.cidr} maxLength={64} placeholder="例如：192.0.2.0/24" onChange={event => setDraft({ ...draft, cidr: event.target.value })} /></label>
-      <label className={labelClass}>状态<OptionSelect className="w-full" label="状态" value={draft.status} onChange={value => setDraft({ ...draft, status: value })} options={Object.entries(subnetStatusMeta).map(([value, meta]) => ({ value, label: meta.label }))} /></label>
-      <label className={labelClass}>用途 / 角色<Input value={draft.role} maxLength={80} placeholder="例如：办公、服务器、互联" onChange={event => setDraft({ ...draft, role: event.target.value })} /></label>
-      <div className={labelClass}><span>VLAN</span><SearchableSelect label="VLAN" placeholder="可选" value={draft.vlan} onChange={value => setDraft({ ...draft, vlan: value })} options={vlanOptions} />{!vlans.length && <span className="text-xs font-normal text-muted-foreground">请先在「VLAN」页面登记 VLAN</span>}</div>
-      <label className={labelClass}>网关<Input value={draft.gateway} maxLength={64} placeholder="例如：192.0.2.1" onChange={event => setDraft({ ...draft, gateway: event.target.value })} /></label>
-      <label className={`${labelClass} col-span-2`}>所属数据中心<OptionSelect className="w-full" label="所属数据中心" value={String(draft.roomId ?? '')} onChange={value => setDraft({ ...draft, roomId: value ? Number(value) : undefined })} options={[{ value: '', label: '未分配' }, ...facilities.rooms.map(room => ({ value: String(room.id), label: room.name }))]} /></label>
-      <label className={`${labelClass} col-span-2`}>备注<Textarea rows={2} maxLength={2000} value={draft.notes} onChange={event => setDraft({ ...draft, notes: event.target.value })} /></label>
-    </div><div className="mt-4 flex gap-2"><Button type="submit" disabled={busy}>保存网段</Button><Button type="button" variant="outline" onClick={() => setDraft(null)}>取消</Button></div></form></CardContent></Card>}
     {!subnets.length ? <div className="py-12 text-center text-muted-foreground">{loading ? '正在加载 IPAM 数据…' : '暂无网段，新增一个网段开始管理 IP 地址'}</div> : <>
 
       <div className="shared-table-wrap">
@@ -391,7 +386,7 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
                   <td><UsageBar value={usedPct} label={`${item.name} 地址使用率`} /></td>
                   <td><div className="ipam-row-actions">
                     <Button variant="ghost" size="sm" aria-label={bookmarkedSubnets.includes(item.id) ? `取消收藏 ${item.name}` : `收藏 ${item.name}`} onClick={() => onToggleSubnetBookmark(item.id)}><Star className={bookmarkedSubnets.includes(item.id) ? 'fill-current' : ''} /></Button>
-                    {editable && <Button variant="ghost" size="sm" onClick={() => editSubnet(item)}>编辑</Button>}
+                    {editable && <Button variant="ghost" size="sm" onClick={event => editSubnet(item, event.currentTarget)}>编辑</Button>}
                     {editable && <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleting(item)}>删除</Button>}
                   </div></td>
                 </tr>
@@ -401,6 +396,40 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
         </table>
       </div>
     </>}
+    <Dialog open={draft !== null} onOpenChange={open => { if (!open && !busy) setDraft(null) }}>
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[600px]"
+        aria-describedby={undefined}
+        showCloseButton={!busy}
+        onCloseAutoFocus={event => {
+          if (draftTriggerRef.current?.isConnected) {
+            event.preventDefault()
+            draftTriggerRef.current.focus()
+          }
+        }}
+      >
+        <DialogHeader><DialogTitle>{draft?.id ? '编辑网段' : '新增网段'}</DialogTitle></DialogHeader>
+        {draftError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{draftError}</div>}
+        {draft && (
+          <form className="space-y-4" onSubmit={event => { event.preventDefault(); void saveSubnet() }}>
+            <div className="grid grid-cols-2 gap-3">
+              <label className={labelClass}>网段名称<Input required value={draft.name} maxLength={160} placeholder="例如：办公网" onChange={event => setDraft({ ...draft, name: event.target.value })} /></label>
+              <label className={labelClass}>CIDR<Input required value={draft.cidr} maxLength={64} placeholder="例如：192.0.2.0/24" onChange={event => setDraft({ ...draft, cidr: event.target.value })} /></label>
+              <label className={labelClass}>状态<OptionSelect className="w-full" label="状态" value={draft.status} onChange={value => setDraft({ ...draft, status: value })} options={Object.entries(subnetStatusMeta).map(([value, meta]) => ({ value, label: meta.label }))} /></label>
+              <label className={labelClass}>用途 / 角色<Input value={draft.role} maxLength={80} placeholder="例如：办公、服务器、互联" onChange={event => setDraft({ ...draft, role: event.target.value })} /></label>
+              <div className={labelClass}><span>VLAN</span><SearchableSelect label="VLAN" placeholder="可选" value={draft.vlan} onChange={value => setDraft({ ...draft, vlan: value })} options={vlanOptions} />{!vlans.length && <span className="text-xs font-normal text-muted-foreground">请先在「VLAN」页面登记 VLAN</span>}</div>
+              <label className={labelClass}>网关<Input value={draft.gateway} maxLength={64} placeholder="例如：192.0.2.1" onChange={event => setDraft({ ...draft, gateway: event.target.value })} /></label>
+              <label className={`${labelClass} col-span-2`}>所属数据中心<OptionSelect className="w-full" label="所属数据中心" value={String(draft.roomId ?? '')} onChange={value => setDraft({ ...draft, roomId: value ? Number(value) : undefined })} options={[{ value: '', label: '未分配' }, ...facilities.rooms.map(room => ({ value: String(room.id), label: room.name }))]} /></label>
+              <label className={`${labelClass} col-span-2`}>备注<Textarea rows={2} maxLength={2000} value={draft.notes} onChange={event => setDraft({ ...draft, notes: event.target.value })} /></label>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" disabled={busy} onClick={() => setDraft(null)}>取消</Button>
+              <Button type="submit" disabled={busy}>{busy ? '保存中…' : '保存网段'}</Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
   <Dialog open={importOpen} onOpenChange={next => { if (!importBusy) setImportOpen(next) }}><DialogContent>
       <DialogHeader><DialogTitle>导入网段</DialogTitle><DialogDescription>CSV 表头：网段名称、CIDR、网关、VLAN、状态、用途、备注。</DialogDescription></DialogHeader>
       {importError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{importError}</div>}
