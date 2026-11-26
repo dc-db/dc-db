@@ -93,11 +93,11 @@ func Search(ctx context.Context, db *sql.DB, raw string) ([]SearchResult, error)
 
 func searchAssets(ctx context.Context, db *sql.DB, query, pattern, prefix string) ([]SearchResult, error) {
 	rows, err := db.QueryContext(ctx, `
-		SELECT id, name, kind, status, address, owner
+		SELECT id, name, kind, status, address, `+assetOwnerSQL+`
 		FROM assets
 		WHERE lower(name) LIKE $1 ESCAPE '\'
 		   OR lower(address) LIKE $2 ESCAPE '\'
-		   OR lower(owner) LIKE $3 ESCAPE '\'
+		   OR lower(`+assetOwnerSQL+`) LIKE $3 ESCAPE '\'
 		   OR lower(notes) LIKE $4 ESCAPE '\'
 		ORDER BY CASE
 			WHEN lower(name) = $5 THEN 0

@@ -25,6 +25,8 @@ type Fields struct {
 	ProbeEnabled bool               `json:"probeEnabled"`
 	CPU          int                `json:"cpu"`
 	MemoryMiB    int64              `json:"memoryMiB"`
+	TeamID       int64              `json:"teamId"`
+	PersonID     int64              `json:"personId"`
 	GroupID      int64              `json:"groupId"`
 	Notes        string             `json:"notes"`
 	RoomID       int64              `json:"roomId"`
@@ -66,10 +68,13 @@ type Change struct {
 	CreatedAt time.Time       `json:"createdAt"`
 }
 
-const assetColumns = `id, kind, name, platform, status, lifecycle, owner, environment, address, cpu,
+// The text owner is retained for CSV imports and older entries that have no directory record.
+const assetOwnerSQL = "COALESCE((SELECT p.name FROM people p WHERE p.id=assets.person_id), assets.owner)"
+
+const assetColumns = `id, kind, name, platform, status, lifecycle, ` + assetOwnerSQL + `, environment, address, cpu,
 	memory_mib, notes, COALESCE(room_id, 0), version, created_at, updated_at, COALESCE(source_key, ''),
 	COALESCE(external_key, ''), last_seen_at, missing_count, observed, COALESCE(group_id, 0),
-	probe_enabled, probe_status, probe_checked_at`
+	probe_enabled, probe_status, probe_checked_at, COALESCE(team_id,0), COALESCE(person_id,0)`
 
 type scanner interface{ Scan(...any) error }
 
@@ -79,7 +84,7 @@ func readAsset(row scanner) (Asset, error) {
 	err := row.Scan(&a.ID, &a.Kind, &a.Name, &a.Platform, &a.Status, &a.Lifecycle, &a.Owner,
 		&a.Environment, &a.Address, &a.CPU, &a.MemoryMiB, &a.Notes, &a.RoomID,
 		&a.Version, &a.CreatedAt, &a.UpdatedAt, &a.SourceKey, &a.ExternalKey, &a.LastSeenAt, &a.MissingCount, &observed,
-		&a.GroupID, &a.ProbeEnabled, &a.ProbeStatus, &a.ProbeCheckedAt)
+		&a.GroupID, &a.ProbeEnabled, &a.ProbeStatus, &a.ProbeCheckedAt, &a.TeamID, &a.PersonID)
 	a.Observed = json.RawMessage(observed)
 	return a, err
 }
@@ -214,6 +219,9 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 	if fields.Kind != before.Kind {
 		return Asset{}, ErrConflict
 	}
+	if err := resolveAssetPerson(ctx, tx, &fields); err != nil {
+		return Asset{}, err
+	}
 	if equalFields(fields, before.Fields) {
 		changed, err := replaceAssetServices(ctx, tx, id, requestedServices, actor, before.Name)
 		if err != nil {
@@ -229,17 +237,17 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 	}
 
 	asset, err := readAsset(tx.QueryRowContext(ctx, `
-		UPDATE assets SET name=$2, platform=$3, status=$4, lifecycle=$5, owner=$6, environment=$7,
+		UPDATE assets SET name=$2, platform=$3, status=$4, lifecycle=$5, owner=CASE WHEN $17::bigint=0 THEN $6 ELSE '' END, environment=$7,
 			address=$8, cpu=$9, memory_mib=$10, notes=$11, room_id=NULLIF($12,0),
 			group_id=NULLIF($13,0), version=version+1, updated_at=$14,
 			probe_status=CASE WHEN address IS DISTINCT FROM $8 OR probe_enabled IS DISTINCT FROM $15 OR lifecycle IS DISTINCT FROM $5 THEN 'unknown' ELSE probe_status END,
 			probe_checked_at=CASE WHEN address IS DISTINCT FROM $8 OR probe_enabled IS DISTINCT FROM $15 OR lifecycle IS DISTINCT FROM $5 THEN NULL ELSE probe_checked_at END,
-			probe_enabled=$15
+			probe_enabled=$15, team_id=NULLIF($16,0), person_id=NULLIF($17,0)
 		WHERE id=$1 RETURNING `+assetColumns, id, fields.Name, fields.Platform, fields.Status,
 		fields.Lifecycle, fields.Owner, fields.Environment, fields.Address, fields.CPU, fields.MemoryMiB,
-		fields.Notes, fields.RoomID, fields.GroupID, nowText(), fields.ProbeEnabled))
+		fields.Notes, fields.RoomID, fields.GroupID, nowText(), fields.ProbeEnabled, fields.TeamID, fields.PersonID))
 	if err != nil {
-		return Asset{}, err
+		return Asset{}, assetAssignmentError(err)
 	}
 	if err := writeChange(ctx, tx, asset, actor, "update", before.Fields, asset.Fields); err != nil {
 		return Asset{}, err
@@ -251,18 +259,48 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 	return asset, tx.Commit()
 }
 
+// Matching a legacy or imported owner by name upgrades it to a directory link.
+func resolveAssetPerson(ctx context.Context, tx *sql.Tx, fields *Fields) error {
+	if fields.PersonID != 0 {
+		err := tx.QueryRowContext(ctx, "SELECT name FROM people WHERE id=$1", fields.PersonID).Scan(&fields.Owner)
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("%w: 所选负责人不存在", ErrInvalid)
+		}
+		return err
+	}
+	if fields.Owner == "" {
+		return nil
+	}
+	err := tx.QueryRowContext(ctx, "SELECT id, name FROM people WHERE lower(name)=lower($1)", fields.Owner).
+		Scan(&fields.PersonID, &fields.Owner)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	return err
+}
+
 func createAsset(ctx context.Context, tx *sql.Tx, fields Fields, actor string) (Asset, error) {
-	asset, err := readAsset(tx.QueryRowContext(ctx, `
-		INSERT INTO assets (kind, name, platform, status, lifecycle, owner, environment, address,
-			cpu, memory_mib, notes, room_id, group_id, updated_at, probe_enabled)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULLIF($12,0),NULLIF($13,0),$14,$15) RETURNING `+assetColumns,
-		fields.Kind, fields.Name, fields.Platform, fields.Status, fields.Lifecycle, fields.Owner,
-		fields.Environment, fields.Address, fields.CPU, fields.MemoryMiB, fields.Notes,
-		fields.RoomID, fields.GroupID, nowText(), fields.ProbeEnabled))
-	if err != nil {
+	if err := resolveAssetPerson(ctx, tx, &fields); err != nil {
 		return Asset{}, err
 	}
+	asset, err := readAsset(tx.QueryRowContext(ctx, `
+		INSERT INTO assets (kind, name, platform, status, lifecycle, owner, environment, address,
+			cpu, memory_mib, notes, room_id, group_id, updated_at, probe_enabled, team_id, person_id)
+		VALUES ($1,$2,$3,$4,$5,CASE WHEN $17::bigint=0 THEN $6 ELSE '' END,$7,$8,$9,$10,$11,NULLIF($12,0),NULLIF($13,0),$14,$15,NULLIF($16,0),NULLIF($17,0)) RETURNING `+assetColumns,
+		fields.Kind, fields.Name, fields.Platform, fields.Status, fields.Lifecycle, fields.Owner,
+		fields.Environment, fields.Address, fields.CPU, fields.MemoryMiB, fields.Notes,
+		fields.RoomID, fields.GroupID, nowText(), fields.ProbeEnabled, fields.TeamID, fields.PersonID))
+	if err != nil {
+		return Asset{}, assetAssignmentError(err)
+	}
 	return asset, writeChange(ctx, tx, asset, actor, "create", nil, asset.Fields)
+}
+
+func assetAssignmentError(err error) error {
+	if isForeignKeyViolation(err) {
+		return fmt.Errorf("%w: 所选项目、团队、负责人或数据中心已不存在", ErrInvalid)
+	}
+	return err
 }
 
 func equalFields(a, b Fields) bool {

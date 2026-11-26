@@ -37,7 +37,7 @@ func BulkUpdateAssets(ctx context.Context, db *sql.DB, ids []int64, patch BulkAs
 
 	updated := 0
 	for _, id := range ids {
-		before, err := readAsset(tx.QueryRowContext(ctx, "SELECT "+assetColumns+" FROM assets WHERE id=$1", id))
+		before, err := readAsset(tx.QueryRowContext(ctx, "SELECT "+assetColumns+" FROM assets WHERE id=$1 FOR UPDATE", id))
 		if err != nil {
 			return 0, err
 		}
@@ -53,6 +53,7 @@ func BulkUpdateAssets(ctx context.Context, db *sql.DB, ids []int64, patch BulkAs
 		}
 		if patch.Owner != nil {
 			fields.Owner = *patch.Owner
+			fields.PersonID = 0
 		}
 		if patch.Environment != nil {
 			fields.Environment = *patch.Environment
@@ -60,21 +61,26 @@ func BulkUpdateAssets(ctx context.Context, db *sql.DB, ids []int64, patch BulkAs
 		if err := validateFields(&fields); err != nil {
 			return 0, fmt.Errorf("%w: %s: %v", ErrInvalid, before.Name, err)
 		}
+		if patch.Owner != nil {
+			if err := resolveAssetPerson(ctx, tx, &fields); err != nil {
+				return 0, err
+			}
+		}
 		if equalFields(fields, before.Fields) {
 			continue
 		}
 
 		after, err := readAsset(tx.QueryRowContext(ctx, `
 			UPDATE assets
-			SET status=$2, platform=$3, lifecycle=$4, owner=$5, environment=$6, version=version+1, updated_at=$7,
+			SET status=$2, platform=$3, lifecycle=$4, owner=CASE WHEN $8::bigint=0 THEN $5 ELSE '' END, environment=$6, version=version+1, updated_at=$7, person_id=NULLIF($8,0),
 			    probe_status=CASE WHEN lifecycle IS DISTINCT FROM $4 THEN 'unknown' ELSE probe_status END,
 			    probe_checked_at=CASE WHEN lifecycle IS DISTINCT FROM $4 THEN NULL ELSE probe_checked_at END
 			WHERE id=$1
 			RETURNING `+assetColumns,
-			id, fields.Status, fields.Platform, fields.Lifecycle, fields.Owner, fields.Environment, nowText(),
+			id, fields.Status, fields.Platform, fields.Lifecycle, fields.Owner, fields.Environment, nowText(), fields.PersonID,
 		))
 		if err != nil {
-			return 0, err
+			return 0, assetAssignmentError(err)
 		}
 		if err := writeChange(ctx, tx, after, actor, "update", before.Fields, after.Fields); err != nil {
 			return 0, err
