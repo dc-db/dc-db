@@ -10,8 +10,8 @@ const zhCN = {}
 import {
   Building2 as BuildingOutlined, Server as CloudServerOutlined,
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
-  House as HomeOutlined, ArrowLeft as ArrowLeftOutlined, LogOut as LogoutOutlined, Moon as MoonOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
-  Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Sun as SunOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
+  House as HomeOutlined, ArrowLeft as ArrowLeftOutlined, LogOut as LogoutOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
+  Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
   Network as NetworkOutlined, Split as SplitOutlined, LocateFixed as LocateFixedOutlined, Layers3,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
@@ -43,6 +43,7 @@ import { SubnetDetailView, VLANDetailView } from './components/NetworkDetailView
 import { OrganizationManager } from './components/OrganizationManager'
 import { PageHeader } from './components/PageHeader'
 import { RowActionsMenu } from './components/RowActionsMenu'
+import { readStoredThemeMode, THEME_STORAGE_KEY, ThemeToggle, type ThemeMode } from './components/ThemeToggle'
 import { DataTableViewOptions } from './components/TableColumnControls'
 import { ServiceIcon } from './components/ServiceIcon'
 import { serviceCategory } from './serviceCatalog'
@@ -123,40 +124,39 @@ function readRackParam(): number | null {
   return Number.isSafeInteger(value) && value > 0 ? value : null
 }
 
-function initialDark() {
+function readSystemDark(): boolean {
   try {
-    const saved = localStorage.getItem('dc-db-theme')
-    if (saved === 'dark') return true
-    if (saved === 'light') return false
     return window.matchMedia('(prefers-color-scheme: dark)').matches
   } catch {
     return false
   }
 }
 
-function ThemeToggle({ dark, onToggleTheme, className }: { dark: boolean; onToggleTheme: () => void; className?: string }) {
-  return (
-    <Tooltip title={dark ? '切换到浅色模式' : '切换到暗色模式'}>
-      <Button
-        type="text" className={className} onClick={onToggleTheme}
-        aria-label={dark ? '切换到浅色模式' : '切换到暗色模式'}
-      >
-        {dark ? <SunOutlined /> : <MoonOutlined />}
-      </Button>
-    </Tooltip>
-  )
-}
-
 export default function App() {
-  const [dark, setDark] = useState(initialDark)
+  const [themeMode, setThemeMode] = useState<ThemeMode>(readStoredThemeMode)
+  const [systemDark, setSystemDark] = useState<boolean>(readSystemDark)
 
   useEffect(() => {
-    document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+    if (typeof window.matchMedia !== 'function') return
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    setSystemDark(mediaQuery.matches)
+    const onChange = (event: MediaQueryListEvent) => setSystemDark(event.matches)
+    mediaQuery.addEventListener('change', onChange)
+    return () => mediaQuery.removeEventListener('change', onChange)
+  }, [])
+
+  const dark = themeMode === 'dark' || (themeMode === 'system' && systemDark)
+
+  useEffect(() => {
     try {
-      localStorage.setItem('dc-db-theme', dark ? 'dark' : 'light')
+      localStorage.setItem(THEME_STORAGE_KEY, themeMode)
     } catch {
       // Storage may be unavailable in private browsing.
     }
+  }, [themeMode])
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light'
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0a0a0a' : '#ffffff')
   }, [dark])
 
@@ -175,13 +175,13 @@ export default function App() {
       }}
     >
       <UIApp>
-        <Shell dark={dark} onToggleTheme={() => setDark(value => !value)} />
+        <Shell dark={dark} themeMode={themeMode} onThemeModeChange={setThemeMode} />
       </UIApp>
     </ConfigProvider>
   )
 }
 
-function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => void }) {
+function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMode: ThemeMode; onThemeModeChange: (mode: ThemeMode) => void }) {
   const { message } = UIApp.useApp()
   const [user, setUser] = useState<User | null>(null)
   const [checking, setChecking] = useState(true)
@@ -1271,7 +1271,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
             />
           </div>
           <Space size={6} className="app-header-actions">
-            <ThemeToggle dark={dark} onToggleTheme={onToggleTheme} />
+            <ThemeToggle mode={themeMode} onChange={onThemeModeChange} />
             <Dropdown
               menu={{
                 items: [{ key: 'logout', icon: <LogoutOutlined />, label: '退出登录' }],
