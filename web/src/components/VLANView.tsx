@@ -1,6 +1,6 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
-import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
+import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState, type VisibilityState } from '@tanstack/react-table'
 import { Plus, RefreshCw, Upload } from 'lucide-react'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
@@ -27,6 +27,7 @@ import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
 import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
+import { DataTableViewOptions } from './TableColumnControls'
 
 interface Props {
   editable: boolean
@@ -60,6 +61,7 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
   const [deleting, setDeleting] = useState<VLAN | null>(null)
   const [fields, setFields] = useState<VLANFields>(emptyFields)
   const [sorting, setSorting] = useState<SortingState>([])
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
 
   useEffect(() => { void load() }, [])
   function report(e: unknown) {
@@ -108,14 +110,37 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
 
   const columns: ColumnDef<VLAN>[] = [
     { accessorKey: 'vid', header: 'VLAN ID', meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <span className="font-mono text-xs font-medium tabular-nums">{row.original.vid}</span> },
-    { accessorKey: 'name', header: '名称', sortingFn: (a, b) => a.original.name.localeCompare(b.original.name, 'zh-CN'), cell: ({ row }) => <div className="flex flex-col gap-0.5"><span className="font-medium">{row.original.name}</span>{row.original.description && <span className="text-xs text-muted-foreground">{row.original.description}</span>}</div> },
-    { accessorKey: 'status', header: '状态', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => { const meta = statusMeta[row.original.status] ?? { label: row.original.status, className: '' }; return <Badge variant="outline" className={meta.className}>{meta.label}</Badge> } },
-    { accessorKey: 'roomName', header: '所属数据中心', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => row.original.roomName || <span className="text-muted-foreground">—</span> },
+    { accessorKey: 'name', header: '名称', sortingFn: (a, b) => a.original.name.localeCompare(b.original.name, 'zh-CN', { numeric: true }), cell: ({ row }) => <div className="flex flex-col gap-0.5"><span className="font-medium">{row.original.name}</span>{row.original.description && <span className="text-xs text-muted-foreground">{row.original.description}</span>}</div> },
+    {
+      id: 'status',
+      accessorFn: row => statusMeta[row.status]?.label ?? row.status,
+      header: '状态',
+      sortingFn: (a, b) => (a.getValue<string>('status') ?? '').localeCompare(b.getValue<string>('status') ?? '', 'zh-CN'),
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => { const meta = statusMeta[row.original.status] ?? { label: row.original.status, className: '' }; return <Badge variant="outline" className={meta.className}>{meta.label}</Badge> },
+    },
+    {
+      id: 'roomName',
+      accessorFn: row => row.roomName?.trim() || undefined,
+      header: '所属数据中心',
+      sortUndefined: 'last',
+      sortingFn: (a, b) => (a.getValue<string | undefined>('roomName') ?? '').localeCompare(b.getValue<string | undefined>('roomName') ?? '', 'zh-CN', { numeric: true }),
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => row.original.roomName || <span className="text-muted-foreground">—</span>,
+    },
     { accessorKey: 'prefixCount', header: '关联网段', meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <Badge variant={row.original.prefixCount ? 'secondary' : 'outline'} className="tabular-nums">{row.original.prefixCount}</Badge> },
-    { accessorKey: 'updatedAt', header: '最近更新', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <span className="text-xs text-muted-foreground tabular-nums">{row.original.updatedAt ? new Date(row.original.updatedAt).toLocaleString('zh-CN', { hour12: false }) : '—'}</span> },
+    {
+      id: 'updatedAt',
+      accessorFn: row => (row.updatedAt ? new Date(row.updatedAt).getTime() : undefined),
+      header: '最近更新',
+      sortUndefined: 'last',
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => <span className="text-xs text-muted-foreground tabular-nums">{row.original.updatedAt ? new Date(row.original.updatedAt).toLocaleString('zh-CN', { hour12: false }) : '—'}</span>,
+    },
     ...(editable ? [{
       id: 'actions',
       enableSorting: false,
+      enableHiding: false,
       meta: { headerClassName: 'w-10 text-right', cellClassName: 'w-10 whitespace-nowrap text-right' },
       header: () => <span className="sr-only">操作</span>,
       cell: ({ row }: { row: { original: VLAN } }) => (
@@ -129,7 +154,17 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       ),
     }] : []),
   ]
-  const table = useReactTable({ data: visible, columns, state: { sorting }, onSortingChange: setSorting, initialState: { pagination: { pageIndex: 0, pageSize: 20 } }, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getPaginationRowModel: getPaginationRowModel() })
+  const table = useReactTable({
+    data: visible,
+    columns,
+    state: { sorting, columnVisibility },
+    onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
+    initialState: { pagination: { pageIndex: 0, pageSize: 20 } },
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  })
 
   function exportCSV() {
     downloadCSV('dc-db-vlans.csv', [
@@ -161,6 +196,7 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
         />
       </>}
       actions={<>
+        <DataTableViewOptions table={table} />
         <Button size="sm" variant="outline" disabled={!visible.length} onClick={exportCSV}><Upload />导出</Button>
         <Button size="sm" variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
         {editable && <Button size="sm" onClick={() => showForm(null)}><Plus />新增 VLAN</Button>}

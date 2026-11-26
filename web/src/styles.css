@@ -1,8 +1,9 @@
-body { font-size: var(--fs-body); line-height: 1.55; }
+body { font-size: var(--fs-body); line-height: 1.55; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-feature-settings: "zero" 0; }
 
 :root {
   color-scheme: light;
-  font-family: "Geist Variable", "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-sans-stack: "Geist Variable", "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: var(--font-sans-stack);
   color: #0a0a0a;
   --radius: 10px;
   --sider-width: 220px;
@@ -544,7 +545,7 @@ html[data-theme="dark"] .ui-switch { background: #404040; }
 .asset-name-button:hover { text-decoration: underline; text-decoration-color: var(--muted); text-underline-offset: 3px; }
 .asset-name-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 3px; }
 .asset-sub { margin-left: 6px; color: var(--muted); font-size: var(--fs-caption); font-weight: 400; }
-.mono { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }
+.mono { font-family: var(--font-sans-stack); font-variant-numeric: tabular-nums; font-feature-settings: "zero" 0; }
 .muted { color: var(--muted); }
 .drawer-alert { margin-bottom: 12px; }
 .drawer-edit { margin-bottom: 16px; }
@@ -1026,7 +1027,7 @@ html[data-theme="dark"] .service-icon.is-brand { color: var(--brand-dark, var(--
 .topo-node.is-highlighted .topo-handle { background: var(--info) !important; opacity: 1; }
 
 .net-free-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: var(--surface-shadow); }
-.net-free-chip { display: inline-flex; align-items: center; justify-content: center; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; font-variant-numeric: tabular-nums; }
+.net-free-chip { display: inline-flex; align-items: center; justify-content: center; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); font-family: var(--font-sans-stack); font-size: 12px; font-variant-numeric: tabular-nums; font-feature-settings: "zero" 0; }
 
 .svc-bound-section { display: flex; flex-direction: column; gap: 10px; }
 .svc-bound-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }

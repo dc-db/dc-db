@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react'
-import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
+import { useEffect, useMemo, useState } from 'react'
+import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState, type VisibilityState } from '@tanstack/react-table'
 import { Plus, Trash2 } from 'lucide-react'
 import { APIError, api, type DirectoryEntry, type Person, type Team, type User } from '../api'
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
 import { SearchableSelect } from './SearchableSelect'
+import { DataTableViewOptions } from './TableColumnControls'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
@@ -32,6 +33,7 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
   const title = teamPage ? '团队' : '人员'
   const [keyword, setKeyword] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [draft, setDraft] = useState<Draft | null>(null)
   const [editing, setEditing] = useState<Entry | null>(null)
   const [deleting, setDeleting] = useState<Entry | null>(null)
@@ -41,6 +43,11 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
   const [failure, setFailure] = useState('')
   const [busy, setBusy] = useState(false)
   const peopleById = useMemo(() => new Map(people.map(person => [person.id, person])), [people])
+
+  useEffect(() => {
+    setColumnVisibility({})
+    setSorting([])
+  }, [kind])
 
   function errorMessage(error: unknown) {
     if (error instanceof APIError && error.status === 401) onSessionError(error)
@@ -131,31 +138,43 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
     ...(teamPage ? [{
       id: 'members',
       header: '成员',
-      enableSorting: false,
-      cell: ({ row }: { row: { original: Entry } }) => {
+      accessorFn: (row: Entry) => (row as Team).memberIds.length,
+      sortingFn: (a, b) => {
+        const left = a.original as Team
+        const right = b.original as Team
+        if (left.memberIds.length !== right.memberIds.length) {
+          return left.memberIds.length - right.memberIds.length
+        }
+        const leftNames = left.memberIds.map(id => peopleById.get(id)?.name).filter(Boolean).join('、')
+        const rightNames = right.memberIds.map(id => peopleById.get(id)?.name).filter(Boolean).join('、')
+        return leftNames.localeCompare(rightNames, 'zh-CN')
+      },
+      cell: ({ row }) => {
         const team = row.original as Team
         const names = team.memberIds.map(id => peopleById.get(id)?.name).filter(Boolean).join('、')
         return names || <span className="text-muted-foreground">—</span>
       },
-    }] : canLinkAccount ? [{
+    } satisfies ColumnDef<Entry>] : canLinkAccount ? [{
       id: 'account',
       header: '登录账号',
-      enableSorting: false,
+      accessorFn: (row: Entry) => (row as Person).username ?? '',
+      sortingFn: (a, b) => ((a.original as Person).username ?? '').localeCompare((b.original as Person).username ?? '', 'zh-CN'),
       meta: { cellClassName: 'whitespace-nowrap' },
-      cell: ({ row }: { row: { original: Entry } }) => {
+      cell: ({ row }) => {
         const username = (row.original as Person).username
         return username ? <span className="font-mono text-xs">{username}</span> : <span className="text-muted-foreground">—</span>
       },
-    }] : []),
+    } satisfies ColumnDef<Entry>] : []),
     ...(!teamPage ? [{
       id: 'teams',
       header: '所属团队',
-      enableSorting: false,
-      cell: ({ row }: { row: { original: Entry } }) => {
+      accessorFn: (row: Entry) => teamNamesByPerson.get(row.id)?.join('、') ?? '',
+      sortingFn: (a, b) => (teamNamesByPerson.get(a.original.id)?.join('、') ?? '').localeCompare(teamNamesByPerson.get(b.original.id)?.join('、') ?? '', 'zh-CN'),
+      cell: ({ row }) => {
         const names = teamNamesByPerson.get(row.original.id)?.join('、')
         return names || <span className="text-muted-foreground">—</span>
       },
-    }] : []),
+    } satisfies ColumnDef<Entry>] : []),
     {
       accessorKey: 'assetCount',
       header: '关联资产',
@@ -169,7 +188,7 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
     {
       accessorKey: 'description',
       header: '备注',
-      enableSorting: false,
+      sortingFn: (a, b) => (a.original.description ?? '').localeCompare(b.original.description ?? '', 'zh-CN'),
       cell: ({ row }) => row.original.description
         ? <span className="text-muted-foreground">{row.original.description}</span>
         : <span className="text-muted-foreground">—</span>,
@@ -177,6 +196,7 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
     ...(editable ? [{
       id: 'actions',
       enableSorting: false,
+      enableHiding: false,
       size: 48,
       meta: { headerClassName: 'w-10 text-right', cellClassName: 'w-10 whitespace-nowrap text-right' },
       header: () => <span className="sr-only">操作</span>,
@@ -195,8 +215,9 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
   const table = useReactTable({
     data: visible,
     columns,
-    state: { sorting },
+    state: { sorting, columnVisibility },
     onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
     initialState: { pagination: { pageIndex: 0, pageSize: 20 } },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -209,7 +230,12 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
     <PageHeader
       title={title}
       filters={<Input type="search" aria-label={`搜索${title}`} placeholder={`搜索${title}名称或备注`} className="h-8 w-[240px]" value={keyword} onChange={event => setKeyword(event.target.value)} />}
-      actions={editable && <Button size="sm" onClick={() => { void openEditor(null) }}><Plus />新增{title}</Button>}
+      actions={
+        <>
+          <DataTableViewOptions table={table} />
+          {editable && <Button size="sm" onClick={() => { void openEditor(null) }}><Plus />新增{title}</Button>}
+        </>
+      }
     />
     <DataTable table={table} loading={loading} emptyMessage={keyword ? `未找到匹配的${title}` : `暂无${title}`} />
 

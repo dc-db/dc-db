@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  getCoreRowModel, getPaginationRowModel, useReactTable, type ColumnDef,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type ColumnDef,
+  type SortingState,
+  type VisibilityState,
 } from '@tanstack/react-table'
 import { ArrowLeft, Building2, ChevronLeft, ChevronRight, List, Network, Split } from 'lucide-react'
 import { api, APIError } from '../api'
@@ -8,6 +14,7 @@ import type { Asset, AvailableIPs, IPAddress, IPUsage, Link, Subnet, SubnetDetai
 import { assetLocations, uRange, type Facilities } from '../facilities'
 import { DataTable } from './DataTable'
 import { RowIconBox } from './ServiceIcon'
+import { DataTableViewOptions } from './TableColumnControls'
 import { TopologyCanvas, type TopoEdgeInput, type TopoItem, type TopoTier } from './TopologyCanvas'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -42,6 +49,54 @@ const assetStatusMap: Record<string, { label: string; tone: 'ok' | 'warn' | 'bad
   unknown: { label: '未知', tone: 'idle' },
 }
 
+function ipv4Number(address: string): number | null {
+  const parts = address.trim().split('.')
+  if (parts.length !== 4) return null
+  let value = 0
+  for (const part of parts) {
+    if (!/^\d{1,3}$/.test(part)) return null
+    const octet = Number(part)
+    if (octet > 255) return null
+    value = value * 256 + octet
+  }
+  return value
+}
+
+function subnetRange(cidr: string): { start: number; prefix: number } | null {
+  const [address, prefixText] = cidr.trim().split('/')
+  if (!address || !prefixText) return null
+  const prefix = Number(prefixText)
+  if (!Number.isInteger(prefix) || prefix < 0 || prefix > 32) return null
+  const ip = ipv4Number(address)
+  if (ip === null) return null
+  const size = 2 ** (32 - prefix)
+  return { start: Math.floor(ip / size) * size, prefix }
+}
+
+function compareIP(left?: string | null, right?: string | null): number {
+  const l = (left ?? '').trim()
+  const r = (right ?? '').trim()
+  const ln = ipv4Number(l)
+  const rn = ipv4Number(r)
+  if (ln !== null && rn !== null) return ln - rn
+  if (ln !== null) return -1
+  if (rn !== null) return 1
+  return l.localeCompare(r, undefined, { numeric: true })
+}
+
+function compareCIDR(left: string, right: string): number {
+  const lr = subnetRange(left)
+  const rr = subnetRange(right)
+  if (lr && rr) return lr.start - rr.start || lr.prefix - rr.prefix
+  if (lr) return -1
+  if (rr) return 1
+  return left.localeCompare(right, undefined, { numeric: true })
+}
+
+function compareText(left?: string | null, right?: string | null): number {
+  return (left ?? '').localeCompare(right ?? '', 'zh-CN', { numeric: true })
+}
+
 interface SubnetDetailProps {
   subnet: Subnet
   assets: Asset[]
@@ -73,6 +128,8 @@ export function SubnetDetailView({
   const [error, setError] = useState('')
   const [freePage, setFreePage] = useState(0)
   const [freeIPs, setFreeIPs] = useState<AvailableIPs | null>(null)
+  const [usedSorting, setUsedSorting] = useState<SortingState>([])
+  const [usedColumnVisibility, setUsedColumnVisibility] = useState<VisibilityState>({})
   const freePageSize = 10
 
   useEffect(() => {
@@ -111,14 +168,15 @@ export function SubnetDetailView({
     {
       accessorKey: 'ip',
       header: 'IP 地址',
-      enableSorting: false,
+      sortingFn: (a, b) => compareIP(a.original.ip, b.original.ip),
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => <span className="font-mono text-xs font-medium tabular-nums">{row.original.ip}</span>,
     },
     {
-      accessorKey: 'state',
+      id: 'state',
+      accessorFn: row => ipStateMeta[row.state]?.label ?? row.state,
       header: '状态',
-      enableSorting: false,
+      sortingFn: (a, b) => compareText(a.getValue<string>('state'), b.getValue<string>('state')),
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => {
         const meta = ipStateMeta[row.original.state]
@@ -126,32 +184,39 @@ export function SubnetDetailView({
       },
     },
     {
-      accessorKey: 'source',
+      id: 'source',
+      accessorFn: row => ipSourceMeta[row.source] ?? row.source,
       header: '来源',
-      enableSorting: false,
+      sortingFn: (a, b) => compareText(a.getValue<string>('source'), b.getValue<string>('source')),
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => <Badge variant="secondary">{ipSourceMeta[row.original.source] ?? row.original.source}</Badge>,
     },
     {
-      accessorKey: 'dnsName',
+      id: 'dnsName',
+      accessorFn: row => row.dnsName?.trim() || undefined,
       header: 'DNS 名称',
-      enableSorting: false,
+      sortUndefined: 'last',
+      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('dnsName'), b.getValue<string | undefined>('dnsName')),
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => row.original.dnsName
         ? <span className="font-mono text-xs">{row.original.dnsName}</span>
         : <span className="text-muted-foreground">—</span>,
     },
     {
-      accessorKey: 'role',
+      id: 'role',
+      accessorFn: row => (ipRoleLabels[row.role ?? ''] ?? row.role)?.trim() || undefined,
       header: '角色',
-      enableSorting: false,
+      sortUndefined: 'last',
+      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('role'), b.getValue<string | undefined>('role')),
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => ipRoleLabels[row.original.role ?? ''] ?? (row.original.role || <span className="text-muted-foreground">—</span>),
     },
     {
       id: 'asset',
+      accessorFn: row => [row.assetName, row.label].filter(Boolean).join(' / ') || undefined,
       header: '关联资产 / 用途',
-      enableSorting: false,
+      sortUndefined: 'last',
+      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('asset'), b.getValue<string | undefined>('asset')),
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => (
         <span>
@@ -163,9 +228,11 @@ export function SubnetDetailView({
       ),
     },
     {
-      accessorKey: 'notes',
+      id: 'notes',
+      accessorFn: row => row.notes?.trim() || undefined,
       header: '备注',
-      enableSorting: false,
+      sortUndefined: 'last',
+      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('notes'), b.getValue<string | undefined>('notes')),
       cell: ({ row }) => row.original.notes
         ? <span className="text-muted-foreground">{row.original.notes}</span>
         : <span className="text-muted-foreground">—</span>,
@@ -175,8 +242,12 @@ export function SubnetDetailView({
   const usedTable = useReactTable({
     data: detail?.usedIps ?? [],
     columns: usedColumns,
+    state: { sorting: usedSorting, columnVisibility: usedColumnVisibility },
+    onSortingChange: setUsedSorting,
+    onColumnVisibilityChange: setUsedColumnVisibility,
     initialState: { pagination: { pageIndex: 0, pageSize: 10 } },
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   })
 
@@ -338,9 +409,12 @@ export function SubnetDetailView({
           </div>
 
           <section className="svc-bound-section">
-            <div className="svc-bound-head">
+            <div className="svc-bound-head items-center">
               <h3>已用 IP 清单</h3>
-              <span className="text-xs text-muted-foreground tabular-nums">共 {detail?.usedIps.length ?? 0} 个</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground tabular-nums">共 {detail?.usedIps.length ?? 0} 个</span>
+                <DataTableViewOptions table={usedTable} />
+              </div>
             </div>
             <DataTable
               table={usedTable}
@@ -413,6 +487,8 @@ export function VLANDetailView({
 }: VLANDetailProps) {
   const [view, setView] = useState<'details' | 'topology'>('details')
   const [allIPs, setAllIPs] = useState<IPAddress[]>([])
+  const [subnetSorting, setSubnetSorting] = useState<SortingState>([])
+  const [subnetColumnVisibility, setSubnetColumnVisibility] = useState<VisibilityState>({})
 
   useEffect(() => { setView('details') }, [vlan.id])
   useEffect(() => {
@@ -431,35 +507,44 @@ export function VLANDetailView({
     {
       accessorKey: 'name',
       header: '网段名称',
-      enableSorting: false,
+      sortingFn: (a, b) => compareText(a.original.name, b.original.name),
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
     },
     {
       accessorKey: 'cidr',
       header: 'CIDR',
-      enableSorting: false,
+      sortingFn: (a, b) => compareCIDR(a.original.cidr, b.original.cidr),
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => <span className="font-mono text-xs tabular-nums">{row.original.cidr}</span>,
     },
     {
-      accessorKey: 'gateway',
+      id: 'gateway',
+      accessorFn: row => row.gateway?.trim() || undefined,
       header: '网关',
-      enableSorting: false,
+      sortUndefined: 'last',
+      sortingFn: (a, b) => compareIP(a.getValue<string | undefined>('gateway'), b.getValue<string | undefined>('gateway')),
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => row.original.gateway ? <span className="font-mono text-xs tabular-nums">{row.original.gateway}</span> : <span className="text-muted-foreground">—</span>,
     },
     {
       id: 'usage',
+      accessorFn: row => (row.usable > 0 ? row.used / row.usable : 0),
       header: '已用 / 可用',
-      enableSorting: false,
+      sortingFn: (a, b) => {
+        const lRatio = a.original.usable > 0 ? a.original.used / a.original.usable : 0
+        const rRatio = b.original.usable > 0 ? b.original.used / b.original.usable : 0
+        return lRatio - rRatio || a.original.used - b.original.used || a.original.usable - b.original.usable
+      },
       meta: { cellClassName: 'whitespace-nowrap tabular-nums' },
       cell: ({ row }) => `${row.original.used} / ${row.original.usable}`,
     },
     {
-      accessorKey: 'notes',
+      id: 'notes',
+      accessorFn: row => row.notes?.trim() || undefined,
       header: '备注',
-      enableSorting: false,
+      sortUndefined: 'last',
+      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('notes'), b.getValue<string | undefined>('notes')),
       cell: ({ row }) => row.original.notes ? <span className="text-muted-foreground">{row.original.notes}</span> : <span className="text-muted-foreground">—</span>,
     },
   ], [])
@@ -467,7 +552,11 @@ export function VLANDetailView({
   const subnetTable = useReactTable({
     data: relatedSubnets,
     columns: subnetColumns,
+    state: { sorting: subnetSorting, columnVisibility: subnetColumnVisibility },
+    onSortingChange: setSubnetSorting,
+    onColumnVisibilityChange: setSubnetColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   })
 
   // Build layered topology: [数据中心?] → VLAN → 关联网段 → 关联资产
@@ -585,9 +674,12 @@ export function VLANDetailView({
           </div>
 
           <section className="svc-bound-section">
-            <div className="svc-bound-head">
+            <div className="svc-bound-head items-center">
               <h3>关联网段清单</h3>
-              <span className="text-xs text-muted-foreground tabular-nums">共 {relatedSubnets.length} 个 · 点击查看网段详情</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground tabular-nums">共 {relatedSubnets.length} 个 · 点击查看网段详情</span>
+                <DataTableViewOptions table={subnetTable} />
+              </div>
             </div>
             <DataTable
               table={subnetTable}

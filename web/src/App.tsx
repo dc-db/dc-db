@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
-  Alert, App as UIApp, Button, Card, Checkbox, ConfigProvider, Descriptions,
-  Dropdown, Empty, Form, Input, Layout, List, Menu, Modal, Popover, Select,
+  Alert, App as UIApp, Button, Card, ConfigProvider, Descriptions,
+  Dropdown, Empty, Form, Input, Layout, List, Menu, Modal, Select,
   Space, Spin, Table, Tabs, Tag, Tooltip, Upload, theme,
 } from './components/AppControls'
 import type { TableColumnsType } from './components/AppControls'
@@ -43,6 +43,7 @@ import { SubnetDetailView, VLANDetailView } from './components/NetworkDetailView
 import { OrganizationManager } from './components/OrganizationManager'
 import { PageHeader } from './components/PageHeader'
 import { RowActionsMenu } from './components/RowActionsMenu'
+import { DataTableViewOptions } from './components/TableColumnControls'
 import { ServiceIcon } from './components/ServiceIcon'
 import { serviceCategory } from './serviceCatalog'
 import { UserManager } from './components/UserManager'
@@ -810,8 +811,8 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
   }
 
   function updateVisibleColumns(keys: string[]) {
-    if (!keys.length) return
     const ordered = assetColumnKeys.filter(key => keys.includes(key))
+    if (!ordered.length) return
     setVisibleColumns(ordered)
     try {
       localStorage.setItem('dc-db-columns:' + page + (page === 'host' || page === 'vm' ? ':v6' : ''), JSON.stringify(ordered))
@@ -1064,12 +1065,29 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
         .sort((a, b) => ['name', 'kind', 'address', 'group', 'team', 'owner', 'environment', 'updated'].indexOf(a.key) - ['name', 'kind', 'address', 'group', 'team', 'owner', 'environment', 'updated'].indexOf(b.key))
     : assetColumns.filter(item => item.key !== 'kind' && item.key !== 'environment' && (page !== 'host' || (item.key !== 'meta' && item.key !== 'platform')))
         .sort((a, b) => assetColumnKeys.indexOf(a.key) - assetColumnKeys.indexOf(b.key))
+  const visibleAssetColumnKeys = availableAssetColumns
+    .filter(item => visibleColumns.includes(item.key))
+    .map(item => item.key)
+  const canHideAssetColumn = visibleAssetColumnKeys.length > 1
+  function toggleAssetColumn(columnId: string, nextVisible: boolean) {
+    const next = nextVisible
+      ? (visibleAssetColumnKeys.includes(columnId) ? visibleAssetColumnKeys : [...visibleAssetColumnKeys, columnId])
+      : visibleAssetColumnKeys.filter(key => key !== columnId)
+    if (next.length > 0) updateVisibleColumns(next)
+  }
+  function hideAssetColumn(columnId: string) {
+    if (visibleAssetColumnKeys.length <= 1) return
+    toggleAssetColumn(columnId, false)
+  }
   const columns: TableColumnsType<Asset> = [
-    ...availableAssetColumns.filter(item => visibleColumns.includes(item.key)).map(item => item.column),
+    ...availableAssetColumns
+      .filter(item => visibleColumns.includes(item.key))
+      .map(item => ({ ...item.column, hideable: canHideAssetColumn })),
     ...(editable ? [{
       title: <span className="sr-only">操作</span>,
       key: 'actions',
       width: 48,
+      hideable: false,
       render: (_: unknown, asset: Asset) => (
         <div className="flex justify-end" onClick={event => event.stopPropagation()}>
           <RowActionsMenu
@@ -1513,7 +1531,6 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
 
           {assetPage && (() => {
             const pageLabel = page === 'vm' ? '虚拟机' : page === 'network_devices' ? '网络设备' : '服务器'
-            const defaultCols = page === 'host' ? defaultHostColumns : page === 'network_devices' ? defaultNetworkDeviceColumns : defaultAssetColumns
             return (
             <RoomTreeLayout
               facilities={facilities}
@@ -1548,27 +1565,16 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
                       options={[{ value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM' }]}
                     />
                   ) : null}
-
-                  <Popover
-                    trigger="click" placement="bottomRight"
-                    content={(
-                      <div className="column-options">
-                        <Checkbox.Group
-                          value={visibleColumns}
-                          onChange={(values: string[]) => updateVisibleColumns(values.map(String))}
-                        >
-                          <Space direction="vertical">
-                            {availableAssetColumns.map(item => <Checkbox key={item.key} value={item.key}>{item.label}</Checkbox>)}
-                          </Space>
-                        </Checkbox.Group>
-                        <Button type="link" size="small" onClick={() => updateVisibleColumns(defaultCols)}>恢复默认</Button>
-                      </div>
-                    )}
-                  >
-                    <Button size="small" icon={<SettingOutlined />}>列</Button>
-                  </Popover>
                 </Space>}
                 actions={<Space wrap>
+                  <DataTableViewOptions
+                    columns={availableAssetColumns.map(item => ({
+                      id: item.key,
+                      label: item.label,
+                      visible: visibleColumns.includes(item.key),
+                    }))}
+                    onToggle={toggleAssetColumn}
+                  />
                   {editable && <Button size="small" onClick={() => { setAssetImportFile(null); setAssetImportOpen(true) }}><DownloadOutlined /> 导入</Button>}
                   <Button size="small" disabled={!filtered.length} onClick={exportCSV}><UploadOutlined /> 导出</Button>
                   {editable && <Button size="small" type="primary" onClick={() => startNew()}><PlusOutlined /> 新增{pageLabel}</Button>}
@@ -1604,8 +1610,7 @@ function Shell({ dark, onToggleTheme }: { dark: boolean; onToggleTheme: () => vo
               <Table<Asset>
                 rowKey="id" columns={columns} dataSource={filtered} loading={busy} size="middle"
                 scroll={{ x: 'max-content' }} locale={{ emptyText: emptyAssets }}
-                sortDirections={['ascend', 'descend']}
-                showSorterTooltip={{ title: '点击排序' }}
+                onHideColumn={hideAssetColumn}
                 rowClassName={asset => (asset.id === highlightId ? 'row-highlight' : '')}
                 onRowClick={(asset, event) => {
                   if ((event.target as HTMLElement).closest('button, a, input, label, [role="checkbox"], [role="menu"], [role="menuitem"]')) return

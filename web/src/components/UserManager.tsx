@@ -1,12 +1,13 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
+import { getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState, type VisibilityState } from '@tanstack/react-table'
 import { Eye, EyeOff, Plus, RefreshCw } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Role, User, UserFields } from '../api'
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
+import { DataTableViewOptions } from './TableColumnControls'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
@@ -30,6 +31,7 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
   const currentUsername = currentUser.username
   const [users, setUsers] = useState<User[]>([])
   const [sorting, setSorting] = useState<SortingState>([])
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -166,6 +168,7 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
     {
       accessorKey: 'role',
       header: '角色',
+      sortingFn: (a, b) => roles.indexOf(a.original.role) - roles.indexOf(b.original.role),
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => {
         const meta = roleMeta[row.original.role]
@@ -181,6 +184,7 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
     {
       id: 'actions',
       enableSorting: false,
+      enableHiding: false,
       size: 48,
       meta: { headerClassName: 'w-10 text-right', cellClassName: 'w-10 whitespace-nowrap text-right' },
       header: () => <span className="sr-only">操作</span>,
@@ -228,8 +232,9 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
   const table = useReactTable({
     data: canManageUsers ? users : [currentUser],
     columns,
-    state: { sorting },
+    state: { sorting, columnVisibility },
     onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   })
@@ -247,10 +252,13 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
           ))}
         </div>
       )}
-      actions={canManageUsers && <>
-        <Button size="sm" variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
-        <Button size="sm" onClick={() => showForm(null)}><Plus />新增账号</Button>
-      </>}
+      actions={
+        <>
+          {canManageUsers && <Button size="sm" variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>}
+          <DataTableViewOptions table={table} />
+          {canManageUsers && <Button size="sm" onClick={() => showForm(null)}><Plus />新增账号</Button>}
+        </>
+      }
     />
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
     {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}

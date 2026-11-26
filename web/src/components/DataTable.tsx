@@ -1,7 +1,8 @@
 import type { MouseEvent, ReactNode } from 'react'
 import { flexRender, type Table as TanStackTable } from '@tanstack/react-table'
-import { ChevronDown, ChevronUp, ChevronsUpDown, LoaderCircle } from 'lucide-react'
+import { LoaderCircle } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
+import { ColumnHeaderMenu } from './TableColumnControls'
 import { TablePager } from './TablePager'
 
 interface Props<T> {
@@ -11,9 +12,14 @@ interface Props<T> {
   showPager?: boolean
   pagerExtra?: ReactNode
   pagerUnit?: string
+  allowColumnHiding?: boolean
   onRowClick?: (row: T, event: MouseEvent<HTMLTableRowElement>) => void
   rowClassName?: (row: T) => string | undefined
   className?: string
+}
+
+function isSystemColumn(id: string): boolean {
+  return id === 'select' || id === 'actions'
 }
 
 export function DataTable<T>({
@@ -23,11 +29,18 @@ export function DataTable<T>({
   showPager = true,
   pagerExtra,
   pagerUnit,
+  allowColumnHiding = true,
   onRowClick,
   rowClassName,
   className,
 }: Props<T>) {
-  const columnCount = table.getVisibleLeafColumns().length || 1
+  const visibleLeafColumns = table.getVisibleLeafColumns()
+  const columnCount = visibleLeafColumns.length || 1
+  const visibleDataColumnCount = visibleLeafColumns.filter(column => !isSystemColumn(column.id)).length
+  const visibleHideableCount = visibleLeafColumns.filter(
+    column => !isSystemColumn(column.id) && column.getCanHide(),
+  ).length
+  const canStillHide = allowColumnHiding && visibleDataColumnCount > 1 && visibleHideableCount > 0
   const rows = table.getRowModel().rows
 
   return (
@@ -37,35 +50,35 @@ export function DataTable<T>({
           {table.getHeaderGroups().map(group => (
             <TableRow key={group.id}>
               {group.headers.map(header => {
-                const canSort = header.column.getCanSort()
+                const system = isSystemColumn(header.column.id)
+                const canSort = !system && header.column.getCanSort()
+                const canHide = !system && header.column.getCanHide() && canStillHide
                 const sorted = header.column.getIsSorted()
                 const meta = header.column.columnDef.meta as { headerClassName?: string } | undefined
+                const title = flexRender(header.column.columnDef.header, header.getContext())
                 return (
                   <TableHead
                     key={header.id}
                     className={meta?.headerClassName}
                     aria-sort={canSort ? (sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none') : undefined}
                   >
-                    {header.isPlaceholder ? null : canSort ? (
-                      <button
-                        type="button"
-                        className={`data-table-sort -ml-1.5 inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[state=open]:bg-accent${sorted ? ' is-sorted' : ''}`}
-                        onClick={header.column.getToggleSortingHandler()}
-                      >
-                        <span className="truncate">{flexRender(header.column.columnDef.header, header.getContext())}</span>
-                        <span
-                          className="data-table-sort-icon inline-flex shrink-0 items-center text-muted-foreground"
-                          aria-hidden="true"
-                        >
-                          {sorted === 'asc'
-                            ? <ChevronUp className="size-4 shrink-0 text-muted-foreground" />
-                            : sorted === 'desc'
-                              ? <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-                              : <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />}
-                        </span>
-                      </button>
+                    {header.isPlaceholder ? null : (canSort || canHide) ? (
+                      <ColumnHeaderMenu
+                        title={title}
+                        sortable={canSort}
+                        sortDirection={sorted}
+                        onSortChange={next => {
+                          if (next === false) {
+                            header.column.clearSorting()
+                          } else {
+                            header.column.toggleSorting(next === 'desc')
+                          }
+                        }}
+                        hideable={canHide}
+                        onHide={() => header.column.toggleVisibility(false)}
+                      />
                     ) : (
-                      flexRender(header.column.columnDef.header, header.getContext())
+                      title
                     )}
                   </TableHead>
                 )

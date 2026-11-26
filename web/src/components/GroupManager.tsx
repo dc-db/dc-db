@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
-  type ColumnDef, type SortingState,
+  type ColumnDef, type SortingState, type VisibilityState,
 } from '@tanstack/react-table'
 import { Plus, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
@@ -9,6 +9,7 @@ import type { Group, GroupFields } from '../api'
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
+import { DataTableViewOptions } from './TableColumnControls'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
@@ -26,6 +27,7 @@ export function GroupManager({ editable, hideTitle, onSessionError, onChanged }:
   const [groups, setGroups] = useState<Group[]>([])
   const [keyword, setKeyword] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [open, setOpen] = useState(false)
@@ -107,7 +109,7 @@ export function GroupManager({ editable, hideTitle, onSessionError, onChanged }:
     {
       accessorKey: 'description',
       header: '备注',
-      enableSorting: false,
+      sortingFn: (a, b) => (a.original.description ?? '').localeCompare(b.original.description ?? '', 'zh-CN'),
       cell: ({ row }) => row.original.description
         ? <span className="text-muted-foreground">{row.original.description}</span>
         : <span className="text-muted-foreground">—</span>,
@@ -115,6 +117,7 @@ export function GroupManager({ editable, hideTitle, onSessionError, onChanged }:
     ...(editable ? [{
       id: 'actions',
       enableSorting: false,
+      enableHiding: false,
       size: 48,
       meta: { headerClassName: 'w-10 text-right', cellClassName: 'w-10 whitespace-nowrap text-right' },
       header: () => <span className="sr-only">操作</span>,
@@ -138,8 +141,9 @@ export function GroupManager({ editable, hideTitle, onSessionError, onChanged }:
   const table = useReactTable({
     data: visible,
     columns,
-    state: { sorting },
+    state: { sorting, columnVisibility },
     onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
     initialState: { pagination: { pageIndex: 0, pageSize: 20 } },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -150,7 +154,12 @@ export function GroupManager({ editable, hideTitle, onSessionError, onChanged }:
     <PageHeader
       title={hideTitle ? undefined : '项目'}
       filters={<Input className="h-8 w-[240px]" placeholder="搜索项目名称或备注" value={keyword} onChange={event => setKeyword(event.target.value)} />}
-      actions={editable && <Button size="sm" onClick={() => showForm(null)}><Plus />新增项目</Button>}
+      actions={
+        <>
+          <DataTableViewOptions table={table} />
+          {editable && <Button size="sm" onClick={() => showForm(null)}><Plus />新增项目</Button>}
+        </>
+      }
     />
     {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
     <DataTable

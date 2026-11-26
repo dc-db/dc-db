@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { ChevronDown, ChevronUp, ChevronsUpDown, Download, Plus, Settings2, Upload } from 'lucide-react'
+import { Download, Plus, Upload } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
-import { Checkbox } from './ui/checkbox'
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { UsageBar } from './UsageBar'
@@ -21,6 +19,8 @@ import { PageHeader } from './PageHeader'
 import { RackDetailDrawer } from './RackDetailDrawer'
 import { RoomTreeLayout } from './RoomTreeLayout'
 import { RowActionsMenu } from './RowActionsMenu'
+import { ColumnHeaderMenu, DataTableViewOptions } from './TableColumnControls'
+import type { SortDirection } from './TableColumnControls'
 
 interface Props {
   roomId: number | null
@@ -114,11 +114,12 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   const [pendingDeleteRack, setPendingDeleteRack] = useState<Rack | null>(null)
 
   function updateRackColumns(columns: RackColumn[]) {
-    if (!columns.length) return
-    setVisibleRackColumns(columns)
-    setRackSort(current => current && !columns.includes(current.key) ? null : current)
+    const ordered = defaultRackColumns.filter(key => columns.includes(key))
+    if (!ordered.length) return
+    setVisibleRackColumns(ordered)
+    setRackSort(current => current && !ordered.includes(current.key) ? null : current)
     try {
-      localStorage.setItem(rackColumnsStorageKey, JSON.stringify(columns))
+      localStorage.setItem(rackColumnsStorageKey, JSON.stringify(ordered))
     } catch {
       // Keep the selection for this session when storage is unavailable.
     }
@@ -483,25 +484,24 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                       >后</button>
                     </div>
                   )}
-                  {view === 'table' && <Popover>
-                    <PopoverTrigger asChild><Button size="sm" variant="outline" aria-label="选择机柜表格列"><Settings2 />列</Button></PopoverTrigger>
-                    <PopoverContent align="end" className="w-44">
-                      <div className="column-options">
-                        {rackColumns.map(column => <label key={column.key} className="flex cursor-pointer items-center gap-2 text-sm">
-                          <Checkbox checked={visibleRackColumns.includes(column.key)} disabled={visibleRackColumns.length === 1 && visibleRackColumns.includes(column.key)} onCheckedChange={checked => {
-                            const selected = checked === true
-                              ? [...visibleRackColumns, column.key]
-                              : visibleRackColumns.filter(key => key !== column.key)
-                            updateRackColumns(selected)
-                          }} />
-                          {column.label}
-                        </label>)}
-                        <Button variant="link" size="sm" onClick={() => updateRackColumns(defaultRackColumns)}>恢复默认</Button>
-                      </div>
-                    </PopoverContent>
-                  </Popover>}
                 </>}
                 actions={<>
+                  {view === 'table' && (
+                    <DataTableViewOptions
+                      columns={rackColumns.map(column => ({
+                        id: column.key,
+                        label: column.label,
+                        visible: visibleRackColumns.includes(column.key),
+                      }))}
+                      onToggle={(columnId, nextVisible) => {
+                        const key = columnId as RackColumn
+                        const selected = nextVisible
+                          ? [...visibleRackColumns, key]
+                          : visibleRackColumns.filter(item => item !== key)
+                        updateRackColumns(selected)
+                      }}
+                    />
+                  )}
                   {editable && <Button size="sm" variant="outline" onClick={() => { setImportOpen(true); setImportFile(null); setImportError('') }}><Download />导入</Button>}
                   <Button size="sm" variant="outline" disabled={!rackRows.length} onClick={exportRacks}><Upload />导出</Button>
                   {editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
@@ -514,11 +514,19 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                       <table className="shared-table facility-table-clickable">
                         <thead><tr>{rackColumns.filter(column => visibleRackColumns.includes(column.key)).map(column => {
                           const sortKey = isRackSortColumn(column.key) ? column.key : null
-                          const direction = sortKey && rackSort?.key === sortKey ? rackSort.direction : null
-                          return <th key={column.key} aria-sort={direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : undefined}>
-                            {sortKey ? <button type="button" className={`data-table-sort${direction ? ' is-sorted' : ''}`} onClick={() => setRackSort(current => ({ key: sortKey, direction: current?.key === sortKey && current.direction === 'asc' ? 'desc' : 'asc' }))}>
-                              <span>{column.label}</span><span className="data-table-sort-icon" aria-hidden="true">{direction === 'asc' ? <ChevronUp className="size-4 shrink-0" /> : direction === 'desc' ? <ChevronDown className="size-4 shrink-0" /> : <ChevronsUpDown className="size-4 shrink-0" />}</span>
-                            </button> : column.label}
+                          const sortDirection: SortDirection = sortKey && rackSort?.key === sortKey ? rackSort.direction : false
+                          return <th key={column.key} aria-sort={sortKey ? (sortDirection === 'asc' ? 'ascending' : sortDirection === 'desc' ? 'descending' : 'none') : undefined}>
+                            <ColumnHeaderMenu
+                              title={column.label}
+                              sortable={Boolean(sortKey)}
+                              sortDirection={sortDirection}
+                              onSortChange={sortKey ? next => setRackSort(next === false ? null : { key: sortKey, direction: next }) : undefined}
+                              hideable={visibleRackColumns.length > 1}
+                              onHide={() => {
+                                if (visibleRackColumns.length <= 1) return
+                                updateRackColumns(visibleRackColumns.filter(key => key !== column.key))
+                              }}
+                            />
                           </th>
                         })}{editable && <th className="w-10"><span className="sr-only">操作</span></th>}</tr></thead>
                         <tbody>

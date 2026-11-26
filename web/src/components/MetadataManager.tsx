@@ -2,7 +2,7 @@ import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
 import {
   getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
-  type ColumnDef, type SortingState,
+  type ColumnDef, type SortingState, type VisibilityState,
 } from '@tanstack/react-table'
 import { Plus, Trash2 } from 'lucide-react'
 import { api, APIError } from '../api'
@@ -13,6 +13,7 @@ import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
 import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
+import { DataTableViewOptions } from './TableColumnControls'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
@@ -39,6 +40,7 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<MetadataEntry | null>(null)
   const [deleting, setDeleting] = useState<MetadataEntry | null>(null)
@@ -50,8 +52,13 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
   useEffect(() => {
     setKeyword('')
     setSorting([])
+    setColumnVisibility({})
     void load()
   }, [kind])
+
+  useEffect(() => {
+    setColumnVisibility({})
+  }, [withRoomTree])
 
   function report(value: unknown) {
     if (value instanceof APIError && value.status === 401) { onSessionError(value); return }
@@ -135,13 +142,14 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
     ...(withRoomTree ? [{
       accessorKey: 'roomName',
       header: '所属数据中心',
-      enableSorting: false,
+      sortingFn: (a, b) => (a.original.roomName ?? '').localeCompare(b.original.roomName ?? '', 'zh-CN'),
       meta: { headerClassName: 'w-[18%]', cellClassName: 'whitespace-nowrap' },
-      cell: ({ row }: { row: { original: MetadataEntry } }) => row.original.roomName || <span className="text-muted-foreground">—</span>,
-    }] : []),
+      cell: ({ row }) => row.original.roomName || <span className="text-muted-foreground">—</span>,
+    } satisfies ColumnDef<MetadataEntry>] : []),
     {
       accessorKey: 'assetCount',
       header: '关联资产',
+      sortingFn: (a, b) => (a.original.assetCount ?? 0) - (b.original.assetCount ?? 0),
       meta: { headerClassName: 'w-[16%]', cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => {
         const count = row.original.assetCount ?? 0
@@ -151,7 +159,7 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
     {
       accessorKey: 'description',
       header: '备注',
-      enableSorting: false,
+      sortingFn: (a, b) => (a.original.description ?? '').localeCompare(b.original.description ?? '', 'zh-CN'),
       cell: ({ row }) => row.original.description
         ? <span className="text-muted-foreground">{row.original.description}</span>
         : <span className="text-muted-foreground">—</span>,
@@ -159,6 +167,7 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
     ...(editable ? [{
       id: 'actions',
       enableSorting: false,
+      enableHiding: false,
       size: 48,
       meta: { headerClassName: 'w-10 text-right', cellClassName: 'w-10 whitespace-nowrap text-right' },
       header: () => <span className="sr-only">操作</span>,
@@ -177,8 +186,9 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
   const table = useReactTable({
     data: visible,
     columns,
-    state: { sorting },
+    state: { sorting, columnVisibility },
     onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
     initialState: { pagination: { pageIndex: 0, pageSize: 20 } },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -190,7 +200,12 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
       <PageHeader
         title={hideTitle ? undefined : title}
         filters={<Input className="h-8 w-[240px]" placeholder={`搜索${title}名称或备注`} value={keyword} onChange={event => setKeyword(event.target.value)} />}
-        actions={editable && <Button size="sm" onClick={() => showForm(null)}><Plus />新增{title}</Button>}
+        actions={
+          <>
+            <DataTableViewOptions table={table} />
+            {editable && <Button size="sm" onClick={() => showForm(null)}><Plus />新增{title}</Button>}
+          </>
+        }
       />
       {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
       <DataTable

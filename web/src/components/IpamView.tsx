@@ -16,6 +16,7 @@ import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
+import { ColumnHeaderMenu, DataTableViewOptions, type SortDirection, type ViewColumnOption } from './TableColumnControls'
 import { Input } from './ui/input'
 import { UsageBar } from './UsageBar'
 import { Textarea } from './ui/textarea'
@@ -145,6 +146,94 @@ function flattenSubnetTree(nodes: SubnetNode[], collapsed: Set<number>): SubnetR
   return rows
 }
 
+type SubnetColumnKey = 'name' | 'cidr' | 'vlan' | 'gateway' | 'usable' | 'used' | 'free' | 'utilization'
+type SubnetSortKey = SubnetColumnKey
+
+const SUBNET_COLUMNS: { key: SubnetColumnKey; label: string }[] = [
+  { key: 'name', label: '网段名称' },
+  { key: 'cidr', label: 'CIDR' },
+  { key: 'vlan', label: 'VLAN' },
+  { key: 'gateway', label: '网关' },
+  { key: 'usable', label: '地址数' },
+  { key: 'used', label: '已用' },
+  { key: 'free', label: '空闲' },
+  { key: 'utilization', label: '利用率' },
+]
+const ALL_SUBNET_COLUMN_KEYS: SubnetColumnKey[] = SUBNET_COLUMNS.map(col => col.key)
+
+function compareOptionalIPv4(left: string, right: string, dir: 1 | -1): number {
+  const l = left.trim()
+  const r = right.trim()
+  if (!l && !r) return 0
+  if (!l) return 1
+  if (!r) return -1
+  const ln = ipv4Number(l)
+  const rn = ipv4Number(r)
+  if (ln !== null && rn !== null) return (ln - rn) * dir
+  if (ln !== null) return -1 * dir
+  if (rn !== null) return 1 * dir
+  return l.localeCompare(r, undefined, { numeric: true }) * dir
+}
+
+function compareSubnets(left: Subnet, right: Subnet, key: SubnetSortKey, direction: 'asc' | 'desc'): number {
+  const dir: 1 | -1 = direction === 'asc' ? 1 : -1
+  let result = 0
+  switch (key) {
+    case 'name':
+      result = left.name.localeCompare(right.name, 'zh-CN', { numeric: true }) * dir
+      break
+    case 'cidr': {
+      const lr = subnetRange(left.cidr)
+      const rr = subnetRange(right.cidr)
+      if (lr && rr) {
+        result = (lr.start - rr.start || lr.prefix - rr.prefix) * dir
+      } else if (lr || rr) {
+        result = (lr ? -1 : 1) * dir
+      } else {
+        result = left.cidr.localeCompare(right.cidr, undefined, { numeric: true }) * dir
+      }
+      break
+    }
+    case 'vlan': {
+      const lv = left.vlan.trim()
+      const rv = right.vlan.trim()
+      if (!lv && !rv) return 0
+      if (!lv) return 1
+      if (!rv) return -1
+      const ln = Number(lv)
+      const rn = Number(rv)
+      if (Number.isFinite(ln) && Number.isFinite(rn)) {
+        result = (ln - rn) * dir
+      } else {
+        result = lv.localeCompare(rv, 'zh-CN', { numeric: true }) * dir
+      }
+      if (result === 0) {
+        result = (left.vlanName ?? '').localeCompare(right.vlanName ?? '', 'zh-CN', { numeric: true }) * dir
+      }
+      break
+    }
+    case 'gateway':
+      result = compareOptionalIPv4(left.gateway, right.gateway, dir)
+      break
+    case 'usable':
+      result = (left.usable - right.usable) * dir
+      break
+    case 'used':
+      result = (left.used - right.used) * dir
+      break
+    case 'free':
+      result = (left.free - right.free) * dir
+      break
+    case 'utilization': {
+      const leftRatio = left.usable > 0 ? left.used / left.usable : 0
+      const rightRatio = right.usable > 0 ? right.used / right.usable : 0
+      result = (leftRatio - rightRatio || left.used - right.used) * dir
+      break
+    }
+  }
+  return result || left.id - right.id
+}
+
 export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFilterChange, openSubnetId, onSubnetOpened, onSelectSubnet, bookmarkedSubnets, onToggleSubnetBookmark, onSessionError, onChanged }: Props) {
   const [subnets, setSubnets] = useState<Subnet[]>([])
   const [vlans, setVLANs] = useState<VLAN[]>([])
@@ -155,6 +244,8 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
   const [subnetSearch, setSubnetSearch] = useState('')
   const [subnetStatus, setSubnetStatus] = useState<string | undefined>()
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
+  const [sort, setSort] = useState<{ key: SubnetSortKey; direction: 'asc' | 'desc' } | null>(null)
+  const [visibleColumns, setVisibleColumns] = useState<SubnetColumnKey[]>(ALL_SUBNET_COLUMN_KEYS)
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -165,6 +256,32 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
   const importRef = useRef<HTMLInputElement>(null)
   const [importError, setImportError] = useState('')
 
+  const visibleColumnSet = useMemo(() => new Set(visibleColumns), [visibleColumns])
+  const activeColumns = useMemo(
+    () => SUBNET_COLUMNS.filter(col => visibleColumnSet.has(col.key)),
+    [visibleColumnSet],
+  )
+  const viewColumns = useMemo<ViewColumnOption[]>(
+    () => SUBNET_COLUMNS.map(col => ({
+      id: col.key,
+      label: col.label,
+      visible: visibleColumnSet.has(col.key),
+    })),
+    [visibleColumnSet],
+  )
+
+  function toggleColumnVisibility(columnId: string, nextVisible: boolean) {
+    const key = columnId as SubnetColumnKey
+    setVisibleColumns(current => {
+      if (nextVisible) {
+        if (current.includes(key)) return current
+        return ALL_SUBNET_COLUMN_KEYS.filter(id => id === key || current.includes(id))
+      }
+      if (current.length <= 1) return current
+      return current.filter(id => id !== key)
+    })
+  }
+
   const roomCounts = useMemo(() => buildRoomCounts(subnets, subnet => subnet.roomId || null), [subnets])
   const scopedSubnets = useMemo(
     () => subnets.filter(subnet => matchesRoomFilter(subnet.roomId || null, roomFilter)),
@@ -174,12 +291,23 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
   const subnetRows = useMemo(() => flattenSubnetTree(subnetTree, collapsed), [subnetTree, collapsed])
   const visibleSubnetRows = useMemo(() => {
     const query = subnetSearch.trim().toLowerCase()
+    const matchesFilters = (subnet: Subnet) =>
+      (!subnetStatus || subnet.status === subnetStatus)
+      && (!query || [subnet.name, subnet.cidr, subnet.gateway, subnet.vlan,
+        subnet.vlanName, subnet.role].some(value => value?.toLowerCase().includes(query)))
+
+    if (sort) {
+      return scopedSubnets
+        .filter(matchesFilters)
+        .slice()
+        .sort((left, right) => compareSubnets(left, right, sort.key, sort.direction))
+        .map(subnet => ({ subnet, depth: 0, children: 0 }))
+    }
+
     return subnetRows
-      .filter(row => !subnetStatus || row.subnet.status === subnetStatus)
-      .filter(row => !query || [row.subnet.name, row.subnet.cidr, row.subnet.gateway, row.subnet.vlan,
-        row.subnet.vlanName, row.subnet.role].some(value => value?.toLowerCase().includes(query)))
+      .filter(row => matchesFilters(row.subnet))
       .map(row => query || subnetStatus ? ({ ...row, depth: 0, children: 0 }) : row)
-  }, [subnetRows, subnetSearch, subnetStatus])
+  }, [scopedSubnets, sort, subnetRows, subnetSearch, subnetStatus])
   const vlanOptions = useMemo(() => {
     const options = vlans.map(vlan => ({
       value: String(vlan.vid),
@@ -356,6 +484,7 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
         />
       </>}
       actions={<>
+        <DataTableViewOptions columns={viewColumns} onToggle={toggleColumnVisibility} />
         {editable && <Button size="sm" variant="outline" onClick={() => { setImportFile(null); setImportError(''); setImportOpen(true) }}><Download />导入</Button>}
         <Button size="sm" variant="outline" disabled={!subnetRows.length} onClick={exportSubnets}><Upload />导出</Button>
         {editable && <Button size="sm" onClick={event => addSubnet(event.currentTarget)}><Plus />新增网段</Button>}
@@ -367,7 +496,29 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
 
       <div className="shared-table-wrap">
         <table className="shared-table ipam-subnet-table">
-          <thead><tr><th>网段名称</th><th>CIDR</th><th>VLAN</th><th>网关</th><th>地址数</th><th>已用</th><th>空闲</th><th>利用率</th><th className="w-10"><span className="sr-only">操作</span></th></tr></thead>
+          <thead>
+            <tr>
+              {activeColumns.map(col => {
+                const sortDir: SortDirection = sort?.key === col.key ? sort.direction : false
+                return (
+                  <th
+                    key={col.key}
+                    aria-sort={sortDir === 'asc' ? 'ascending' : sortDir === 'desc' ? 'descending' : 'none'}
+                  >
+                    <ColumnHeaderMenu
+                      title={col.label}
+                      sortable
+                      sortDirection={sortDir}
+                      onSortChange={next => setSort(next === false ? null : { key: col.key, direction: next })}
+                      hideable={visibleColumns.length > 1}
+                      onHide={() => toggleColumnVisibility(col.key, false)}
+                    />
+                  </th>
+                )
+              })}
+              <th className="w-10"><span className="sr-only">操作</span></th>
+            </tr>
+          </thead>
           <tbody>
             {visibleSubnetRows.length ? visibleSubnetRows.map(({ subnet: item, depth, children }) => {
               const total = item.usable
@@ -381,23 +532,37 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
                     onSelectSubnet(item.id)
                   } : undefined}
                 >
-                  <td style={{ paddingLeft: 12 + depth * 16 }}>
-                    <span className="ipam-subnet-name">
-                      {children > 0
-                        ? <Button type="button" variant="ghost" size="icon" className="size-6 shrink-0" aria-label={`${collapsed.has(item.id) ? '展开' : '收起'} ${item.name} 的子网`} aria-expanded={!collapsed.has(item.id)} onClick={event => { event.stopPropagation(); toggleSubnet(item.id) }}>{collapsed.has(item.id) ? <ChevronRight /> : <ChevronDown />}</Button>
-                        : <span className="w-6 shrink-0" />}
-                      <span className="font-medium">{item.name}</span>
-                      {bookmarked && <Star className="size-3.5 shrink-0 fill-current text-warning" aria-label="已收藏" />}
-                      {children > 0 && <Badge variant="secondary">{children}</Badge>}
-                    </span>
-                  </td>
-                  <td><span className="font-mono text-xs tabular-nums">{item.cidr}</span></td>
-                  <td>{item.vlan ? (item.vlanName ? `${item.vlan} ${item.vlanName}` : item.vlan) : <span className="text-muted-foreground">—</span>}</td>
-                  <td>{item.gateway ? <span className="font-mono text-xs tabular-nums">{item.gateway}</span> : <span className="text-muted-foreground">—</span>}</td>
-                  <td className="tabular-nums">{count(item.usable)}</td>
-                  <td className="tabular-nums">{count(item.used)}</td>
-                  <td className="tabular-nums">{count(item.free)}</td>
-                  <td><UsageBar value={usedPct} label={`${item.name} 地址使用率`} /></td>
+                  {activeColumns.map(col => {
+                    switch (col.key) {
+                      case 'name':
+                        return (
+                          <td key="name" style={{ paddingLeft: 12 + depth * 16 }}>
+                            <span className="ipam-subnet-name">
+                              {children > 0
+                                ? <Button type="button" variant="ghost" size="icon" className="size-6 shrink-0" aria-label={`${collapsed.has(item.id) ? '展开' : '收起'} ${item.name} 的子网`} aria-expanded={!collapsed.has(item.id)} onClick={event => { event.stopPropagation(); toggleSubnet(item.id) }}>{collapsed.has(item.id) ? <ChevronRight /> : <ChevronDown />}</Button>
+                                : <span className="w-6 shrink-0" />}
+                              <span className="font-medium">{item.name}</span>
+                              {bookmarked && <Star className="size-3.5 shrink-0 fill-current text-warning" aria-label="已收藏" />}
+                              {children > 0 && <Badge variant="secondary">{children}</Badge>}
+                            </span>
+                          </td>
+                        )
+                      case 'cidr':
+                        return <td key="cidr"><span className="font-mono text-xs tabular-nums">{item.cidr}</span></td>
+                      case 'vlan':
+                        return <td key="vlan">{item.vlan ? (item.vlanName ? `${item.vlan} ${item.vlanName}` : item.vlan) : <span className="text-muted-foreground">—</span>}</td>
+                      case 'gateway':
+                        return <td key="gateway">{item.gateway ? <span className="font-mono text-xs tabular-nums">{item.gateway}</span> : <span className="text-muted-foreground">—</span>}</td>
+                      case 'usable':
+                        return <td key="usable" className="tabular-nums">{count(item.usable)}</td>
+                      case 'used':
+                        return <td key="used" className="tabular-nums">{count(item.used)}</td>
+                      case 'free':
+                        return <td key="free" className="tabular-nums">{count(item.free)}</td>
+                      case 'utilization':
+                        return <td key="utilization"><UsageBar value={usedPct} label={`${item.name} 地址使用率`} /></td>
+                    }
+                  })}
                   <td className="w-10" onClick={event => event.stopPropagation()}>
                     <div className="flex justify-end">
                       <RowActionsMenu
@@ -416,7 +581,7 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
                   </td>
                 </tr>
               )
-            }) : <tr><td colSpan={9} className="facility-table-empty">没有匹配的网段</td></tr>}
+            }) : <tr><td colSpan={visibleColumns.length + 1} className="facility-table-empty">没有匹配的网段</td></tr>}
           </tbody>
         </table>
       </div>

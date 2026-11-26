@@ -3,7 +3,7 @@ import React, { createContext, useContext, useRef, useState } from 'react'
 import type { ReactNode, CSSProperties } from 'react'
 import { flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table'
 import type { ColumnDef, SortingState } from '@tanstack/react-table'
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsLeft, ChevronsRight, ChevronsUpDown, CircleAlert, CircleCheck, Eye, EyeOff, LoaderCircle, X } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CircleAlert, CircleCheck, Eye, EyeOff, LoaderCircle, X } from 'lucide-react'
 import { Button as UiButton } from '@/components/ui/button'
 import { Input as UiInput } from '@/components/ui/input'
 import { Checkbox as UiCheckbox } from '@/components/ui/checkbox'
@@ -13,6 +13,7 @@ import { Popover as UiPopover, PopoverContent, PopoverTrigger } from '@/componen
 import { Tabs as UiTabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { ColumnHeaderMenu } from './TableColumnControls'
 import './app-controls.css'
 
 type Common = { children?: ReactNode; className?: string; style?: CSSProperties; [key: string]: any }
@@ -138,43 +139,76 @@ function LayoutBase({ children, className }: Common) { return <div className={cl
 export const Layout = Object.assign(LayoutBase, { Header: ({ children, className }: Common) => <header className={className}>{children}</header>, Sider: ({ children, className, width, collapsed }: Common) => <aside className={className} style={{ width: collapsed ? 0 : width, overflow: 'hidden', flexShrink: 0 }} aria-hidden={collapsed}>{children}</aside>, Content: ({ children, className }: Common) => <main className={className}>{children}</main> })
 export function Menu({ items, selectedKeys, onClick, className }: Common) { return <nav className={`control-nav ${className ?? ''}`} aria-label="主导航">{items.map((item: any) => item.children ? <details key={item.key} open><summary>{item.icon}{item.label}<ChevronDown className="nav-chevron" aria-hidden="true" /></summary><div className="control-nav-children">{item.children.map((child: any) => <button key={child.key} type="button" className={selectedKeys.includes(child.key) ? 'selected' : ''} aria-current={selectedKeys.includes(child.key) ? 'page' : undefined} onClick={() => onClick({ key: child.key })}>{child.icon}{child.label}</button>)}</div></details> : <button key={item.key} type="button" className={selectedKeys.includes(item.key) ? 'selected' : ''} aria-current={selectedKeys.includes(item.key) ? 'page' : undefined} onClick={() => onClick({ key: item.key })}>{item.icon}{item.label}</button>)}</nav> }
 
-export type TableColumnsType<T> = { title?: ReactNode; key?: string; dataIndex?: keyof T; width?: number; sorter?: (a: T, b: T) => number; render?: (value: any, item: T) => ReactNode }[]
-type TableProps<T> = { sharedStyle?: boolean; columns: TableColumnsType<T>; dataSource: T[]; rowKey: keyof T; loading?: boolean; rowSelection?: { selectedRowKeys: (string | number)[]; preserveSelectedRowKeys?: boolean; onChange: (keys: (string | number)[]) => void }; pagination?: false | { current: number; pageSize: number; total: number; showSizeChanger?: boolean; pageSizeOptions?: string[]; showTotal?: (n: number) => ReactNode; onChange: (page: number, size: number) => void }; locale?: { emptyText?: ReactNode }; onRowClick?: (record: T, event: React.MouseEvent<HTMLTableRowElement>) => void; rowClassName?: (record: T) => string; [key: string]: any }
-export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, pagination, locale, onRowClick, rowClassName, sharedStyle }: TableProps<T>) {
+export type TableColumn<T> = {
+  title?: ReactNode
+  key?: string
+  dataIndex?: keyof T
+  width?: number
+  sorter?: (a: T, b: T) => number
+  render?: (value: any, item: T) => ReactNode
+  hideable?: boolean
+  onHide?: () => void
+}
+export type TableColumnsType<T> = TableColumn<T>[]
+type TableProps<T> = { sharedStyle?: boolean; columns: TableColumnsType<T>; dataSource: T[]; rowKey: keyof T; loading?: boolean; rowSelection?: { selectedRowKeys: (string | number)[]; preserveSelectedRowKeys?: boolean; onChange: (keys: (string | number)[]) => void }; pagination?: false | { current: number; pageSize: number; total: number; showSizeChanger?: boolean; pageSizeOptions?: string[]; showTotal?: (n: number) => ReactNode; onChange: (page: number, size: number) => void }; locale?: { emptyText?: ReactNode }; onRowClick?: (record: T, event: React.MouseEvent<HTMLTableRowElement>) => void; rowClassName?: (record: T) => string; onHideColumn?: (key: string) => void; [key: string]: any }
+export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, pagination, locale, onRowClick, rowClassName, sharedStyle, onHideColumn }: TableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([])
-  const defs: ColumnDef<T, any>[] = columns.map((c, i) => ({ id: c.key ?? String(c.dataIndex ?? i), header: () => c.title, accessorFn: row => c.dataIndex ? row[c.dataIndex] : undefined, enableSorting: !!c.sorter, sortDescFirst: false, size: c.width, sortingFn: c.sorter ? (a, b) => c.sorter!(a.original, b.original) : undefined, cell: info => c.render ? c.render(info.getValue(), info.row.original) : info.getValue() as ReactNode }))
+  const columnMap = new Map<string, TableColumn<T>>()
+  const defs: ColumnDef<T, any>[] = columns.map((c, i) => {
+    const id = c.key ?? String(c.dataIndex ?? i)
+    columnMap.set(id, c)
+    return {
+      id,
+      header: () => c.title,
+      accessorFn: row => c.dataIndex ? row[c.dataIndex] : undefined,
+      enableSorting: !!c.sorter,
+      sortDescFirst: false,
+      size: c.width,
+      sortingFn: c.sorter ? (a, b) => c.sorter!(a.original, b.original) : undefined,
+      cell: info => c.render ? c.render(info.getValue(), info.row.original) : info.getValue() as ReactNode,
+    }
+  })
   React.useEffect(() => { setSorting(current => current.filter(item => defs.some(col => col.id === item.id))) }, [columns.map(c => c.key ?? String(c.dataIndex)).join('|')])
-  const table = useReactTable({ data: dataSource, columns: defs, state: { sorting }, onSortingChange: setSorting, enableSortingRemoval: false, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel() })
+  const table = useReactTable({ data: dataSource, columns: defs, state: { sorting }, onSortingChange: setSorting, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel() })
   const sorted = table.getRowModel().rows; const pageSize = pagination ? pagination.pageSize : sorted.length; const totalPages = pagination ? Math.max(1, Math.ceil(pagination.total / pageSize)) : 1; const current = pagination ? Math.min(Math.max(1, pagination.current), totalPages) : 1; const rows = pagination ? sorted.slice((current - 1) * pageSize, current * pageSize) : sorted; const keys = rows.map(row => row.original[rowKey] as string | number); const selected = rowSelection?.selectedRowKeys ?? []; const all = keys.length > 0 && keys.every(key => selected.includes(key));
+  const visibleDataColumnCount = defs.filter(col => col.id !== 'select' && col.id !== 'actions').length
   // Shared header-cell rendering; the first cell can also carry the
   // select-all checkbox so the header row starts at the table edge.
   const headContent = (header: any) => {
-    const sorted = header.column.getIsSorted()
-    if (!header.column.getCanSort()) return flexRender(header.column.columnDef.header, header.getContext())
+    const colId = header.column.id as string
+    const isSystem = colId === 'select' || colId === 'actions'
+    const colDef = columnMap.get(colId)
+    const canSort = !isSystem && header.column.getCanSort()
+    const sortDirection = header.column.getIsSorted()
+    const hideHandler = colDef?.onHide ?? (onHideColumn ? () => onHideColumn(colId) : undefined)
+    const canHide = !isSystem && colDef?.hideable !== false && Boolean(hideHandler) && visibleDataColumnCount > 1
+    const title = flexRender(header.column.columnDef.header, header.getContext())
+    if (!canSort && !canHide) return title
     return (
-      <button
-        type="button"
-        className={`control-sort-button -ml-1.5 inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[state=open]:bg-accent${sorted ? ' is-sorted' : ''}`}
-        onClick={header.column.getToggleSortingHandler()}
-      >
-        <span className="truncate">{flexRender(header.column.columnDef.header, header.getContext())}</span>
-        <span className="control-sort-icon inline-flex shrink-0 items-center text-muted-foreground" aria-hidden="true">
-          {sorted === 'asc'
-            ? <ChevronUp className="size-4 shrink-0 text-muted-foreground" />
-            : sorted === 'desc'
-              ? <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-              : <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />}
-        </span>
-      </button>
+      <ColumnHeaderMenu
+        title={title}
+        sortable={canSort}
+        sortDirection={sortDirection}
+        onSortChange={next => {
+          if (next === false) {
+            setSorting(current => current.filter(item => item.id !== colId))
+          } else {
+            setSorting([{ id: colId, desc: next === 'desc' }])
+          }
+        }}
+        hideable={canHide}
+        onHide={hideHandler}
+      />
     )
   }
   const headCell = (header: any) => {
-    const sorted = header.column.getIsSorted()
-    const width = columns.find(c => (c.key ?? String(c.dataIndex)) === header.column.id)?.width
+    const canSort = header.column.id !== 'select' && header.column.id !== 'actions' && header.column.getCanSort()
+    const sortDirection = header.column.getIsSorted()
+    const width = columnMap.get(header.column.id)?.width
     return (
       <th
         key={header.id} style={width ? { minWidth: width } : undefined}
-        aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined}
+        aria-sort={canSort ? (sortDirection === 'asc' ? 'ascending' : sortDirection === 'desc' ? 'descending' : 'none') : undefined}
       >{headContent(header)}</th>
     )
   }
@@ -185,10 +219,15 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, p
     <div className={`control-table-wrap${sharedStyle ? ' shared-table-wrap' : ''}`} inert={loading || undefined}>
       <table className={`control-table${sharedStyle ? ' shared-table' : ''}`}><thead>{table.getHeaderGroups().map(group => <tr key={group.id}>
         {rowSelection ? (<>
-          <th className="control-th-select">
+          <th
+            className="control-th-select"
+            aria-sort={group.headers[0]?.column.getCanSort()
+              ? (group.headers[0].column.getIsSorted() === 'asc' ? 'ascending' : group.headers[0].column.getIsSorted() === 'desc' ? 'descending' : 'none')
+              : undefined}
+          >
             <span className="control-th-select-inner">
               <UiCheckbox aria-label="选择本页全部" checked={all ? true : keys.some(k => selected.includes(k)) ? 'indeterminate' : false} onCheckedChange={v => rowSelection.onChange(v ? Array.from(new Set([...selected, ...keys])) : selected.filter(k => !keys.includes(k)))} />
-              {headContent(group.headers[0])}
+              {group.headers[0] && headContent(group.headers[0])}
             </span>
           </th>
           {group.headers.slice(1).map(headCell)}

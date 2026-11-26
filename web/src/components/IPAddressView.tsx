@@ -1,6 +1,6 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
-import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
+import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState, type VisibilityState } from '@tanstack/react-table'
 import { Plus, RefreshCw, Upload } from 'lucide-react'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
@@ -28,6 +28,7 @@ import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
 import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
+import { DataTableViewOptions } from './TableColumnControls'
 import { Select } from './AppControls'
 
 interface Props {
@@ -60,6 +61,32 @@ interface AddressFields { subnetId?: number; ip: string; status: string; dnsName
 const emptyFields: AddressFields = { ip: '', status: 'active', dnsName: '', role: '', label: '', notes: '' }
 const assetLabel = (asset: Asset) => `${asset.name}（${kindLabel(asset.kind)}）`
 
+function ipv4Number(address: string): number | null {
+  const parts = address.trim().split('.')
+  if (parts.length !== 4) return null
+  let value = 0
+  for (const part of parts) {
+    if (!/^\d{1,3}$/.test(part)) return null
+    const octet = Number(part)
+    if (octet > 255) return null
+    value = value * 256 + octet
+  }
+  return value
+}
+
+function compareIP(left: string, right: string): number {
+  const ln = ipv4Number(left)
+  const rn = ipv4Number(right)
+  if (ln !== null && rn !== null) return ln - rn
+  if (ln !== null) return -1
+  if (rn !== null) return 1
+  return left.localeCompare(right, undefined, { numeric: true })
+}
+
+function compareText(left?: string | null, right?: string | null): number {
+  return (left ?? '').localeCompare(right ?? '', 'zh-CN', { numeric: true })
+}
+
 export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialSubnetConsumed, assets, links, facilities, roomFilter, onRoomFilterChange, subnets, onOpenAsset, onOpenSubnet, onSessionError, onChanged }: Props) {
   const [addresses, setAddresses] = useState<IPAddress[]>([])
   const [loading, setLoading] = useState(false)
@@ -70,6 +97,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
   const [keyword, setKeyword] = useState('')
   const [source, setSource] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [state, setState] = useState('')
   const [subnetId, setSubnetId] = useState(() => (initialSubnetId ? String(initialSubnetId) : ''))
   const [modalOpen, setModalOpen] = useState(false)
@@ -130,17 +158,76 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
     return addresses.filter(address => matchesRoomFilter(resolveAddressRoomId(address), roomFilter) && (!source || address.source === source) && (!state || address.state === state) && (!subnetId || address.subnetId === Number(subnetId)) && (!query || [address.ip, address.dnsName, address.assetName, address.label, address.notes, address.subnetName, stateMeta[address.state], sourceMeta[address.source]].some(value => value?.toLowerCase().includes(query))))
   }, [addresses, keyword, resolveAddressRoomId, roomFilter, source, state, subnetId])
   const columns: ColumnDef<IPAddress>[] = [
-    { accessorKey: 'ip', header: 'IP 地址', sortingFn: (a, b) => a.original.ip.localeCompare(b.original.ip, undefined, { numeric: true }), meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <span className="font-mono text-xs font-medium tabular-nums">{row.original.ip}</span> },
-    { accessorKey: 'state', header: '状态', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <Badge variant="outline" className={stateBadgeClass[row.original.state]}>{stateMeta[row.original.state] ?? row.original.state}</Badge> },
-    { accessorKey: 'source', header: '来源', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <Badge variant="secondary">{sourceMeta[row.original.source] ?? row.original.source}</Badge> },
-    { accessorKey: 'dnsName', header: 'DNS 名称', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <span className="font-mono text-xs">{row.original.dnsName || <span className="text-muted-foreground">—</span>}</span> },
-    { accessorKey: 'role', header: '角色', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => roleLabels[row.original.role ?? ''] ?? (row.original.role || <span className="text-muted-foreground">—</span>) },
-    { id: 'owner', header: '资产 / 用途', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <span>{row.original.assetId && row.original.assetName ? <Button variant="link" className="h-auto p-0" onClick={() => onOpenAsset(row.original.assetId!)}>{row.original.assetName}</Button> : row.original.label || <span className="text-muted-foreground">—</span>}{row.original.assetId && row.original.label && <span className="text-muted-foreground"> / {row.original.label}</span>}</span> },
-    { id: 'subnet', header: '网段', enableSorting: false, meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <Button variant="link" className="h-auto p-0" onClick={() => onOpenSubnet(row.original.subnetId)}>{row.original.subnetName}</Button> },
-    { accessorKey: 'notes', header: '备注', enableSorting: false, cell: ({ row }) => row.original.notes ? <span className="text-muted-foreground">{row.original.notes}</span> : <span className="text-muted-foreground">—</span> },
+    {
+      accessorKey: 'ip',
+      header: 'IP 地址',
+      sortingFn: (a, b) => compareIP(a.original.ip, b.original.ip),
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => <span className="font-mono text-xs font-medium tabular-nums">{row.original.ip}</span>,
+    },
+    {
+      id: 'state',
+      accessorFn: row => stateMeta[row.state] ?? row.state,
+      header: '状态',
+      sortingFn: (a, b) => compareText(a.getValue<string>('state'), b.getValue<string>('state')),
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => <Badge variant="outline" className={stateBadgeClass[row.original.state]}>{stateMeta[row.original.state] ?? row.original.state}</Badge>,
+    },
+    {
+      id: 'source',
+      accessorFn: row => sourceMeta[row.source] ?? row.source,
+      header: '来源',
+      sortingFn: (a, b) => compareText(a.getValue<string>('source'), b.getValue<string>('source')),
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => <Badge variant="secondary">{sourceMeta[row.original.source] ?? row.original.source}</Badge>,
+    },
+    {
+      id: 'dnsName',
+      accessorFn: row => row.dnsName?.trim() || undefined,
+      header: 'DNS 名称',
+      sortUndefined: 'last',
+      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('dnsName'), b.getValue<string | undefined>('dnsName')),
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => <span className="font-mono text-xs">{row.original.dnsName || <span className="text-muted-foreground">—</span>}</span>,
+    },
+    {
+      id: 'role',
+      accessorFn: row => (roleLabels[row.role ?? ''] ?? row.role)?.trim() || undefined,
+      header: '角色',
+      sortUndefined: 'last',
+      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('role'), b.getValue<string | undefined>('role')),
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => roleLabels[row.original.role ?? ''] ?? (row.original.role || <span className="text-muted-foreground">—</span>),
+    },
+    {
+      id: 'owner',
+      accessorFn: row => [row.assetName, row.label].filter(Boolean).join(' / ') || undefined,
+      header: '资产 / 用途',
+      sortUndefined: 'last',
+      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('owner'), b.getValue<string | undefined>('owner')),
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => <span>{row.original.assetId && row.original.assetName ? <Button variant="link" className="h-auto p-0" onClick={() => onOpenAsset(row.original.assetId!)}>{row.original.assetName}</Button> : row.original.label || <span className="text-muted-foreground">—</span>}{row.original.assetId && row.original.label && <span className="text-muted-foreground"> / {row.original.label}</span>}</span>,
+    },
+    {
+      id: 'subnet',
+      accessorFn: row => row.subnetName,
+      header: '网段',
+      sortingFn: (a, b) => compareText(a.original.subnetName, b.original.subnetName),
+      meta: { cellClassName: 'whitespace-nowrap' },
+      cell: ({ row }) => <Button variant="link" className="h-auto p-0" onClick={() => onOpenSubnet(row.original.subnetId)}>{row.original.subnetName}</Button>,
+    },
+    {
+      id: 'notes',
+      accessorFn: row => row.notes?.trim() || undefined,
+      header: '备注',
+      sortUndefined: 'last',
+      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('notes'), b.getValue<string | undefined>('notes')),
+      cell: ({ row }) => row.original.notes ? <span className="text-muted-foreground">{row.original.notes}</span> : <span className="text-muted-foreground">—</span>,
+    },
     ...(editable ? [{
       id: 'actions',
       enableSorting: false,
+      enableHiding: false,
       meta: { headerClassName: 'w-10 text-right', cellClassName: 'w-10 whitespace-nowrap text-right' },
       header: () => <span className="sr-only">操作</span>,
       cell: ({ row }: { row: { original: IPAddress } }) => row.original.allocationId ? (
@@ -155,7 +242,17 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       ) : null,
     }] : []),
   ]
-  const table = useReactTable({ data: visible, columns, state: { sorting }, onSortingChange: setSorting, initialState: { pagination: { pageIndex: 0, pageSize: 20 } }, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getPaginationRowModel: getPaginationRowModel() })
+  const table = useReactTable({
+    data: visible,
+    columns,
+    state: { sorting, columnVisibility },
+    onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
+    initialState: { pagination: { pageIndex: 0, pageSize: 20 } },
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  })
   function exportCSV() {
     downloadCSV('dc-db-ip-addresses.csv', [
       ['IP 地址', '来源', '状态', 'DNS 名称', '角色', '网段', '资产', '用途', '备注'],
@@ -197,6 +294,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
         />
       </>}
       actions={<>
+        <DataTableViewOptions table={table} />
         <Button size="sm" variant="outline" disabled={!visible.length} onClick={exportCSV}><Upload />导出</Button>
         <Button size="sm" variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
         {editable && <Button size="sm" onClick={() => showForm(null)}><Plus />分配 IP</Button>}

@@ -6,6 +6,7 @@ import type { Asset, InterfaceFields, NetworkInterface } from '../api'
 import { Alert, Button, Input, Modal, Select, Space, Table, Tag } from './AppControls'
 import type { TableColumnsType } from './AppControls'
 import { RowActionsMenu } from './RowActionsMenu'
+import { DataTableViewOptions } from './TableColumnControls'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +40,22 @@ const emptyFields: InterfaceFields = {
   name: '', medium: 'copper', speedMbps: 1000, mac: '', status: 'up', description: '',
 }
 
+const interfaceColumnKeys = ['name', 'medium', 'speed', 'mac', 'status', 'peer'] as const
+type InterfaceColumnKey = typeof interfaceColumnKeys[number]
+const defaultInterfaceColumns: InterfaceColumnKey[] = [...interfaceColumnKeys]
+
+function mediumLabel(medium: string) {
+  return mediumOptions.find(option => option.value === medium)?.label ?? medium
+}
+
+function statusLabel(status: string) {
+  return statusOptions.find(option => option.value === status)?.label ?? status
+}
+
+function peerLabel(item: NetworkInterface) {
+  return item.peerId ? `${item.peerAssetName ?? ''} / ${item.peerName ?? ''}` : ''
+}
+
 function message(e: unknown, fallback: string) {
   return e instanceof Error && e.message ? e.message : fallback
 }
@@ -62,6 +79,7 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
   const [peerItems, setPeerItems] = useState<NetworkInterface[]>([])
   const [peerId, setPeerId] = useState<number | null>(null)
   const [pendingDelete, setPendingDelete] = useState<NetworkInterface | null>(null)
+  const [visibleColumns, setVisibleColumns] = useState<InterfaceColumnKey[]>(defaultInterfaceColumns)
 
   const load = useCallback(async () => {
     setError('')
@@ -173,32 +191,103 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
     }
   }
 
+  function updateVisibleColumns(next: InterfaceColumnKey[]) {
+    const ordered = interfaceColumnKeys.filter(key => next.includes(key))
+    if (!ordered.length) return
+    setVisibleColumns(ordered)
+  }
+
+  function toggleColumn(columnId: string, nextVisible: boolean) {
+    const key = columnId as InterfaceColumnKey
+    if (!interfaceColumnKeys.includes(key)) return
+    const next = nextVisible
+      ? [...visibleColumns, key]
+      : visibleColumns.filter(item => item !== key)
+    updateVisibleColumns(next)
+  }
+
+  function hideColumn(columnId: string) {
+    if (visibleColumns.length <= 1) return
+    toggleColumn(columnId, false)
+  }
+
+  const dataColumns: { key: InterfaceColumnKey; label: string; column: TableColumnsType<NetworkInterface>[number] }[] = [
+    {
+      key: 'name',
+      label: '名称',
+      column: {
+        title: '名称',
+        dataIndex: 'name',
+        key: 'name',
+        sorter: (left, right) => left.name.localeCompare(right.name, 'zh-CN', { numeric: true }),
+      },
+    },
+    {
+      key: 'medium',
+      label: '介质',
+      column: {
+        title: '介质',
+        key: 'medium',
+        sorter: (left, right) => mediumLabel(left.medium).localeCompare(mediumLabel(right.medium), 'zh-CN'),
+        render: (_: unknown, item: NetworkInterface) => <Tag>{mediumLabel(item.medium)}</Tag>,
+      },
+    },
+    {
+      key: 'speed',
+      label: '速率',
+      column: {
+        title: '速率',
+        key: 'speed',
+        sorter: (left, right) => (left.speedMbps ?? 0) - (right.speedMbps ?? 0),
+        render: (_: unknown, item: NetworkInterface) => speedLabel(item.speedMbps),
+      },
+    },
+    {
+      key: 'mac',
+      label: 'MAC',
+      column: {
+        title: 'MAC',
+        key: 'mac',
+        sorter: (left, right) => (left.mac || '').localeCompare(right.mac || '', 'zh-CN'),
+        render: (_: unknown, item: NetworkInterface) => item.mac || '—',
+      },
+    },
+    {
+      key: 'status',
+      label: '状态',
+      column: {
+        title: '状态',
+        key: 'status',
+        sorter: (left, right) => statusLabel(left.status).localeCompare(statusLabel(right.status), 'zh-CN'),
+        render: (_: unknown, item: NetworkInterface) => (
+          <Tag color={statusColor(item.status)}>{statusLabel(item.status)}</Tag>
+        ),
+      },
+    },
+    {
+      key: 'peer',
+      label: '对端',
+      column: {
+        title: '对端',
+        key: 'peer',
+        sorter: (left, right) => peerLabel(left).localeCompare(peerLabel(right), 'zh-CN'),
+        render: (_: unknown, item: NetworkInterface) => item.peerId
+          ? peerLabel(item)
+          : <span className="muted">未连接</span>,
+      },
+    },
+  ]
+
+  const canHideColumn = visibleColumns.length > 1
   const columns: TableColumnsType<NetworkInterface> = [
-    { title: '名称', dataIndex: 'name', key: 'name' },
-    {
-      title: '介质', key: 'medium',
-      render: (_: unknown, item: NetworkInterface) => (
-        <Tag>{mediumOptions.find(option => option.value === item.medium)?.label ?? item.medium}</Tag>
-      ),
-    },
-    { title: '速率', key: 'speed', render: (_: unknown, item: NetworkInterface) => speedLabel(item.speedMbps) },
-    { title: 'MAC', key: 'mac', render: (_: unknown, item: NetworkInterface) => item.mac || '—' },
-    {
-      title: '状态', key: 'status',
-      render: (_: unknown, item: NetworkInterface) => (
-        <Tag color={statusColor(item.status)}>{statusOptions.find(option => option.value === item.status)?.label ?? item.status}</Tag>
-      ),
-    },
-    {
-      title: '对端', key: 'peer',
-      render: (_: unknown, item: NetworkInterface) => item.peerId
-        ? `${item.peerAssetName ?? ''} / ${item.peerName ?? ''}`
-        : <span className="muted">未连接</span>,
-    },
+    ...dataColumns
+      .filter(item => visibleColumns.includes(item.key))
+      .map(item => ({ ...item.column, hideable: canHideColumn })),
     ...(editable ? [{
       title: <span className="sr-only">操作</span>,
       key: 'actions',
       width: 48,
+      hideable: false,
       render: (_: unknown, item: NetworkInterface) => (
         <div className="flex justify-end">
           <RowActionsMenu
@@ -233,10 +322,21 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
       {error && <Alert type="error" showIcon message={error} className="drawer-alert" />}
       <div className="asset-interfaces-head">
         <span className="muted">记录设备的网口与上联关系，连接后两端都会显示对端设备。</span>
-        {editable && <Button size="small" icon={<Plus size={14} />} onClick={startCreate}>添加接口</Button>}
+        <Space>
+          <DataTableViewOptions
+            columns={dataColumns.map(item => ({
+              id: item.key,
+              label: item.label,
+              visible: visibleColumns.includes(item.key),
+            }))}
+            onToggle={toggleColumn}
+          />
+          {editable && <Button size="small" icon={<Plus size={14} />} onClick={startCreate}>添加接口</Button>}
+        </Space>
       </div>
       <Table<NetworkInterface>
         rowKey="id" columns={columns} dataSource={items} loading={busy} size="small"
+        onHideColumn={hideColumn}
         pagination={false} locale={{ emptyText: '暂无接口，点击「添加接口」开始记录' }}
       />
 

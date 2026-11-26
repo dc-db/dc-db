@@ -12,9 +12,19 @@
   button, input, select, textarea { font: inherit; }
   button { background: transparent; color: inherit; cursor: pointer; }
   button:disabled { cursor: not-allowed; }
+  code, kbd, samp, pre { font-family: var(--font-sans-stack); font-feature-settings: "zero" 0; }
+}
+
+@layer utilities {
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "zero" 0;
+  }
 }
 
 @theme inline {
+  --font-sans: var(--font-sans-stack);
+  --font-mono: var(--font-sans-stack);
   --color-background: var(--bg);
   --color-foreground: var(--text);
   --color-card: var(--surface);
