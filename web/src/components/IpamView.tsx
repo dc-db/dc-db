@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
 import { ColumnHeaderMenu, DataTableViewOptions, type SortDirection, type ViewColumnOption } from './TableColumnControls'
+import { BulkActionBar, RowIndexSelectCell, RowIndexSelectHeader } from './TableSelectionControls'
 import { Input } from './ui/input'
 import { UsageBar } from './UsageBar'
 import { Textarea } from './ui/textarea'
@@ -241,6 +242,9 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
   const [draftError, setDraftError] = useState('')
   const draftTriggerRef = useRef<HTMLButtonElement>(null)
   const [deleting, setDeleting] = useState<Subnet | null>(null)
+  const [selectedSubnetIds, setSelectedSubnetIds] = useState<number[]>([])
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   const [subnetSearch, setSubnetSearch] = useState('')
   const [subnetStatus, setSubnetStatus] = useState<string | undefined>()
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
@@ -308,6 +312,26 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       .filter(row => matchesFilters(row.subnet))
       .map(row => query || subnetStatus ? ({ ...row, depth: 0, children: 0 }) : row)
   }, [scopedSubnets, sort, subnetRows, subnetSearch, subnetStatus])
+  const selectedSubnetIdSet = useMemo(() => new Set(selectedSubnetIds), [selectedSubnetIds])
+  const selectedSubnets = useMemo(
+    () => subnets.filter(subnet => selectedSubnetIdSet.has(subnet.id)),
+    [selectedSubnetIdSet, subnets],
+  )
+  const visibleSubnetIds = useMemo(
+    () => visibleSubnetRows.map(row => row.subnet.id),
+    [visibleSubnetRows],
+  )
+  const allVisibleSelected = visibleSubnetIds.length > 0 && visibleSubnetIds.every(id => selectedSubnetIdSet.has(id))
+  const someVisibleSelected = visibleSubnetIds.some(id => selectedSubnetIdSet.has(id))
+  const headerChecked: boolean | 'indeterminate' = allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false
+
+  useEffect(() => {
+    const validIds = new Set(subnets.map(subnet => subnet.id))
+    setSelectedSubnetIds(prev => {
+      const next = prev.filter(id => validIds.has(id))
+      return next.length === prev.length ? prev : next
+    })
+  }, [subnets])
   const vlanOptions = useMemo(() => {
     const options = vlans.map(vlan => ({
       value: String(vlan.vid),
@@ -422,6 +446,50 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
     }
   }
 
+  async function bulkDeleteSubnets() {
+    if (bulkDeleting || !selectedSubnets.length) return
+    const targets = [...selectedSubnets]
+    setBulkDeleting(true)
+    setError('')
+    setFeedback('')
+    const succeededIds: number[] = []
+    const failed: { subnet: Subnet; message: string }[] = []
+    try {
+      for (const subnet of targets) {
+        try {
+          await api(`/subnets/${subnet.id}?version=${subnet.version}`, 'DELETE')
+          succeededIds.push(subnet.id)
+        } catch (e) {
+          if (e instanceof APIError && e.status === 401) {
+            setBulkDeleteOpen(false)
+            onSessionError(e)
+            return
+          }
+          failed.push({ subnet, message: e instanceof Error ? e.message : '删除失败' })
+        }
+      }
+      setBulkDeleteOpen(false)
+      if (succeededIds.length > 0) {
+        const succeededSet = new Set(succeededIds)
+        setSelectedSubnetIds(prev => prev.filter(id => !succeededSet.has(id)))
+        await load()
+        onChanged()
+      }
+      if (succeededIds.length > 0 && failed.length === 0) {
+        setFeedback(`已删除 ${succeededIds.length} 个网段`)
+      } else if (succeededIds.length > 0) {
+        setFeedback(`已删除 ${succeededIds.length} 个网段`)
+        const detail = failed.slice(0, 3).map(item => `${item.subnet.name}（${item.subnet.cidr}）：${item.message}`).join('；')
+        setError(`${failed.length} 个网段删除失败：${detail}${failed.length > 3 ? ` 等 ${failed.length} 项` : ''}`)
+      } else if (failed.length > 0) {
+        const detail = failed.slice(0, 3).map(item => `${item.subnet.name}（${item.subnet.cidr}）：${item.message}`).join('；')
+        setError(`删除失败：${detail}${failed.length > 3 ? ` 等 ${failed.length} 项` : ''}`)
+      }
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
+
 
   function downloadSubnetTemplate() {
     downloadCSV('dc-db-subnet-template.csv', [
@@ -450,18 +518,22 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
   }
 
   const labelClass = 'space-y-2 text-sm font-medium'
-  function exportSubnets() {
-    downloadCSV('dc-db-subnets.csv', [
+  function formatSubnetsCSVRows(items: Subnet[]) {
+    return [
       ['网段名称', 'CIDR', '网关', 'VLAN', '状态', '用途', '可用地址', '已用', '空闲', '备注'],
-      ...subnetRows.map(row => {
-        const subnet = row.subnet
-        return [
-          subnet.name, subnet.cidr, subnet.gateway, subnet.vlan,
-          subnetStatusMeta[subnet.status]?.label ?? subnet.status,
-          roleLabels[subnet.role ?? ''] ?? (subnet.role || ''), subnet.usable, subnet.used, subnet.free, subnet.notes,
-        ]
-      }),
-    ])
+      ...items.map(subnet => [
+        subnet.name, subnet.cidr, subnet.gateway, subnet.vlan,
+        subnetStatusMeta[subnet.status]?.label ?? subnet.status,
+        roleLabels[subnet.role ?? ''] ?? (subnet.role || ''), subnet.usable, subnet.used, subnet.free, subnet.notes,
+      ]),
+    ]
+  }
+  function exportSubnets() {
+    downloadCSV('dc-db-subnets.csv', formatSubnetsCSVRows(subnetRows.map(row => row.subnet)))
+  }
+  function exportSelectedSubnetsCSV() {
+    if (!selectedSubnets.length) return
+    downloadCSV('dc-db-subnets-selected.csv', formatSubnetsCSVRows(selectedSubnets))
   }
 
   return (
@@ -498,6 +570,18 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
         <table className="shared-table ipam-subnet-table">
           <thead>
             <tr>
+              <th className="col-select">
+                <RowIndexSelectHeader
+                  checked={headerChecked}
+                  disabled={visibleSubnetIds.length === 0}
+                  ariaLabel="全选当前网段"
+                  onCheckedChange={checked => {
+                    setSelectedSubnetIds(prev => checked
+                      ? Array.from(new Set([...prev, ...visibleSubnetIds]))
+                      : prev.filter(id => !visibleSubnetIds.includes(id)))
+                  }}
+                />
+              </th>
               {activeColumns.map(col => {
                 const sortDir: SortDirection = sort?.key === col.key ? sort.direction : false
                 return (
@@ -520,18 +604,33 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
             </tr>
           </thead>
           <tbody>
-            {visibleSubnetRows.length ? visibleSubnetRows.map(({ subnet: item, depth, children }) => {
+            {visibleSubnetRows.length ? visibleSubnetRows.map(({ subnet: item, depth, children }, index) => {
               const total = item.usable
               const usedPct = total > 0 ? Math.min(100, Math.round(item.used / total * 100)) : 0
               const bookmarked = bookmarkedSubnets.includes(item.id)
+              const isSelected = selectedSubnetIdSet.has(item.id)
               return (
                 <tr
                   key={item.id}
+                  className="group/row"
+                  data-state={isSelected ? 'selected' : undefined}
                   onClick={onSelectSubnet ? event => {
-                    if ((event.target as HTMLElement).closest('button, a, [role="menuitem"], [data-slot="dropdown-menu-content"]')) return
+                    if ((event.target as HTMLElement).closest('button, a, [role="checkbox"], [role="menuitem"], [data-slot="dropdown-menu-content"]')) return
                     onSelectSubnet(item.id)
                   } : undefined}
                 >
+                  <td className="col-select" onClick={event => event.stopPropagation()}>
+                    <RowIndexSelectCell
+                      rowNumber={index + 1}
+                      selected={isSelected}
+                      ariaLabel={`选择网段 ${item.cidr}`}
+                      onToggle={checked => {
+                        setSelectedSubnetIds(prev => checked
+                          ? (prev.includes(item.id) ? prev : [...prev, item.id])
+                          : prev.filter(id => id !== item.id))
+                      }}
+                    />
+                  </td>
                   {activeColumns.map(col => {
                     switch (col.key) {
                       case 'name':
@@ -581,7 +680,7 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
                   </td>
                 </tr>
               )
-            }) : <tr><td colSpan={visibleColumns.length + 1} className="facility-table-empty">没有匹配的网段</td></tr>}
+            }) : <tr><td colSpan={visibleColumns.length + 2} className="facility-table-empty">没有匹配的网段</td></tr>}
           </tbody>
         </table>
       </div>
@@ -656,6 +755,37 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
             }}
           >
             {busy ? '删除中…' : '删除'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    <BulkActionBar
+      count={selectedSubnets.length}
+      unit="个网段"
+      onClear={() => setSelectedSubnetIds([])}
+      onExport={exportSelectedSubnetsCSV}
+      onDelete={editable ? () => setBulkDeleteOpen(true) : undefined}
+      deleting={bulkDeleting}
+    />
+    <AlertDialog open={bulkDeleteOpen} onOpenChange={open => { if (!open && !bulkDeleting) setBulkDeleteOpen(false) }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>确定删除所选 {selectedSubnets.length} 个网段？</AlertDialogTitle>
+          <AlertDialogDescription>
+            确认删除所选的 {selectedSubnets.length} 个网段？此操作无法撤销；仍存在已分配 IP 或无法删除的网段将被跳过并显示原因。
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={bulkDeleting}>取消</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={bulkDeleting}
+            onClick={event => {
+              event.preventDefault()
+              void bulkDeleteSubnets()
+            }}
+          >
+            {bulkDeleting ? '删除中…' : '删除'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

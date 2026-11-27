@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { Plus } from 'lucide-react'
 import { api } from '../api'
 import type { Asset, InterfaceFields, NetworkInterface } from '../api'
+import { downloadCSV } from '../csv'
 import { Alert, Button, Input, Modal, Select, Space, Table, Tag } from './AppControls'
 import type { TableColumnsType } from './AppControls'
 import { RowActionsMenu } from './RowActionsMenu'
 import { DataTableViewOptions } from './TableColumnControls'
+import { BulkActionBar } from './TableSelectionControls'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -80,6 +82,9 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
   const [peerId, setPeerId] = useState<number | null>(null)
   const [pendingDelete, setPendingDelete] = useState<NetworkInterface | null>(null)
   const [visibleColumns, setVisibleColumns] = useState<InterfaceColumnKey[]>(defaultInterfaceColumns)
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   const load = useCallback(async () => {
     setError('')
@@ -91,6 +96,34 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
   }, [assetId])
 
   useEffect(() => { void load() }, [load])
+
+  useEffect(() => {
+    setSelectedIds([])
+    setBulkDeleteOpen(false)
+  }, [assetId])
+
+  useEffect(() => {
+    const validIds = new Set(items.map(item => item.id))
+    setSelectedIds(current => {
+      const next = current.filter(id => validIds.has(id))
+      return next.length === current.length ? current : next
+    })
+  }, [items])
+
+  const selectedInterfaces = useMemo(() => {
+    const idSet = new Set(selectedIds)
+    return items.filter(item => idSet.has(item.id))
+  }, [items, selectedIds])
+
+  const connectedSelectedCount = useMemo(
+    () => selectedInterfaces.filter(item => Boolean(item.peerId)).length,
+    [selectedInterfaces],
+  )
+
+  const currentAsset = useMemo(
+    () => assets.find(asset => asset.id === assetId),
+    [assets, assetId],
+  )
 
   function startCreate() {
     setDraft({ id: 0, version: 0, fields: { ...emptyFields } })
@@ -140,6 +173,53 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
       setError(message(e, '删除失败'))
     } finally {
       setBusy(false)
+    }
+  }
+
+  function exportSelectedInterfacesCSV() {
+    if (!selectedInterfaces.length) return
+    const rows: (string | number)[][] = [['名称', '介质', '速率', 'MAC', '状态', '对端', '描述']]
+    for (const item of selectedInterfaces) {
+      rows.push([
+        item.name,
+        mediumLabel(item.medium),
+        speedLabel(item.speedMbps),
+        item.mac || '',
+        statusLabel(item.status),
+        item.peerId ? peerLabel(item) : '未连接',
+        item.description || '',
+      ])
+    }
+    const prefix = currentAsset?.name ? `${currentAsset.name}-` : ''
+    downloadCSV(`${prefix}接口.csv`, rows)
+  }
+
+  async function confirmBulkDelete() {
+    if (bulkDeleting || busy || !selectedInterfaces.length) return
+    const targets = [...selectedInterfaces]
+    setBulkDeleting(true)
+    setError('')
+    const deletedIds: number[] = []
+    const failed: string[] = []
+    try {
+      for (const item of targets) {
+        try {
+          await api(`/assets/${assetId}/interfaces/${item.id}`, 'DELETE')
+          deletedIds.push(item.id)
+        } catch (e) {
+          failed.push(`${item.name}（${message(e, '删除失败')}）`)
+        }
+      }
+      setBulkDeleteOpen(false)
+      if (deletedIds.length > 0) {
+        await load()
+        setSelectedIds(current => current.filter(id => !deletedIds.includes(id)))
+      }
+      if (failed.length > 0) {
+        setError(`以下 ${failed.length} 个接口删除失败：${failed.join('；')}`)
+      }
+    } finally {
+      setBulkDeleting(false)
     }
   }
 
@@ -335,9 +415,23 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
         </Space>
       </div>
       <Table<NetworkInterface>
-        rowKey="id" columns={columns} dataSource={items} loading={busy} size="small"
+        rowKey="id" columns={columns} dataSource={items} loading={busy || bulkDeleting} size="small"
         onHideColumn={hideColumn}
+        rowSelection={{
+          selectedRowKeys: selectedIds,
+          onChange: keys => setSelectedIds(keys.map(Number)),
+          getRowLabel: item => `选择接口 ${item.name}`,
+        }}
         pagination={false} locale={{ emptyText: '暂无接口，点击「添加接口」开始记录' }}
+      />
+      <BulkActionBar
+        count={selectedInterfaces.length}
+        unit="个接口"
+        onClear={() => setSelectedIds([])}
+        onExport={exportSelectedInterfacesCSV}
+        onDelete={editable ? () => setBulkDeleteOpen(true) : undefined}
+        deleteDisabled={busy}
+        deleting={bulkDeleting}
       />
 
       <Modal
@@ -414,6 +508,32 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
               }}
             >
               删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={open => { if (!open && !bulkDeleting) setBulkDeleteOpen(false) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>批量删除 {selectedInterfaces.length} 个接口？</AlertDialogTitle>
+            <AlertDialogDescription>
+              {connectedSelectedCount > 0
+                ? `所选接口中有 ${connectedSelectedCount} 个已连接对端，删除将同时断开对应连接。删除后无法恢复，此操作无法撤销。`
+                : '删除后所选接口记录将无法恢复，已建立的对端连接也将同步断开。此操作无法撤销。'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={bulkDeleting || selectedInterfaces.length === 0}
+              onClick={event => {
+                event.preventDefault()
+                void confirmBulkDelete()
+              }}
+            >
+              {bulkDeleting ? '删除中…' : `删除 ${selectedInterfaces.length} 个接口`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

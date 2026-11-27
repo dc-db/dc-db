@@ -1,6 +1,6 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
-import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState, type VisibilityState } from '@tanstack/react-table'
+import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type RowSelectionState, type SortingState, type VisibilityState } from '@tanstack/react-table'
 import { Plus, RefreshCw, Upload } from 'lucide-react'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
@@ -28,6 +28,7 @@ import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
 import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
 import { DataTableViewOptions } from './TableColumnControls'
+import { BulkActionBar, createRowSelectionColumn } from './TableSelectionControls'
 
 interface Props {
   editable: boolean
@@ -62,8 +63,23 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
   const [fields, setFields] = useState<VLANFields>(emptyFields)
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   useEffect(() => { void load() }, [])
+  useEffect(() => {
+    const validIds = new Set(vlans.map(vlan => String(vlan.id)))
+    setRowSelection(prev => {
+      const next: RowSelectionState = {}
+      let changed = false
+      for (const [id, selected] of Object.entries(prev)) {
+        if (selected && validIds.has(id)) next[id] = true
+        else changed = true
+      }
+      return changed ? next : prev
+    })
+  }, [vlans])
   function report(e: unknown) {
     if (e instanceof APIError && e.status === 401) { onSessionError(e); return }
     setError(e instanceof Error ? e.message : '操作失败')
@@ -109,6 +125,10 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
   }, [keyword, roomFilter, status, vlans])
 
   const columns: ColumnDef<VLAN>[] = [
+    createRowSelectionColumn<VLAN>({
+      selectAllLabel: '全选当前页 VLAN',
+      getRowLabel: vlan => `选择 VLAN ${vlan.vid} ${vlan.name}`,
+    }),
     { accessorKey: 'vid', header: 'VLAN ID', meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <span className="font-mono text-xs font-medium tabular-nums">{row.original.vid}</span> },
     { accessorKey: 'name', header: '名称', sortingFn: (a, b) => a.original.name.localeCompare(b.original.name, 'zh-CN', { numeric: true }), cell: ({ row }) => <div className="flex flex-col gap-0.5"><span className="font-medium">{row.original.name}</span>{row.original.description && <span className="text-xs text-muted-foreground">{row.original.description}</span>}</div> },
     {
@@ -157,23 +177,85 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
   const table = useReactTable({
     data: visible,
     columns,
-    state: { sorting, columnVisibility },
+    getRowId: row => String(row.id),
+    enableRowSelection: true,
+    state: { sorting, columnVisibility, rowSelection },
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
     initialState: { pagination: { pageIndex: 0, pageSize: 20 } },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   })
+  const selectedVLANs = table.getSelectedRowModel().rows.map(row => row.original)
+  const referencedSelectedCount = selectedVLANs.filter(vlan => vlan.prefixCount > 0).length
 
-  function exportCSV() {
-    downloadCSV('dc-db-vlans.csv', [
+  async function bulkRemove() {
+    if (bulkDeleting || !selectedVLANs.length) return
+    const targets = [...selectedVLANs]
+    setBulkDeleting(true)
+    setError('')
+    setFeedback('')
+    const succeededIds: string[] = []
+    const failed: { vlan: VLAN; message: string }[] = []
+    try {
+      for (const vlan of targets) {
+        try {
+          await api(`/vlans/${vlan.id}?version=${vlan.version}`, 'DELETE')
+          succeededIds.push(String(vlan.id))
+        } catch (e) {
+          if (e instanceof APIError && e.status === 401) {
+            setBulkDeleteOpen(false)
+            onSessionError(e)
+            return
+          }
+          failed.push({ vlan, message: e instanceof Error ? e.message : '删除失败' })
+        }
+      }
+      setBulkDeleteOpen(false)
+      if (succeededIds.length > 0) {
+        const succeededSet = new Set(succeededIds)
+        setRowSelection(prev => {
+          const next: RowSelectionState = {}
+          for (const [id, selected] of Object.entries(prev)) {
+            if (selected && !succeededSet.has(id)) next[id] = true
+          }
+          return next
+        })
+        await load()
+        onChanged()
+      }
+      if (succeededIds.length > 0 && failed.length === 0) {
+        setFeedback(`已删除 ${succeededIds.length} 个 VLAN`)
+      } else if (succeededIds.length > 0) {
+        setFeedback(`已删除 ${succeededIds.length} 个 VLAN`)
+        const detail = failed.slice(0, 3).map(entry => `VLAN ${entry.vlan.vid}（${entry.vlan.name}）：${entry.message}`).join('；')
+        setError(`${failed.length} 个 VLAN 删除失败：${detail}${failed.length > 3 ? ` 等 ${failed.length} 项` : ''}`)
+      } else if (failed.length > 0) {
+        const detail = failed.slice(0, 3).map(entry => `VLAN ${entry.vlan.vid}（${entry.vlan.name}）：${entry.message}`).join('；')
+        setError(`删除失败：${detail}${failed.length > 3 ? ` 等 ${failed.length} 项` : ''}`)
+      }
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
+
+  function formatVLANsCSVRows(items: VLAN[]) {
+    return [
       ['VLAN ID', '名称', '状态', '所属数据中心', '关联网段数', '描述'],
-      ...visible.map(vlan => [
+      ...items.map(vlan => [
         vlan.vid, vlan.name, statusMeta[vlan.status]?.label ?? vlan.status,
         vlan.roomName ?? '', vlan.prefixCount, vlan.description,
       ]),
-    ])
+    ]
+  }
+  function exportCSV() {
+    downloadCSV('dc-db-vlans.csv', formatVLANsCSVRows(visible))
+  }
+  function exportSelectedVLANsCSV() {
+    if (!selectedVLANs.length) return
+    downloadCSV('dc-db-vlans-selected.csv', formatVLANsCSVRows(selectedVLANs))
   }
 
   return (
@@ -209,7 +291,7 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       loading={loading}
       pagerUnit="个"
       onRowClick={onSelectVLAN ? (vlan, event) => {
-        if ((event.target as HTMLElement).closest('button, a, [role="menuitem"], [data-slot="dropdown-menu-content"]')) return
+        if ((event.target as HTMLElement).closest('button, a, [role="checkbox"], [role="menuitem"], [data-slot="dropdown-menu-content"]')) return
         onSelectVLAN(vlan)
       } : undefined}
       emptyMessage={keyword || status || roomFilter !== 'all' ? '没有匹配的 VLAN' : '暂无 VLAN，新增一个开始规划二层网络'}
@@ -243,6 +325,38 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
             }}
           >
             {busy ? '删除中…' : '删除'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    <BulkActionBar
+      count={selectedVLANs.length}
+      unit="个 VLAN"
+      onClear={() => setRowSelection({})}
+      onExport={exportSelectedVLANsCSV}
+      onDelete={editable ? () => setBulkDeleteOpen(true) : undefined}
+      deleting={bulkDeleting}
+    />
+    <AlertDialog open={bulkDeleteOpen} onOpenChange={open => { if (!open && !bulkDeleting) setBulkDeleteOpen(false) }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>确定删除所选 {selectedVLANs.length} 个 VLAN？</AlertDialogTitle>
+          <AlertDialogDescription>
+            确认删除所选的 {selectedVLANs.length} 个 VLAN？此操作无法撤销。
+            {referencedSelectedCount > 0 ? `其中 ${referencedSelectedCount} 个 VLAN 仍有关联网段，将被跳过并提示原因。` : '仍有网段使用时不能删除。'}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={bulkDeleting}>取消</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={bulkDeleting}
+            onClick={event => {
+              event.preventDefault()
+              void bulkRemove()
+            }}
+          >
+            {bulkDeleting ? '删除中…' : '删除'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

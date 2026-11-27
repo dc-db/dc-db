@@ -1,6 +1,6 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
-import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState, type VisibilityState } from '@tanstack/react-table'
+import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type RowSelectionState, type SortingState, type VisibilityState } from '@tanstack/react-table'
 import { Plus, RefreshCw, Upload } from 'lucide-react'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
@@ -29,6 +29,7 @@ import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
 import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
 import { DataTableViewOptions } from './TableColumnControls'
+import { BulkActionBar, createRowSelectionColumn } from './TableSelectionControls'
 import { Select } from './AppControls'
 
 interface Props {
@@ -87,6 +88,10 @@ function compareText(left?: string | null, right?: string | null): number {
   return (left ?? '').localeCompare(right ?? '', 'zh-CN', { numeric: true })
 }
 
+function ipRowId(row: IPAddress): string {
+  return row.allocationId ? `alloc-${row.allocationId}` : (row.key || `${row.subnetId}-${row.source}-${row.ip}`)
+}
+
 export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialSubnetConsumed, assets, links, facilities, roomFilter, onRoomFilterChange, subnets, onOpenAsset, onOpenSubnet, onSessionError, onChanged }: Props) {
   const [addresses, setAddresses] = useState<IPAddress[]>([])
   const [loading, setLoading] = useState(false)
@@ -98,6 +103,9 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
   const [source, setSource] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const [bulkReleaseOpen, setBulkReleaseOpen] = useState(false)
+  const [bulkReleasing, setBulkReleasing] = useState(false)
   const [state, setState] = useState('')
   const [subnetId, setSubnetId] = useState(() => (initialSubnetId ? String(initialSubnetId) : ''))
   const [modalOpen, setModalOpen] = useState(false)
@@ -111,6 +119,18 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       onInitialSubnetConsumed?.()
     }
   }, [initialSubnetId, onInitialSubnetConsumed])
+  useEffect(() => {
+    const validIds = new Set(addresses.map(ipRowId))
+    setRowSelection(prev => {
+      const next: RowSelectionState = {}
+      let changed = false
+      for (const [id, selected] of Object.entries(prev)) {
+        if (selected && validIds.has(id)) next[id] = true
+        else changed = true
+      }
+      return changed ? next : prev
+    })
+  }, [addresses])
   function report(e: unknown) { if (e instanceof APIError && e.status === 401) { onSessionError(e); return }; setError(e instanceof Error ? e.message : '操作失败') }
   async function load() { setLoading(true); setError(''); try { setAddresses(await api<IPAddress[]>('/ip-addresses')) } catch (e) { report(e) } finally { setLoading(false) } }
   function showForm(address: IPAddress | null) {
@@ -158,6 +178,10 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
     return addresses.filter(address => matchesRoomFilter(resolveAddressRoomId(address), roomFilter) && (!source || address.source === source) && (!state || address.state === state) && (!subnetId || address.subnetId === Number(subnetId)) && (!query || [address.ip, address.dnsName, address.assetName, address.label, address.notes, address.subnetName, stateMeta[address.state], sourceMeta[address.source]].some(value => value?.toLowerCase().includes(query))))
   }, [addresses, keyword, resolveAddressRoomId, roomFilter, source, state, subnetId])
   const columns: ColumnDef<IPAddress>[] = [
+    createRowSelectionColumn<IPAddress>({
+      selectAllLabel: '全选当前页 IP 地址',
+      getRowLabel: row => `选择 IP ${row.ip}`,
+    }),
     {
       accessorKey: 'ip',
       header: 'IP 地址',
@@ -245,23 +269,95 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
   const table = useReactTable({
     data: visible,
     columns,
-    state: { sorting, columnVisibility },
+    getRowId: ipRowId,
+    enableRowSelection: true,
+    state: { sorting, columnVisibility, rowSelection },
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
     initialState: { pagination: { pageIndex: 0, pageSize: 20 } },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   })
-  function exportCSV() {
-    downloadCSV('dc-db-ip-addresses.csv', [
+  const selectedRows = table.getSelectedRowModel().rows.map(row => row.original)
+  const releasableSelected = selectedRows.filter(item => Boolean(item.allocationId))
+  const nonReleasableCount = selectedRows.length - releasableSelected.length
+
+  async function bulkRelease() {
+    if (bulkReleasing || !releasableSelected.length) return
+    const targets = [...releasableSelected]
+    const skippedCount = nonReleasableCount
+    setBulkReleasing(true)
+    setError('')
+    setFeedback('')
+    const succeededIds: string[] = []
+    const failed: { item: IPAddress; message: string }[] = []
+    try {
+      for (const item of targets) {
+        if (!item.allocationId) continue
+        try {
+          await api(`/allocations/${item.allocationId}?version=${item.version ?? 0}`, 'DELETE')
+          succeededIds.push(ipRowId(item))
+        } catch (e) {
+          if (e instanceof APIError && e.status === 401) {
+            setBulkReleaseOpen(false)
+            onSessionError(e)
+            return
+          }
+          failed.push({ item, message: e instanceof Error ? e.message : '释放失败' })
+        }
+      }
+      setBulkReleaseOpen(false)
+      if (succeededIds.length > 0) {
+        if (failed.length === 0) {
+          setRowSelection({})
+        } else {
+          const succeededSet = new Set(succeededIds)
+          setRowSelection(prev => {
+            const next: RowSelectionState = {}
+            for (const [id, selected] of Object.entries(prev)) {
+              if (selected && !succeededSet.has(id)) next[id] = true
+            }
+            return next
+          })
+        }
+        await load()
+        onChanged()
+      }
+      if (succeededIds.length > 0 && failed.length === 0) {
+        setFeedback(skippedCount > 0
+          ? `已释放 ${succeededIds.length} 条 IP 地址（已跳过 ${skippedCount} 条非手工分配地址）`
+          : `已释放 ${succeededIds.length} 条 IP 地址`)
+      } else if (succeededIds.length > 0) {
+        setFeedback(`已释放 ${succeededIds.length} 条 IP 地址`)
+        const detail = failed.slice(0, 3).map(entry => `${entry.item.ip}：${entry.message}`).join('；')
+        setError(`${failed.length} 条释放失败：${detail}${failed.length > 3 ? ` 等 ${failed.length} 项` : ''}`)
+      } else if (failed.length > 0) {
+        const detail = failed.slice(0, 3).map(entry => `${entry.item.ip}：${entry.message}`).join('；')
+        setError(`释放失败：${detail}${failed.length > 3 ? ` 等 ${failed.length} 项` : ''}`)
+      }
+    } finally {
+      setBulkReleasing(false)
+    }
+  }
+
+  function formatIPsCSVRows(items: IPAddress[]) {
+    return [
       ['IP 地址', '来源', '状态', 'DNS 名称', '角色', '网段', '资产', '用途', '备注'],
-      ...visible.map(item => [
+      ...items.map(item => [
         item.ip, sourceMeta[item.source] ?? item.source,
         stateMeta[item.state] ?? item.state, item.dnsName ?? '', item.role ?? '',
         item.subnetName, item.assetName ?? '', item.label ?? '', item.notes ?? '',
       ]),
-    ])
+    ]
+  }
+  function exportCSV() {
+    downloadCSV('dc-db-ip-addresses.csv', formatIPsCSVRows(visible))
+  }
+  function exportSelectedIPsCSV() {
+    if (!selectedRows.length) return
+    downloadCSV('dc-db-ip-addresses-selected.csv', formatIPsCSVRows(selectedRows))
   }
 
   return (
@@ -336,6 +432,39 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
             }}
           >
             {busy ? '释放中…' : '释放'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    <BulkActionBar
+      count={selectedRows.length}
+      unit="条地址"
+      onClear={() => setRowSelection({})}
+      onExport={exportSelectedIPsCSV}
+      onDelete={editable && releasableSelected.length > 0 ? () => setBulkReleaseOpen(true) : undefined}
+      deleteLabel="释放"
+      deleting={bulkReleasing}
+    />
+    <AlertDialog open={bulkReleaseOpen} onOpenChange={open => { if (!open && !bulkReleasing) setBulkReleaseOpen(false) }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>释放所选 {releasableSelected.length} 条手工分配 IP？</AlertDialogTitle>
+          <AlertDialogDescription>
+            确认释放所选的 {releasableSelected.length} 条手工分配 IP？释放后这些地址将重新变为空闲。
+            {nonReleasableCount > 0 ? `其余 ${nonReleasableCount} 条来自资产或网关的地址不可直接释放，将自动跳过。` : ''}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={bulkReleasing}>取消</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={bulkReleasing}
+            onClick={event => {
+              event.preventDefault()
+              void bulkRelease()
+            }}
+          >
+            {bulkReleasing ? '释放中…' : '释放'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

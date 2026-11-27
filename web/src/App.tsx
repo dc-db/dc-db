@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import {
   Alert, App as UIApp, Button, Card, ConfigProvider, Descriptions,
   Dropdown, Empty, Form, Input, Layout, List, Menu, Modal, Select,
@@ -45,6 +45,7 @@ import { PageHeader } from './components/PageHeader'
 import { RowActionsMenu } from './components/RowActionsMenu'
 import { readStoredThemeMode, THEME_STORAGE_KEY, ThemeToggle, type ThemeMode } from './components/ThemeToggle'
 import { DataTableViewOptions } from './components/TableColumnControls'
+import { BulkActionBar } from './components/TableSelectionControls'
 import { ServiceIcon } from './components/ServiceIcon'
 import { serviceCategory } from './serviceCatalog'
 import { UserManager } from './components/UserManager'
@@ -445,6 +446,14 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
   }, [page, keyword, roomFilter, networkKindFilter, platformFilter])
 
   useEffect(() => {
+    const validIds = new Set(filtered.map(asset => asset.id))
+    setSelectedAssetIds(current => {
+      const next = current.filter(id => validIds.has(id))
+      return next.length === current.length ? current : next
+    })
+  }, [filtered])
+
+  useEffect(() => {
     if (!assetPage) return
     const fallback = page === 'host' ? defaultHostColumns : page === 'network_devices' ? defaultNetworkDeviceColumns : defaultAssetColumns
     try {
@@ -784,6 +793,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
   }
 
   async function saveBulkEdit(values: { platform?: string; lifecycle?: string; owner?: string; environment?: string }) {
+    if (!selectedAssetIds.length) return
     setBulkSaving(true)
     setBulkError('')
     try {
@@ -865,18 +875,29 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     ])
   }
 
-  function exportCSV() {
+  function exportAssetsCSV(items: Asset[], filename = 'dc-db-assets.csv') {
     const rows: (string | number)[][] = [[
       '资源名称', '类型', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '负责人', '环境', '备注',
     ]]
-    for (const asset of filtered) {
+    for (const asset of items) {
       rows.push([
         asset.name, kindLabel(asset.kind), platformLabel(asset), statusOf(asset).label,
         asset.lifecycle === 'retired' ? '已退役' : '在册', asset.address, asset.cpu, asset.memoryMiB,
         asset.owner, asset.environment, asset.notes,
       ])
     }
-    downloadCSV('dc-db-assets.csv', rows)
+    downloadCSV(filename, rows)
+  }
+
+  function exportCSV() {
+    exportAssetsCSV(filtered, 'dc-db-assets.csv')
+  }
+
+  function exportSelectedAssetsCSV() {
+    const selectedSet = new Set(selectedAssetIds)
+    const selectedAssets = filtered.filter(asset => selectedSet.has(asset.id))
+    if (!selectedAssets.length) return
+    exportAssetsCSV(selectedAssets, 'dc-db-assets.csv')
   }
 
   function downloadTemplate() {
@@ -1580,33 +1601,15 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
                   {editable && <Button size="small" type="primary" onClick={() => startNew()}><PlusOutlined /> 新增{pageLabel}</Button>}
                 </Space>}
               />
-              {editable && page === 'network_devices' && selectedAssetIds.length > 0 && (
-                <div
-                  role="region"
-                  aria-label="批量操作栏"
-                  className="bulk-bar fixed bottom-6 left-1/2 z-40 -translate-x-1/2 flex items-center gap-2 rounded-lg border border-border bg-popover px-3 py-2 text-popover-foreground shadow-xl"
-                >
-                  <div className="inline-flex h-7 items-center rounded-md border border-border bg-muted/50 text-xs font-medium">
-                    <span className="px-2.5 tabular-nums">
-                      已选择 <strong>{selectedAssetIds.length}</strong> 条资产
-                    </span>
-                    <button
-                      type="button"
-                      className="inline-flex h-full items-center justify-center border-l border-border px-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                      aria-label="清空已选"
-                      title="取消选择"
-                      onClick={() => setSelectedAssetIds([])}
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <div className="h-4 w-px bg-border" aria-hidden="true" />
-                  <Space size={6}>
-                    <Button size="small" type="primary" onClick={openBulkEdit}>批量编辑</Button>
-                    <Button size="small" onClick={() => setSelectedAssetIds([])}>取消选择</Button>
-                  </Space>
-                </div>
-              )}
+              <BulkActionBar
+                count={selectedAssetIds.length}
+                unit="条资产"
+                onClear={() => setSelectedAssetIds([])}
+                onExport={exportSelectedAssetsCSV}
+                extraActions={editable ? (
+                  <Button size="small" icon={<EditOutlined aria-hidden="true" />} onClick={openBulkEdit}>批量编辑</Button>
+                ) : undefined}
+              />
               <Table<Asset>
                 rowKey="id" columns={columns} dataSource={filtered} loading={busy} size="middle"
                 scroll={{ x: 'max-content' }} locale={{ emptyText: emptyAssets }}
@@ -1617,11 +1620,12 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
                   void openAsset(asset.id)
                 }}
                 sharedStyle={page === 'host' || page === 'vm'}
-                rowSelection={editable && page === 'network_devices' ? {
+                rowSelection={{
                   selectedRowKeys: selectedAssetIds,
                   preserveSelectedRowKeys: true,
                   onChange: keys => setSelectedAssetIds(keys.map(Number)),
-                } : undefined}
+                  getRowLabel: asset => `选择资产 ${asset.name}`,
+                }}
                 pagination={{
                   current: pagination, pageSize, total: filtered.length, showSizeChanger: true, pageSizeOptions: ['10', '20', '50'],
                   showTotal: total => `共 ${total} 条`,
@@ -1726,19 +1730,21 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
               </div>
             )}
             {importPreview.sample.length > 0 && (
-              <Table
-                rowKey="row" size="small" pagination={false} dataSource={importPreview.sample}
-                scroll={{ x: 'max-content' }}
-                columns={[
-                  { title: '行', dataIndex: 'row', width: 56 },
-                  { title: '资源名称', dataIndex: 'name', width: 150 },
-                  { title: '类型', dataIndex: 'kind', width: 96, render: value => kindLabel(String(value ?? '')) },
-                  { title: '状态', dataIndex: 'status', width: 90, render: value => statuses[value]?.label ?? (value || '—') },
-                  { title: '生命周期', dataIndex: 'lifecycle', width: 90, render: value => value === 'retired' ? '已退役' : '在册' },
-                  { title: '负责人', dataIndex: 'owner', width: 110, render: value => value || '—' },
-                  { title: '地址 / IP', dataIndex: 'address', width: 140, render: value => <span className="mono">{value || '—'}</span> },
-                ]}
-              />
+              <div style={{ '--table-max-height': 'min(360px, 42vh)' } as CSSProperties}>
+                <Table
+                  rowKey="row" size="small" pagination={false} dataSource={importPreview.sample}
+                  scroll={{ x: 'max-content' }}
+                  columns={[
+                    { title: '行', dataIndex: 'row', width: 56 },
+                    { title: '资源名称', dataIndex: 'name', width: 150 },
+                    { title: '类型', dataIndex: 'kind', width: 96, render: value => kindLabel(String(value ?? '')) },
+                    { title: '状态', dataIndex: 'status', width: 90, render: value => statuses[value]?.label ?? (value || '—') },
+                    { title: '生命周期', dataIndex: 'lifecycle', width: 90, render: value => value === 'retired' ? '已退役' : '在册' },
+                    { title: '负责人', dataIndex: 'owner', width: 110, render: value => value || '—' },
+                    { title: '地址 / IP', dataIndex: 'address', width: 140, render: value => <span className="mono">{value || '—'}</span> },
+                  ]}
+                />
+              </div>
             )}
             {importPreview.valid > importPreview.sample.length && (
               <p className="muted">样例仅显示前 {importPreview.sample.length} 行可导入数据。</p>

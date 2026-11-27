@@ -21,6 +21,7 @@ import { RoomTreeLayout } from './RoomTreeLayout'
 import { RowActionsMenu } from './RowActionsMenu'
 import { ColumnHeaderMenu, DataTableViewOptions } from './TableColumnControls'
 import type { SortDirection } from './TableColumnControls'
+import { BulkActionBar, RowIndexSelectCell, RowIndexSelectHeader } from './TableSelectionControls'
 
 interface Props {
   roomId: number | null
@@ -112,6 +113,9 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   const [importBusy, setImportBusy] = useState(false)
   const [rackDrawerOpen, setRackDrawerOpen] = useState(false)
   const [pendingDeleteRack, setPendingDeleteRack] = useState<Rack | null>(null)
+  const [selectedRackIds, setSelectedRackIds] = useState<number[]>([])
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   function updateRackColumns(columns: RackColumn[]) {
     const ordered = defaultRackColumns.filter(key => columns.includes(key))
@@ -144,7 +148,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
       entries.push(placement)
       placementsByRack.set(placement.rackId, entries)
     }
-    return new Map(rackRows.map(item => {
+    return new Map(racks.map(item => {
       const placements = placementsByRack.get(item.id) ?? []
       const used = occupiedUnits(placements).size
       return [item.id, {
@@ -155,12 +159,32 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
         devices: placements.length,
       }]
     }))
-  }, [rackRows, roomPlacements])
+  }, [racks, roomPlacements])
   const sortedRackRows = useMemo(() => {
     if (!rackSort) return rackRows
     const factor = rackSort.direction === 'asc' ? 1 : -1
     return [...rackRows].sort((a, b) => factor * (rackMetrics.get(a.id)![rackSort.key] - rackMetrics.get(b.id)![rackSort.key]))
   }, [rackRows, rackMetrics, rackSort])
+  const selectedRackIdSet = useMemo(() => new Set(selectedRackIds), [selectedRackIds])
+  const selectedRacks = useMemo(() => {
+    const orderedVisible = sortedRackRows.filter(item => selectedRackIdSet.has(item.id))
+    const visibleIds = new Set(orderedVisible.map(item => item.id))
+    const hiddenSelected = racks.filter(item => selectedRackIdSet.has(item.id) && !visibleIds.has(item.id))
+    return [...orderedVisible, ...hiddenSelected]
+  }, [racks, sortedRackRows, selectedRackIdSet])
+  const deletableSelectedRacks = useMemo(
+    () => selectedRacks.filter(item => (rackMetrics.get(item.id)?.devices ?? 0) === 0),
+    [selectedRacks, rackMetrics],
+  )
+  const nonEmptySelectedCount = selectedRacks.length - deletableSelectedRacks.length
+  const visibleRackIds = useMemo(() => sortedRackRows.map(item => item.id), [sortedRackRows])
+  const allVisibleRacksSelected = visibleRackIds.length > 0 && visibleRackIds.every(id => selectedRackIdSet.has(id))
+  const someVisibleRacksSelected = visibleRackIds.some(id => selectedRackIdSet.has(id))
+  const rackHeaderChecked: boolean | 'indeterminate' = allVisibleRacksSelected
+    ? true
+    : someVisibleRacksSelected
+      ? 'indeterminate'
+      : false
   const devices = roomPlacements.filter(item => item.rackId === rackId)
   const byId = useMemo(() => new Map(assets.map(asset => [asset.id, asset])), [assets])
   const locations = useMemo(() => assetLocations(layout, links), [layout, links])
@@ -178,6 +202,18 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   useEffect(() => {
     if (!racks.some(item => item.id === rackId)) setRackId(racks[0]?.id ?? null)
   }, [racks, rackId])
+
+  useEffect(() => {
+    setSelectedRackIds([])
+    setBulkDeleteOpen(false)
+  }, [activeRoomId])
+
+  useEffect(() => {
+    setSelectedRackIds(current => {
+      const next = current.filter(id => rackIds.has(id))
+      return next.length === current.length ? current : next
+    })
+  }, [rackIds])
 
   useEffect(() => {
     if (!openRackId) return
@@ -284,6 +320,74 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
       rows.push([item.name, item.zone, item.heightU, used, Math.max(0, item.heightU - used), `${rate}%`, placements.length])
     }
     downloadCSV(`${room.name}-机柜.csv`, rows)
+  }
+
+  function exportSelectedRacksCSV() {
+    if (!room || !selectedRacks.length) return
+    const rows: (string | number)[][] = [['机柜', '区域', '设备数', '高度(U)', '已用(U)', '空闲(U)', '利用率(%)', '创建时间', '更新时间']]
+    for (const item of selectedRacks) {
+      const metrics = rackMetrics.get(item.id)
+      const used = metrics?.used ?? 0
+      const free = metrics?.free ?? item.heightU
+      const usage = metrics?.usage ?? 0
+      const deviceCount = metrics?.devices ?? 0
+      rows.push([
+        item.name,
+        item.zone,
+        deviceCount,
+        item.heightU,
+        used,
+        free,
+        usage,
+        formatDateTime(item.createdAt),
+        formatDateTime(item.updatedAt),
+      ])
+    }
+    downloadCSV(`${room.name}-已选机柜.csv`, rows)
+  }
+
+  async function confirmBulkDeleteRacks() {
+    if (bulkDeleting || busy || !deletableSelectedRacks.length) return
+    const targets = [...deletableSelectedRacks]
+    const skippedCount = selectedRacks.length - targets.length
+    setBulkDeleting(true)
+    setError('')
+    setFeedback('')
+    const deletedIds: number[] = []
+    const failed: string[] = []
+    try {
+      for (const item of targets) {
+        try {
+          await api('/racks/' + item.id + '?version=' + item.version, 'DELETE')
+          deletedIds.push(item.id)
+        } catch (e) {
+          if (e instanceof APIError && e.status === 401) {
+            setBulkDeleteOpen(false)
+            onSessionError(e)
+            return
+          }
+          failed.push(`${item.name}（${e instanceof Error ? e.message : '删除失败'}）`)
+        }
+      }
+      setBulkDeleteOpen(false)
+      if (deletedIds.length > 0) {
+        if (openRackId && deletedIds.includes(openRackId)) closeRackDrawer()
+        await reload()
+        setSelectedRackIds(current => current.filter(id => !deletedIds.includes(id)))
+      }
+      if (deletedIds.length > 0) {
+        setFeedback(
+          skippedCount > 0
+            ? `已删除 ${deletedIds.length} 个空机柜，跳过 ${skippedCount} 个含已上架设备的机柜`
+            : `已删除 ${deletedIds.length} 个空机柜`,
+        )
+      }
+      if (failed.length > 0) {
+        setError(`以下 ${failed.length} 个机柜删除失败：${failed.join('；')}`)
+      }
+    } finally {
+      setBulkDeleting(false)
+    }
   }
 
   async function submitImport() {
@@ -512,7 +616,20 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                   {view === 'table' ? (
                     <div className="shared-table-wrap">
                       <table className="shared-table facility-table-clickable">
-                        <thead><tr>{rackColumns.filter(column => visibleRackColumns.includes(column.key)).map(column => {
+                        <thead><tr>
+                          <th className="col-select">
+                            <RowIndexSelectHeader
+                              checked={rackHeaderChecked}
+                              disabled={visibleRackIds.length === 0}
+                              ariaLabel="全选当前列表机柜"
+                              onCheckedChange={checked => {
+                                setSelectedRackIds(current => checked
+                                  ? Array.from(new Set([...current, ...visibleRackIds]))
+                                  : current.filter(id => !visibleRackIds.includes(id)))
+                              }}
+                            />
+                          </th>
+                          {rackColumns.filter(column => visibleRackColumns.includes(column.key)).map(column => {
                           const sortKey = isRackSortColumn(column.key) ? column.key : null
                           const sortDirection: SortDirection = sortKey && rackSort?.key === sortKey ? rackSort.direction : false
                           return <th key={column.key} aria-sort={sortKey ? (sortDirection === 'asc' ? 'ascending' : sortDirection === 'desc' ? 'descending' : 'none') : undefined}>
@@ -530,10 +647,28 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                           </th>
                         })}{editable && <th className="w-10"><span className="sr-only">操作</span></th>}</tr></thead>
                         <tbody>
-                          {sortedRackRows.map(item => {
+                          {sortedRackRows.map((item, index) => {
                             const { used, free, usage: rate, devices: deviceCount } = rackMetrics.get(item.id)!
+                            const isSelected = selectedRackIdSet.has(item.id)
                             return (
-                              <tr key={item.id} onClick={() => openRack(item.id)}>
+                              <tr
+                                key={item.id}
+                                className="group/row"
+                                data-state={isSelected ? 'selected' : undefined}
+                                onClick={() => openRack(item.id)}
+                              >
+                                <td className="col-select" onClick={event => event.stopPropagation()}>
+                                  <RowIndexSelectCell
+                                    rowNumber={index + 1}
+                                    selected={isSelected}
+                                    ariaLabel={`选择机柜 ${item.name}`}
+                                    onToggle={checked => {
+                                      setSelectedRackIds(current => checked
+                                        ? Array.from(new Set([...current, item.id]))
+                                        : current.filter(id => id !== item.id))
+                                    }}
+                                  />
+                                </td>
                                 {visibleRackColumns.includes('name') && <td><strong>{item.name}</strong></td>}
                                 {visibleRackColumns.includes('devices') && <td>{deviceCount}</td>}
                                 {visibleRackColumns.includes('zone') && <td>{item.zone || '—'}</td>}
@@ -559,7 +694,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                               </tr>
                             )
                           })}
-                          {!rackRows.length && <tr><td colSpan={visibleRackColumns.length + (editable ? 1 : 0)} className="facility-table-empty">{rackKeyword ? '没有匹配的机柜' : '还没有机柜，点右上角「新增机柜」开始'}</td></tr>}
+                          {!rackRows.length && <tr><td colSpan={visibleRackColumns.length + 1 + (editable ? 1 : 0)} className="facility-table-empty">{rackKeyword ? '没有匹配的机柜' : '还没有机柜，点右上角「新增机柜」开始'}</td></tr>}
                         </tbody>
                       </table>
                     </div>
@@ -621,6 +756,17 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                   )}
                 </CardContent>
               </Card>
+              {view === 'table' && (
+                <BulkActionBar
+                  count={selectedRacks.length}
+                  unit="个机柜"
+                  onClear={() => setSelectedRackIds([])}
+                  onExport={exportSelectedRacksCSV}
+                  onDelete={editable ? () => setBulkDeleteOpen(true) : undefined}
+                  deleteDisabled={busy || deletableSelectedRacks.length === 0}
+                  deleting={bulkDeleting}
+                />
+              )}
             </div>
           )}
       </RoomTreeLayout>
@@ -684,6 +830,31 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
               }}
             >
               删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={open => { if (!open && !bulkDeleting) setBulkDeleteOpen(false) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>批量删除机柜？</AlertDialogTitle>
+            <AlertDialogDescription>
+              {nonEmptySelectedCount > 0
+                ? `已选择 ${selectedRacks.length} 个机柜，其中 ${deletableSelectedRacks.length} 个空机柜将被永久删除，其余 ${nonEmptySelectedCount} 个含已上架设备的机柜将自动跳过。此操作无法撤销。`
+                : `已选择 ${selectedRacks.length} 个空机柜，确认后将全部永久删除。此操作无法撤销。`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={bulkDeleting || deletableSelectedRacks.length === 0}
+              onClick={event => {
+                event.preventDefault()
+                void confirmBulkDeleteRacks()
+              }}
+            >
+              {bulkDeleting ? '删除中…' : `删除 ${deletableSelectedRacks.length} 个空机柜`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

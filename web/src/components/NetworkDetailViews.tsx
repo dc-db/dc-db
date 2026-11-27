@@ -5,16 +5,19 @@ import {
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
+  type RowSelectionState,
   type SortingState,
   type VisibilityState,
 } from '@tanstack/react-table'
 import { ArrowLeft, Building2, ChevronLeft, ChevronRight, List, Network, Split } from 'lucide-react'
 import { api, APIError } from '../api'
+import { downloadCSV } from '../csv'
 import type { Asset, AvailableIPs, IPAddress, IPUsage, Link, Subnet, SubnetDetail, VLAN } from '../api'
 import { assetLocations, uRange, type Facilities } from '../facilities'
 import { DataTable } from './DataTable'
 import { RowIconBox } from './ServiceIcon'
 import { DataTableViewOptions } from './TableColumnControls'
+import { BulkActionBar, createRowSelectionColumn } from './TableSelectionControls'
 import { TopologyCanvas, type TopoEdgeInput, type TopoItem, type TopoTier } from './TopologyCanvas'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -97,6 +100,10 @@ function compareText(left?: string | null, right?: string | null): number {
   return (left ?? '').localeCompare(right ?? '', 'zh-CN', { numeric: true })
 }
 
+function ipUsageRowId(row: IPUsage): string {
+  return row.allocationId ? `alloc-${row.allocationId}` : `${row.source}-${row.ip}-${row.assetId ?? 0}`
+}
+
 interface SubnetDetailProps {
   subnet: Subnet
   assets: Asset[]
@@ -130,12 +137,27 @@ export function SubnetDetailView({
   const [freeIPs, setFreeIPs] = useState<AvailableIPs | null>(null)
   const [usedSorting, setUsedSorting] = useState<SortingState>([])
   const [usedColumnVisibility, setUsedColumnVisibility] = useState<VisibilityState>({})
+  const [usedRowSelection, setUsedRowSelection] = useState<RowSelectionState>({})
   const freePageSize = 10
 
   useEffect(() => {
     setView('details')
     setFreePage(0)
+    setUsedRowSelection({})
   }, [subnet.id])
+
+  useEffect(() => {
+    const validIds = new Set((detail?.usedIps ?? []).map(ipUsageRowId))
+    setUsedRowSelection(prev => {
+      const next: RowSelectionState = {}
+      let changed = false
+      for (const [id, selected] of Object.entries(prev)) {
+        if (selected && validIds.has(id)) next[id] = true
+        else changed = true
+      }
+      return changed ? next : prev
+    })
+  }, [detail?.usedIps])
 
   useEffect(() => {
     let active = true
@@ -165,6 +187,10 @@ export function SubnetDetailView({
   const statusInfo = subnetStatusMeta[current.status] ?? subnetStatusMeta.active
 
   const usedColumns = useMemo<ColumnDef<IPUsage>[]>(() => [
+    createRowSelectionColumn<IPUsage>({
+      selectAllLabel: '全选当前页已用 IP',
+      getRowLabel: row => `选择 IP ${row.ip}`,
+    }),
     {
       accessorKey: 'ip',
       header: 'IP 地址',
@@ -242,14 +268,36 @@ export function SubnetDetailView({
   const usedTable = useReactTable({
     data: detail?.usedIps ?? [],
     columns: usedColumns,
-    state: { sorting: usedSorting, columnVisibility: usedColumnVisibility },
+    getRowId: ipUsageRowId,
+    enableRowSelection: true,
+    state: { sorting: usedSorting, columnVisibility: usedColumnVisibility, rowSelection: usedRowSelection },
     onSortingChange: setUsedSorting,
     onColumnVisibilityChange: setUsedColumnVisibility,
+    onRowSelectionChange: setUsedRowSelection,
     initialState: { pagination: { pageIndex: 0, pageSize: 10 } },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   })
+  const selectedUsedIps = usedTable.getSelectedRowModel().rows.map(row => row.original)
+
+  function exportSelectedUsedIPsCSV() {
+    if (!selectedUsedIps.length) return
+    downloadCSV(`dc-db-subnet-${current.id}-used-ips.csv`, [
+      ['IP 地址', '来源', '状态', 'DNS 名称', '角色', '网段', '资产', '用途', '备注'],
+      ...selectedUsedIps.map(item => [
+        item.ip,
+        ipSourceMeta[item.source] ?? item.source,
+        ipStateMeta[item.state]?.label ?? item.state,
+        item.dnsName ?? '',
+        ipRoleLabels[item.role ?? ''] ?? (item.role || ''),
+        current.name,
+        item.assetName ?? '',
+        item.label ?? '',
+        item.notes ?? '',
+      ]),
+    ])
+  }
 
   // Build layered topology: [VLAN?] → 网段 → 虚拟机/直接承载资产 → 服务器 → 数据中心
   const topo = useMemo(() => {
@@ -422,6 +470,12 @@ export function SubnetDetailView({
               emptyMessage="该网段暂无已用 IP 地址"
             />
           </section>
+          <BulkActionBar
+            count={selectedUsedIps.length}
+            unit="条地址"
+            onClear={() => setUsedRowSelection({})}
+            onExport={exportSelectedUsedIPsCSV}
+          />
 
           {freeIPs && freeIPs.total > 0 && (
             <section className="svc-bound-section">
@@ -489,8 +543,12 @@ export function VLANDetailView({
   const [allIPs, setAllIPs] = useState<IPAddress[]>([])
   const [subnetSorting, setSubnetSorting] = useState<SortingState>([])
   const [subnetColumnVisibility, setSubnetColumnVisibility] = useState<VisibilityState>({})
+  const [subnetRowSelection, setSubnetRowSelection] = useState<RowSelectionState>({})
 
-  useEffect(() => { setView('details') }, [vlan.id])
+  useEffect(() => {
+    setView('details')
+    setSubnetRowSelection({})
+  }, [vlan.id])
   useEffect(() => {
     let active = true
     api<IPAddress[]>('/ip-addresses').then(data => { if (active) setAllIPs(data) }).catch(() => {})
@@ -501,9 +559,25 @@ export function VLANDetailView({
     () => subnets.filter(s => s.vlan === String(vlan.vid)),
     [subnets, vlan.vid],
   )
+  useEffect(() => {
+    const validIds = new Set(relatedSubnets.map(s => String(s.id)))
+    setSubnetRowSelection(prev => {
+      const next: RowSelectionState = {}
+      let changed = false
+      for (const [id, selected] of Object.entries(prev)) {
+        if (selected && validIds.has(id)) next[id] = true
+        else changed = true
+      }
+      return changed ? next : prev
+    })
+  }, [relatedSubnets])
   const statusInfo = subnetStatusMeta[vlan.status] ?? subnetStatusMeta.active
 
   const subnetColumns = useMemo<ColumnDef<Subnet>[]>(() => [
+    createRowSelectionColumn<Subnet>({
+      selectAllLabel: '全选关联网段',
+      getRowLabel: row => `选择网段 ${row.cidr}`,
+    }),
     {
       accessorKey: 'name',
       header: '网段名称',
@@ -552,12 +626,35 @@ export function VLANDetailView({
   const subnetTable = useReactTable({
     data: relatedSubnets,
     columns: subnetColumns,
-    state: { sorting: subnetSorting, columnVisibility: subnetColumnVisibility },
+    getRowId: row => String(row.id),
+    enableRowSelection: true,
+    state: { sorting: subnetSorting, columnVisibility: subnetColumnVisibility, rowSelection: subnetRowSelection },
     onSortingChange: setSubnetSorting,
     onColumnVisibilityChange: setSubnetColumnVisibility,
+    onRowSelectionChange: setSubnetRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   })
+  const selectedRelatedSubnets = subnetTable.getSelectedRowModel().rows.map(row => row.original)
+
+  function exportSelectedSubnetsCSV() {
+    if (!selectedRelatedSubnets.length) return
+    downloadCSV(`dc-db-vlan-${vlan.vid}-subnets.csv`, [
+      ['网段名称', 'CIDR', '网关', 'VLAN', '状态', '用途', '可用地址', '已用', '空闲', '备注'],
+      ...selectedRelatedSubnets.map(item => [
+        item.name,
+        item.cidr,
+        item.gateway,
+        item.vlan,
+        subnetStatusMeta[item.status]?.label ?? item.status,
+        ipRoleLabels[item.role ?? ''] ?? (item.role || ''),
+        item.usable,
+        item.used,
+        item.free,
+        item.notes,
+      ]),
+    ])
+  }
 
   // Build layered topology: [数据中心?] → VLAN → 关联网段 → 关联资产
   const topo = useMemo(() => {
@@ -684,10 +781,19 @@ export function VLANDetailView({
             <DataTable
               table={subnetTable}
               showPager={false}
-              onRowClick={onOpenSubnetDetail}
+              onRowClick={(item, event) => {
+                if ((event.target as HTMLElement).closest('button, a, [role="checkbox"], [role="menuitem"], [data-slot="dropdown-menu-content"]')) return
+                onOpenSubnetDetail(item)
+              }}
               emptyMessage="尚未有网段关联此 VLAN"
             />
           </section>
+          <BulkActionBar
+            count={selectedRelatedSubnets.length}
+            unit="个网段"
+            onClear={() => setSubnetRowSelection({})}
+            onExport={exportSelectedSubnetsCSV}
+          />
         </>
       ) : (
         <TopologyCanvas

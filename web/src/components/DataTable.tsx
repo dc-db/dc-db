@@ -16,6 +16,7 @@ interface Props<T> {
   onRowClick?: (row: T, event: MouseEvent<HTMLTableRowElement>) => void
   rowClassName?: (row: T) => string | undefined
   className?: string
+  containerClassName?: string
 }
 
 function isSystemColumn(id: string): boolean {
@@ -33,6 +34,7 @@ export function DataTable<T>({
   onRowClick,
   rowClassName,
   className,
+  containerClassName,
 }: Props<T>) {
   const visibleLeafColumns = table.getVisibleLeafColumns()
   const columnCount = visibleLeafColumns.length || 1
@@ -45,7 +47,7 @@ export function DataTable<T>({
 
   return (
     <div className="data-table-shell">
-      <Table className={className}>
+      <Table className={className} containerClassName={containerClassName}>
         <TableHeader>
           {table.getHeaderGroups().map(group => (
             <TableRow key={group.id}>

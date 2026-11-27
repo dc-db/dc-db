@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState, type VisibilityState } from '@tanstack/react-table'
+import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type RowSelectionState, type SortingState, type VisibilityState } from '@tanstack/react-table'
 import { Plus, Trash2 } from 'lucide-react'
 import { APIError, api, type DirectoryEntry, type Person, type Team, type User } from '../api'
+import { downloadCSV } from '../csv'
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
 import { SearchableSelect } from './SearchableSelect'
 import { DataTableViewOptions } from './TableColumnControls'
+import { BulkActionBar, createRowSelectionColumn } from './TableSelectionControls'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from './ui/alert-dialog'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
@@ -34,6 +40,10 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
   const [keyword, setKeyword] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [bulkError, setBulkError] = useState('')
   const [draft, setDraft] = useState<Draft | null>(null)
   const [editing, setEditing] = useState<Entry | null>(null)
   const [deleting, setDeleting] = useState<Entry | null>(null)
@@ -47,7 +57,18 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
   useEffect(() => {
     setColumnVisibility({})
     setSorting([])
+    setRowSelection({})
+    setBulkDeleteOpen(false)
+    setBulkError('')
   }, [kind])
+
+  useEffect(() => {
+    setRowSelection(prev => {
+      const valid = new Set(entries.map(entry => String(entry.id)))
+      const kept = Object.entries(prev).filter(([id, checked]) => checked && valid.has(id))
+      return kept.length === Object.keys(prev).length ? prev : Object.fromEntries(kept)
+    })
+  }, [entries])
 
   function errorMessage(error: unknown) {
     if (error instanceof APIError && error.status === 401) onSessionError(error)
@@ -127,7 +148,100 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
     }
     return namesByPerson
   }, [teams])
+  const selectedItems = useMemo(
+    () => entries.filter(entry => Boolean(rowSelection[String(entry.id)])),
+    [entries, rowSelection],
+  )
+  const deletableSelected = useMemo(
+    () => selectedItems.filter(entry => entry.assetCount === 0),
+    [selectedItems],
+  )
+  const blockedSelectedCount = selectedItems.length - deletableSelected.length
+
+  function exportSelectedOrgCSV() {
+    if (selectedItems.length === 0) return
+    if (teamPage) {
+      downloadCSV('dc-db-teams.csv', [
+        ['团队名称', '成员', '关联资产', '备注'],
+        ...selectedItems.map(entry => {
+          const team = entry as Team
+          const members = team.memberIds.map(id => peopleById.get(id)?.name).filter(Boolean).join('、')
+          return [team.name, members, team.assetCount, team.description ?? '']
+        }),
+      ])
+      return
+    }
+    const headers = canLinkAccount
+      ? ['姓名', '登录账号', '所属团队', '关联资产', '备注']
+      : ['姓名', '所属团队', '关联资产', '备注']
+    downloadCSV('dc-db-people.csv', [
+      headers,
+      ...selectedItems.map(entry => {
+        const person = entry as Person
+        const teamNames = teamNamesByPerson.get(person.id)?.join('、') ?? ''
+        return canLinkAccount
+          ? [person.name, person.username ?? '', teamNames, person.assetCount, person.description ?? '']
+          : [person.name, teamNames, person.assetCount, person.description ?? '']
+      }),
+    ])
+  }
+
+  async function removeSelected() {
+    if (bulkDeleting || busy || deletableSelected.length === 0) return
+    const targets = [...deletableSelected]
+    const targetKind = kind
+    const targetUnit = targetKind === 'teams' ? '个团队' : '名人员'
+    setBulkDeleting(true)
+    setBulkError('')
+    const deletedIds: string[] = []
+    const failures: string[] = []
+    let sessionExpired = false
+    try {
+      for (const entry of targets) {
+        try {
+          await api(`/${targetKind}/${entry.id}`, 'DELETE')
+          deletedIds.push(String(entry.id))
+        } catch (error) {
+          if (error instanceof APIError && error.status === 401) {
+            sessionExpired = true
+            onSessionError(error)
+            break
+          }
+          failures.push(`${entry.name}：${error instanceof Error ? error.message : '删除失败'}`)
+        }
+      }
+      if (deletedIds.length > 0) {
+        setRowSelection(prev => {
+          const next = { ...prev }
+          for (const id of deletedIds) delete next[id]
+          return next
+        })
+      }
+      if (sessionExpired) return
+      if (deletedIds.length > 0) {
+        try {
+          await onRefresh()
+        } catch (error) {
+          failures.push(`刷新列表失败：${errorMessage(error)}`)
+        }
+      }
+      if (failures.length > 0) {
+        setBulkError(
+          deletedIds.length > 0
+            ? `已删除 ${deletedIds.length} ${targetUnit}，${failures.length} 项处理失败：${failures.join('；')}`
+            : `删除失败：${failures.join('；')}`,
+        )
+      }
+    } finally {
+      setBulkDeleting(false)
+      setBulkDeleteOpen(false)
+    }
+  }
+
   const columns: ColumnDef<Entry>[] = [
+    createRowSelectionColumn<Entry>({
+      getRowLabel: row => `选择${title} ${row.name}`,
+    }),
     {
       accessorKey: 'name',
       header: '名称',
@@ -215,9 +329,12 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
   const table = useReactTable({
     data: visible,
     columns,
-    state: { sorting, columnVisibility },
+    state: { sorting, columnVisibility, rowSelection },
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection: true,
+    getRowId: row => String(row.id),
     initialState: { pagination: { pageIndex: 0, pageSize: 20 } },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -237,7 +354,22 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
         </>
       }
     />
+    {bulkError && (
+      <div role="alert" className="mb-4 flex justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+        <span>{bulkError}</span>
+        <button type="button" aria-label="关闭" onClick={() => setBulkError('')}>×</button>
+      </div>
+    )}
     <DataTable table={table} loading={loading} emptyMessage={keyword ? `未找到匹配的${title}` : `暂无${title}`} />
+    <BulkActionBar
+      count={selectedItems.length}
+      unit={teamPage ? '个团队' : '名人员'}
+      onClear={() => setRowSelection({})}
+      onExport={exportSelectedOrgCSV}
+      onDelete={editable ? () => { setBulkError(''); setBulkDeleteOpen(true) } : undefined}
+      deleteDisabled={busy || deletableSelected.length === 0}
+      deleting={bulkDeleting}
+    />
 
     <Dialog open={draft !== null} onOpenChange={open => { if (!open && !busy) setDraft(null) }}>
       <DialogContent aria-describedby={undefined}>
@@ -313,5 +445,29 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <AlertDialog open={bulkDeleteOpen} onOpenChange={next => { if (!bulkDeleting) setBulkDeleteOpen(next) }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>删除选中的 {deletableSelected.length} {teamPage ? '个团队' : '名人员'}？</AlertDialogTitle>
+          <AlertDialogDescription>
+            此操作会移除这 {deletableSelected.length} {teamPage ? '个团队及其成员关系' : '名人员及其团队成员关系'}，无法撤销。
+            {blockedSelectedCount > 0 && ` 另外已选中的 ${blockedSelectedCount} ${teamPage ? '个团队' : '名人员'}仍有关联资产，将自动跳过（请先调整关联资产的归属后再删除）。`}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={bulkDeleting}>取消</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={bulkDeleting || busy || deletableSelected.length === 0}
+            onClick={event => {
+              event.preventDefault()
+              void removeSelected()
+            }}
+          >
+            {bulkDeleting ? '删除中…' : '删除'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </>
 }

@@ -14,6 +14,7 @@ import { Tabs as UiTabs, TabsList, TabsTrigger, TabsContent } from '@/components
 import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ColumnHeaderMenu } from './TableColumnControls'
+import { RowIndexSelectCell, RowIndexSelectHeader } from './TableSelectionControls'
 import './app-controls.css'
 
 type Common = { children?: ReactNode; className?: string; style?: CSSProperties; [key: string]: any }
@@ -150,8 +151,29 @@ export type TableColumn<T> = {
   onHide?: () => void
 }
 export type TableColumnsType<T> = TableColumn<T>[]
-type TableProps<T> = { sharedStyle?: boolean; columns: TableColumnsType<T>; dataSource: T[]; rowKey: keyof T; loading?: boolean; rowSelection?: { selectedRowKeys: (string | number)[]; preserveSelectedRowKeys?: boolean; onChange: (keys: (string | number)[]) => void }; pagination?: false | { current: number; pageSize: number; total: number; showSizeChanger?: boolean; pageSizeOptions?: string[]; showTotal?: (n: number) => ReactNode; onChange: (page: number, size: number) => void }; locale?: { emptyText?: ReactNode }; onRowClick?: (record: T, event: React.MouseEvent<HTMLTableRowElement>) => void; rowClassName?: (record: T) => string; onHideColumn?: (key: string) => void; [key: string]: any }
-export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, pagination, locale, onRowClick, rowClassName, sharedStyle, onHideColumn }: TableProps<T>) {
+type TableProps<T> = {
+  sharedStyle?: boolean
+  columns: TableColumnsType<T>
+  dataSource: T[]
+  rowKey: keyof T
+  loading?: boolean
+  rowSelection?: {
+    selectedRowKeys: (string | number)[]
+    preserveSelectedRowKeys?: boolean
+    onChange: (keys: (string | number)[]) => void
+    isRowSelectable?: (record: T) => boolean
+    selectAllLabel?: string
+    getRowLabel?: (record: T, rowNumber: number) => string
+  }
+  rowNumberOffset?: number
+  pagination?: false | { current: number; pageSize: number; total: number; showSizeChanger?: boolean; pageSizeOptions?: string[]; showTotal?: (n: number) => ReactNode; onChange: (page: number, size: number) => void }
+  locale?: { emptyText?: ReactNode }
+  onRowClick?: (record: T, event: React.MouseEvent<HTMLTableRowElement>) => void
+  rowClassName?: (record: T) => string
+  onHideColumn?: (key: string) => void
+  [key: string]: any
+}
+export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, rowNumberOffset, pagination, locale, onRowClick, rowClassName, sharedStyle, onHideColumn }: TableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const columnMap = new Map<string, TableColumn<T>>()
   const defs: ColumnDef<T, any>[] = columns.map((c, i) => {
@@ -170,10 +192,21 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, p
   })
   React.useEffect(() => { setSorting(current => current.filter(item => defs.some(col => col.id === item.id))) }, [columns.map(c => c.key ?? String(c.dataIndex)).join('|')])
   const table = useReactTable({ data: dataSource, columns: defs, state: { sorting }, onSortingChange: setSorting, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel() })
-  const sorted = table.getRowModel().rows; const pageSize = pagination ? pagination.pageSize : sorted.length; const totalPages = pagination ? Math.max(1, Math.ceil(pagination.total / pageSize)) : 1; const current = pagination ? Math.min(Math.max(1, pagination.current), totalPages) : 1; const rows = pagination ? sorted.slice((current - 1) * pageSize, current * pageSize) : sorted; const keys = rows.map(row => row.original[rowKey] as string | number); const selected = rowSelection?.selectedRowKeys ?? []; const all = keys.length > 0 && keys.every(key => selected.includes(key));
+  const sorted = table.getRowModel().rows
+  const pageSize = pagination ? pagination.pageSize : sorted.length
+  const totalPages = pagination ? Math.max(1, Math.ceil(pagination.total / Math.max(1, pageSize))) : 1
+  const current = pagination ? Math.min(Math.max(1, pagination.current), totalPages) : 1
+  const pageStart = rowNumberOffset ?? (pagination ? (current - 1) * pageSize : 0)
+  const rows = pagination ? sorted.slice((current - 1) * pageSize, current * pageSize) : sorted
+  const selected = rowSelection?.selectedRowKeys ?? []
+  const selectableRows = rowSelection?.isRowSelectable
+    ? rows.filter(row => rowSelection.isRowSelectable!(row.original))
+    : rows
+  const selectableKeys = selectableRows.map(row => row.original[rowKey] as string | number)
+  const allSelected = selectableKeys.length > 0 && selectableKeys.every(key => selected.includes(key))
+  const someSelected = selectableKeys.some(key => selected.includes(key))
+  const headerChecked: boolean | 'indeterminate' = allSelected ? true : someSelected ? 'indeterminate' : false
   const visibleDataColumnCount = defs.filter(col => col.id !== 'select' && col.id !== 'actions').length
-  // Shared header-cell rendering; the first cell can also carry the
-  // select-all checkbox so the header row starts at the table edge.
   const headContent = (header: any) => {
     const colId = header.column.id as string
     const isSystem = colId === 'select' || colId === 'actions'
@@ -217,24 +250,80 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, p
   return <div className="control-table-area" aria-busy={loading}>
     {loading && <div className="control-table-loading" role="status"><LoaderCircle className="animate-spin" size={18} />加载中</div>}
     <div className={`control-table-wrap${sharedStyle ? ' shared-table-wrap' : ''}`} inert={loading || undefined}>
-      <table className={`control-table${sharedStyle ? ' shared-table' : ''}`}><thead>{table.getHeaderGroups().map(group => <tr key={group.id}>
-        {rowSelection ? (<>
-          <th
-            className="control-th-select"
-            aria-sort={group.headers[0]?.column.getCanSort()
-              ? (group.headers[0].column.getIsSorted() === 'asc' ? 'ascending' : group.headers[0].column.getIsSorted() === 'desc' ? 'descending' : 'none')
-              : undefined}
-          >
-            <span className="control-th-select-inner">
-              <UiCheckbox aria-label="选择本页全部" checked={all ? true : keys.some(k => selected.includes(k)) ? 'indeterminate' : false} onCheckedChange={v => rowSelection.onChange(v ? Array.from(new Set([...selected, ...keys])) : selected.filter(k => !keys.includes(k)))} />
-              {group.headers[0] && headContent(group.headers[0])}
-            </span>
-          </th>
-          {group.headers.slice(1).map(headCell)}
-        </>) : group.headers.map(headCell)}
-      </tr>)}</thead><tbody>{rows.map(row => <tr key={String(row.original[rowKey])} className={rowClassName?.(row.original) || undefined} onClick={onRowClick ? event => onRowClick(row.original, event) : undefined} style={onRowClick ? { cursor: 'pointer' } : undefined}>{row.getVisibleCells().map((cell, cellIndex) => <td key={cell.id}>{rowSelection && cellIndex === 0
-          ? <span className="control-cell-select"><UiCheckbox aria-label="选择该行" checked={selected.includes(row.original[rowKey] as string | number)} onCheckedChange={v => rowSelection.onChange(v ? [...selected, row.original[rowKey] as string | number] : selected.filter(k => k !== row.original[rowKey]))} />{flexRender(cell.column.columnDef.cell, cell.getContext())}</span>
-          : flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}</tr>)}{!rows.length && <tr><td colSpan={columns.length}>{locale?.emptyText ?? <Empty />}</td></tr>}</tbody></table>
+      <table className={`control-table${sharedStyle ? ' shared-table' : ''}`}>
+        <thead>
+          {table.getHeaderGroups().map(group => (
+            <tr key={group.id}>
+              {rowSelection && (
+                <th className="col-select">
+                  <RowIndexSelectHeader
+                    checked={headerChecked}
+                    disabled={selectableKeys.length === 0}
+                    ariaLabel={rowSelection.selectAllLabel}
+                    onCheckedChange={checked => {
+                      rowSelection.onChange(
+                        checked
+                          ? Array.from(new Set([...selected, ...selectableKeys]))
+                          : selected.filter(k => !selectableKeys.includes(k)),
+                      )
+                    }}
+                  />
+                </th>
+              )}
+              {group.headers.map(headCell)}
+            </tr>
+          ))}
+        </thead>
+        <tbody>
+          {rows.map((row, rowIndex) => {
+            const recordKey = row.original[rowKey] as string | number
+            const isSelected = Boolean(rowSelection && selected.includes(recordKey))
+            const canSelect = !rowSelection?.isRowSelectable || rowSelection.isRowSelectable(row.original)
+            const rowNumber = pageStart + rowIndex + 1
+            const extraRowClass = rowClassName?.(row.original)
+            const trClassName = ['group/row', extraRowClass].filter(Boolean).join(' ')
+            return (
+              <tr
+                key={String(recordKey)}
+                data-state={isSelected ? 'selected' : undefined}
+                className={trClassName}
+                onClick={onRowClick ? event => onRowClick(row.original, event) : undefined}
+                style={onRowClick ? { cursor: 'pointer' } : undefined}
+              >
+                {rowSelection && (
+                  <td className="col-select">
+                    <RowIndexSelectCell
+                      rowNumber={rowNumber}
+                      selected={isSelected}
+                      disabled={!canSelect}
+                      ariaLabel={rowSelection.getRowLabel?.(row.original, rowNumber)}
+                      onToggle={checked => {
+                        rowSelection.onChange(
+                          checked
+                            ? Array.from(new Set([...selected, recordKey]))
+                            : selected.filter(k => k !== recordKey),
+                        )
+                      }}
+                    />
+                  </td>
+                )}
+                {row.getVisibleCells().map(cell => (
+                  <td key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            )
+          })}
+          {!rows.length && (
+            <tr>
+              <td colSpan={table.getVisibleLeafColumns().length + (rowSelection ? 1 : 0)}>
+                {locale?.emptyText ?? <Empty />}
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
     {pagination && (
       <div className="control-pagination">

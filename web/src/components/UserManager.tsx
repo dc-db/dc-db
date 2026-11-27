@@ -1,13 +1,19 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState, type VisibilityState } from '@tanstack/react-table'
+import { getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef, type RowSelectionState, type SortingState, type VisibilityState } from '@tanstack/react-table'
 import { Eye, EyeOff, Plus, RefreshCw } from 'lucide-react'
 import { api, APIError } from '../api'
 import type { Role, User, UserFields } from '../api'
+import { downloadCSV } from '../csv'
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
 import { DataTableViewOptions } from './TableColumnControls'
+import { BulkActionBar, createRowSelectionColumn } from './TableSelectionControls'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from './ui/alert-dialog'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
@@ -32,6 +38,9 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
   const [users, setUsers] = useState<User[]>([])
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -53,8 +62,43 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
   const [showPassword, setShowPassword] = useState(false)
   const [fields, setFields] = useState<UserFields>(initialFields)
   const adminCount = useMemo(() => users.filter(user => user.role === 'admin').length, [users])
+  const tableData = useMemo(() => (canManageUsers ? users : [currentUser]), [canManageUsers, users, currentUser])
 
   useEffect(() => { if (canManageUsers) void load() }, [canManageUsers])
+  useEffect(() => {
+    setRowSelection(prev => {
+      const valid = new Set(tableData.map(user => user.username))
+      const kept = Object.entries(prev).filter(([username, checked]) => checked && valid.has(username))
+      return kept.length === Object.keys(prev).length ? prev : Object.fromEntries(kept)
+    })
+  }, [tableData])
+
+  const selectedUsers = useMemo(
+    () => tableData.filter(user => Boolean(rowSelection[user.username])),
+    [tableData, rowSelection],
+  )
+  const { deletableSelected, selfSelected, skippedLastAdmin } = useMemo(() => {
+    if (!canManageUsers) {
+      return { deletableSelected: [] as User[], selfSelected: false, skippedLastAdmin: null as User | null }
+    }
+    const selfPicked = selectedUsers.some(user => user.username === currentUsername)
+    const candidates = selectedUsers.filter(user => user.username !== currentUsername)
+    const candidateNames = new Set(candidates.map(user => user.username))
+    const remainingAdmins = users.filter(user => user.role === 'admin' && !candidateNames.has(user.username)).length
+    if (remainingAdmins >= 1) {
+      return { deletableSelected: candidates, selfSelected: selfPicked, skippedLastAdmin: null as User | null }
+    }
+    const candidateAdmins = candidates.filter(user => user.role === 'admin')
+    if (candidateAdmins.length === 0) {
+      return { deletableSelected: candidates, selfSelected: selfPicked, skippedLastAdmin: null as User | null }
+    }
+    const protectedAdmin = candidateAdmins[0]
+    return {
+      deletableSelected: candidates.filter(user => user.username !== protectedAdmin.username),
+      selfSelected: selfPicked,
+      skippedLastAdmin: protectedAdmin,
+    }
+  }, [canManageUsers, currentUsername, selectedUsers, users])
   function report(e: unknown, inModal = false) {
     if (e instanceof APIError && e.status === 401) { onSessionError(e); return }
     const message = e instanceof Error ? e.message : '操作失败'
@@ -151,7 +195,71 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
     catch (e) { setDeleting(null); report(e) } finally { setBusy(false) }
   }
 
+  function exportSelectedUsersCSV() {
+    if (selectedUsers.length === 0) return
+    downloadCSV('dc-db-users.csv', [
+      ['账号', '角色', '权限说明'],
+      ...selectedUsers.map(user => [
+        user.username,
+        roleMeta[user.role]?.label ?? user.role,
+        roleMeta[user.role]?.description ?? '',
+      ]),
+    ])
+  }
+
+  async function removeSelected() {
+    if (!canManageUsers || bulkDeleting || busy || deletableSelected.length === 0) return
+    const targets = [...deletableSelected]
+    setBulkDeleting(true)
+    setError('')
+    setFeedback('')
+    const deletedUsernames: string[] = []
+    const failures: string[] = []
+    let sessionExpired = false
+    try {
+      for (const user of targets) {
+        try {
+          await api(`/users/${encodeURIComponent(user.username)}`, 'DELETE')
+          deletedUsernames.push(user.username)
+        } catch (e) {
+          if (e instanceof APIError && e.status === 401) {
+            sessionExpired = true
+            onSessionError(e)
+            break
+          }
+          failures.push(`${user.username}：${e instanceof Error ? e.message : '删除失败'}`)
+        }
+      }
+      if (deletedUsernames.length > 0) {
+        setRowSelection(prev => {
+          const next = { ...prev }
+          for (const username of deletedUsernames) delete next[username]
+          return next
+        })
+      }
+      if (sessionExpired) return
+      if (deletedUsernames.length > 0) {
+        await load()
+      }
+      if (failures.length > 0) {
+        setError(
+          deletedUsernames.length > 0
+            ? `已删除 ${deletedUsernames.length} 个账号，${failures.length} 个删除失败：${failures.join('；')}`
+            : `删除失败：${failures.join('；')}`,
+        )
+      } else if (deletedUsernames.length > 0) {
+        setFeedback(`已删除 ${deletedUsernames.length} 个账号`)
+      }
+    } finally {
+      setBulkDeleting(false)
+      setBulkDeleteOpen(false)
+    }
+  }
+
   const columns: ColumnDef<User>[] = [
+    createRowSelectionColumn<User>({
+      getRowLabel: row => `选择账号 ${row.username}`,
+    }),
     {
       accessorKey: 'username',
       header: '账号',
@@ -230,11 +338,14 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
   ]
 
   const table = useReactTable({
-    data: canManageUsers ? users : [currentUser],
+    data: tableData,
     columns,
-    state: { sorting, columnVisibility },
+    state: { sorting, columnVisibility, rowSelection },
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection: true,
+    getRowId: row => row.username,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   })
@@ -263,6 +374,14 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
     {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
     <DataTable table={table} loading={loading} showPager={false} emptyMessage="暂无账号" />
+    <BulkActionBar
+      count={selectedUsers.length}
+      unit="个账号"
+      onClear={() => setRowSelection({})}
+      onExport={exportSelectedUsersCSV}
+      onDelete={canManageUsers && deletableSelected.length > 0 ? () => setBulkDeleteOpen(true) : undefined}
+      deleting={bulkDeleting}
+    />
     <Dialog open={modalOpen} onOpenChange={next => { if (!busy) { setModalOpen(next); if (!next) setEditing(null) } }}><DialogContent><DialogHeader><DialogTitle>{editing ? `编辑账号 ${editing.username}` : '新增账号'}</DialogTitle></DialogHeader>
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}
       <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save() }}>
@@ -341,5 +460,30 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
       </DialogContent>
     </Dialog>
     <Dialog open={!!deleting} onOpenChange={next => { if (!next && !busy) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>删除该账号？</DialogTitle><DialogDescription>删除后该账号的登录会话会立即失效。</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={busy} onClick={() => { if (deleting) void remove(deleting) }}>删除</Button></DialogFooter></DialogContent></Dialog>
+    <AlertDialog open={bulkDeleteOpen} onOpenChange={next => { if (!bulkDeleting) setBulkDeleteOpen(next) }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>删除选中的 {deletableSelected.length} 个账号？</AlertDialogTitle>
+          <AlertDialogDescription>
+            删除后这 {deletableSelected.length} 个账号的登录会话会立即失效，此操作无法撤销。
+            {selfSelected && ` 当前登录账号（${currentUsername}）不能删除，将自动跳过。`}
+            {skippedLastAdmin && ` 管理员账号（${skippedLastAdmin.username}）为最后保留的管理员，将自动跳过以保证至少保留 1 名管理员。`}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={bulkDeleting}>取消</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={bulkDeleting || busy || deletableSelected.length === 0}
+            onClick={event => {
+              event.preventDefault()
+              void removeSelected()
+            }}
+          >
+            {bulkDeleting ? '删除中…' : '删除'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </>
 }

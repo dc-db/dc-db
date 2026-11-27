@@ -72,12 +72,15 @@ html[data-theme="dark"] .control-alert.error { color: var(--danger); border-colo
 .control-nav button.selected, .control-nav button.selected:hover { background: var(--app-nav-selected); color: var(--primary); font-weight: 500; }
 .control-nav button.selected svg, .control-nav button.selected:hover svg { color: var(--primary); }
 .control-nav details button { padding-left: 28px; }
-.control-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); box-shadow: none; }
+.control-table-wrap { max-height: var(--table-max-height); overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); box-shadow: none; }
 .control-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
-.control-table thead tr { background: var(--table-header-bg); border-bottom: 1px solid var(--border); transition: background-color .15s ease; }
-.control-table thead tr:hover { background: var(--table-header-hover); }
-.control-table th { height: 40px; padding: 0 12px; font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; }
+.control-table thead { position: sticky; top: 0; z-index: 20; background: var(--bg); }
+.control-table thead tr { background: var(--bg); border-bottom: 0; }
+.control-table th { position: sticky; top: 0; z-index: 20; height: 40px; padding: 0 12px; background: var(--bg); box-shadow: inset 0 -1px 0 var(--border); font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; transition: background-color .15s ease; }
+.control-table thead tr:hover th { background: var(--table-header-hover-opaque); }
 .control-table td { padding: 8px 12px; border-bottom: 1px solid var(--table-divider); color: var(--text); font-size: 14px; vertical-align: middle; white-space: nowrap; }
+.control-table th.col-select,
+.control-table td.col-select { width: 48px; padding: 0 8px; text-align: center; }
 .control-table th button.control-sort-button { display: inline-flex; align-items: center; gap: 6px; height: 32px; max-width: 100%; min-width: 0; margin-left: -6px; padding: 6px 8px; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text); font-size: 14px; font-weight: 500; line-height: 1.25; cursor: pointer; transition: color .15s ease, background-color .15s ease; }
 .control-table th button.control-sort-button:hover,
 .control-table th button.control-sort-button[data-state="open"] { color: var(--text); background: var(--hover); }
@@ -98,7 +101,7 @@ html[data-theme="dark"] .control-alert.error { color: var(--danger); border-colo
 .control-page-count { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .control-page-buttons { display: flex; align-items: center; gap: 4px; }
 .control-table-area { position: relative; }
-.control-table-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; z-index: 1; background: color-mix(in srgb, var(--surface) 82%, transparent); color: var(--text); }
+.control-table-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; z-index: 30; background: color-mix(in srgb, var(--surface) 82%, transparent); color: var(--text); }
 .app-layout { display: flex; }
 .app-layout > div { flex: 1; min-width: 0; }
 
