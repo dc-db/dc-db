@@ -86,10 +86,10 @@ const relations: { kind: LinkKind; from: Kind; to: Kind[]; outgoing: string; inc
   { kind: 'hosts', from: 'host', to: ['vm'], outgoing: '承载虚拟机', incoming: '所在宿主机' },
 ]
 const defaultPageSize = 10
-const defaultAssetColumns = ['name', 'capacity', 'address', 'platform', 'meta', 'services', 'group', 'team', 'notes']
-const defaultHostColumns = ['name', 'brand', 'model', 'capacity', 'address', 'services', 'team', 'notes']
+const defaultAssetColumns = ['name', 'address', 'capacity', 'platform', 'meta', 'services', 'group', 'team', 'notes']
+const defaultHostColumns = ['name', 'address', 'capacity', 'brand', 'model', 'services', 'group', 'team', 'notes']
 const defaultNetworkDeviceColumns = ['name', 'kind', 'address', 'owner']
-const assetColumnKeys = ['name', 'brand', 'model', 'capacity', 'kind', 'address', 'platform', 'meta', 'services', 'group', 'team', 'owner', 'environment', 'notes', 'created', 'updated']
+const assetColumnKeys = ['name', 'address', 'capacity', 'brand', 'model', 'platform', 'meta', 'kind', 'services', 'group', 'team', 'owner', 'environment', 'notes', 'created', 'updated']
 
 
 const PLATFORM_CATALOG = [
@@ -753,12 +753,13 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     if (!assetPage) return
     const fallback = page === 'host' ? defaultHostColumns : page === 'network_devices' ? defaultNetworkDeviceColumns : defaultAssetColumns
     try {
-      const key = 'dc-db-columns:' + page + (page === 'host' ? ':v8' : page === 'vm' ? ':v7' : '')
+      const key = 'dc-db-columns:' + page + (page === 'host' ? ':v9' : page === 'vm' ? ':v7' : '')
       const raw = localStorage.getItem(key)
-      const v7 = page === 'host' && !raw ? localStorage.getItem('dc-db-columns:host:v7') : null
-      const v6 = (page === 'host' || page === 'vm') && !raw && !v7 ? localStorage.getItem('dc-db-columns:' + page + ':v6') : null
-      const v5 = (page === 'host' || page === 'vm') && !raw && !v7 && !v6 ? localStorage.getItem('dc-db-columns:' + page + ':v5') : null
-      const v4 = v7 || v6 || v5 || ((page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page + ':v4') : null)
+      const v8 = page === 'host' && !raw ? localStorage.getItem('dc-db-columns:host:v8') : null
+      const v7 = page === 'host' && !raw && !v8 ? localStorage.getItem('dc-db-columns:host:v7') : null
+      const v6 = (page === 'host' || page === 'vm') && !raw && !v8 && !v7 ? localStorage.getItem('dc-db-columns:' + page + ':v6') : null
+      const v5 = (page === 'host' || page === 'vm') && !raw && !v8 && !v7 && !v6 ? localStorage.getItem('dc-db-columns:' + page + ':v5') : null
+      const v4 = v8 || v7 || v6 || v5 || ((page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page + ':v4') : null)
       const previous = v4 || ((page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page + ':v3') || localStorage.getItem('dc-db-columns:' + page + ':v2') : null)
       const legacy = previous || ((page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page) : null)
       const parsed: unknown = raw || legacy ? JSON.parse((raw || legacy)!) : null
@@ -769,7 +770,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
             .filter(item =>
               assetColumnKeys.includes(item)
               && (page === 'host'
-                ? item !== 'meta' && item !== 'platform' && item !== 'owner' && item !== 'environment' && item !== 'kind' && (!!raw || !!v7 || !!v6 || !!v4 || (item !== 'created' && item !== 'updated'))
+                ? item !== 'meta' && item !== 'platform' && item !== 'owner' && item !== 'environment' && item !== 'kind' && (!!raw || !!v8 || !!v7 || !!v6 || !!v4 || (item !== 'created' && item !== 'updated'))
                 : item !== 'brand' && item !== 'model' && (page !== 'vm' || (item !== 'kind' && item !== 'owner' && item !== 'environment' && (!!raw || !!v4 || (item !== 'created' && item !== 'updated'))))),
             )
         : []
@@ -778,10 +779,11 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
           if (page === 'vm') valid.push('platform')
         }
         if (!v4) valid.push('capacity', 'notes')
-        if (!v7 && !v6) valid.push('services')
+        if (!v8 && !v7 && !v6) valid.push('services')
         if (page === 'host') {
           if (!valid.includes('brand')) valid.push('brand')
           if (!valid.includes('model')) valid.push('model')
+          if (!valid.includes('group')) valid.push('group')
           if (!valid.includes('team')) valid.push('team')
         }
         if (page === 'vm') {
@@ -1157,7 +1159,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     if (!ordered.length) return
     setVisibleColumns(ordered)
     try {
-      localStorage.setItem('dc-db-columns:' + page + (page === 'host' ? ':v8' : page === 'vm' ? ':v7' : ''), JSON.stringify(ordered))
+      localStorage.setItem('dc-db-columns:' + page + (page === 'host' ? ':v9' : page === 'vm' ? ':v7' : ''), JSON.stringify(ordered))
     } catch {
       // Keep the current in-memory column selection.
     }
@@ -1352,7 +1354,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     {
       key: 'model', label: '型号',
       column: {
-        title: '型号', key: 'model', width: 165,
+        title: '型号', key: 'model', width: 195,
         filter: {
           options: assetColumnFilterOptions.model,
           selectedValues: columnFilters.model ?? [],
@@ -1382,7 +1384,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     {
       key: 'platform', label: '平台',
       column: {
-        title: '平台', key: 'platform', width: 130,
+        title: '平台', key: 'platform', width: 135,
         filter: {
           options: assetColumnFilterOptions.platform,
           selectedValues: columnFilters.platform ?? [],
@@ -1395,7 +1397,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     {
       key: 'meta', label: metaTitle,
       column: {
-        title: metaTitle, key: 'meta', width: 130,
+        title: metaTitle, key: 'meta', width: 170,
         filter: page === 'vm' ? {
           options: assetColumnFilterOptions.meta,
           selectedValues: columnFilters.meta ?? [],
@@ -1408,7 +1410,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     {
       key: 'address', label: 'IP',
       column: {
-        title: 'IP', dataIndex: 'address', key: 'address', width: 170,
+        title: 'IP', dataIndex: 'address', key: 'address', width: 180,
         filter: {
           options: assetColumnFilterOptions.address,
           selectedValues: columnFilters.address ?? [],
@@ -1530,7 +1532,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     {
       key: 'capacity', label: '配置',
       column: {
-        title: '配置', key: 'capacity', width: 190,
+        title: '配置', key: 'capacity', width: 195,
         filter: {
           options: assetColumnFilterOptions.capacity,
           selectedValues: columnFilters.capacity ?? [],

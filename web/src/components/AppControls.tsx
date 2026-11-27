@@ -244,7 +244,7 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, r
     const width = columnMap.get(header.column.id)?.width
     return (
       <th
-        key={header.id} style={width ? { minWidth: width } : undefined}
+        key={header.id} style={width ? { width, minWidth: width } : undefined}
         aria-sort={canSort ? (sortDirection === 'asc' ? 'ascending' : sortDirection === 'desc' ? 'descending' : 'none') : undefined}
       >{headContent(header)}</th>
     )
