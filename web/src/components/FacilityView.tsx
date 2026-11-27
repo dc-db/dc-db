@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Download, Plus, Upload } from 'lucide-react'
+import { Download, Plus } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
@@ -357,18 +357,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
     }, '机柜已保存')
   }
 
-  function exportRacks() {
-    if (!room) return
-    const rows: (string | number)[][] = [['机柜编号', '区域/排', '高度（U）', '已用U位', '空闲U位', '占用率', '设备数']]
-    for (const item of view === 'table' ? sortedRackRows : rackRows) {
-      const placements = roomPlacements.filter(entry => entry.rackId === item.id)
-      const used = occupiedUnits(placements).size
-      const rate = item.heightU > 0 ? Math.round((used / item.heightU) * 100) : 0
-      rows.push([item.name, item.zone, item.heightU, used, Math.max(0, item.heightU - used), `${rate}%`, placements.length])
-    }
-    downloadCSV(`${room.name}-机柜.csv`, rows)
-  }
-
   function exportSelectedRacksCSV() {
     if (!room || !selectedRacks.length) return
     const rows: (string | number)[][] = [['机柜', '区域', '设备数', '高度(U)', '已用(U)', '空闲(U)', '利用率(%)', '创建时间', '更新时间']]
@@ -658,7 +646,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                 </>}
                 actions={<>
                   {editable && <Button size="sm" variant="outline" onClick={() => { setImportOpen(true); setImportFile(null); setImportError('') }}><Download />导入</Button>}
-                  <Button size="sm" variant="outline" disabled={!rackRows.length} onClick={exportRacks}><Upload />导出</Button>
                   {editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
                 </>}
               />

@@ -1,7 +1,7 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type RowSelectionState, type SortingState, type VisibilityState } from '@tanstack/react-table'
-import { Plus, RefreshCw, Upload } from 'lucide-react'
+import { Plus, RefreshCw } from 'lucide-react'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
 import type { VLAN, VLANFields } from '../api'
@@ -298,9 +298,6 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       ]),
     ]
   }
-  function exportCSV() {
-    downloadCSV('dc-db-vlans.csv', formatVLANsCSVRows(visible))
-  }
   function exportSelectedVLANsCSV() {
     if (!selectedVLANs.length) return
     downloadCSV('dc-db-vlans-selected.csv', formatVLANsCSVRows(selectedVLANs))
@@ -329,7 +326,6 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
         />
       </>}
       actions={<>
-        <Button size="sm" variant="outline" disabled={!visible.length} onClick={exportCSV}><Upload />导出</Button>
         <Button size="sm" variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
         {editable && <Button size="sm" onClick={() => showForm(null)}><Plus />新增 VLAN</Button>}
       </>}

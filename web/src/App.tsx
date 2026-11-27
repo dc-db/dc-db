@@ -11,7 +11,7 @@ import {
   Building2 as BuildingOutlined, Server as CloudServerOutlined,
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
   House as HomeOutlined, ArrowLeft as ArrowLeftOutlined, LogOut as LogoutOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
-  Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Users as TeamOutlined, Upload as UploadOutlined, User as UserOutlined,
+  Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Users as TeamOutlined, User as UserOutlined,
   Network as NetworkOutlined, Split as SplitOutlined, LocateFixed as LocateFixedOutlined, Layers3,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
@@ -1071,10 +1071,6 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     downloadCSV(filename, rows)
   }
 
-  function exportCSV() {
-    exportAssetsCSV(filtered, 'dc-db-assets.csv')
-  }
-
   function exportSelectedAssetsCSV() {
     const selectedSet = new Set(selectedAssetIds)
     const selectedAssets = filtered.filter(asset => selectedSet.has(asset.id))
@@ -1837,7 +1833,6 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
                 </Space>}
                 actions={<Space wrap>
                   {editable && <Button size="small" onClick={() => { setAssetImportFile(null); setAssetImportOpen(true) }}><DownloadOutlined /> 导入</Button>}
-                  <Button size="small" disabled={!filtered.length} onClick={exportCSV}><UploadOutlined /> 导出</Button>
                   {editable && <Button size="small" type="primary" onClick={() => startNew()}><PlusOutlined /> 新增{pageLabel}</Button>}
                 </Space>}
               />

@@ -1,6 +1,6 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, Download, Plus, Star, Upload } from 'lucide-react'
+import { ChevronDown, ChevronRight, Download, Plus, Star } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -627,9 +627,6 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       ]),
     ]
   }
-  function exportSubnets() {
-    downloadCSV('dc-db-subnets.csv', formatSubnetsCSVRows(visibleSubnetRows.map(row => row.subnet)))
-  }
   function exportSelectedSubnetsCSV() {
     if (!selectedSubnets.length) return
     downloadCSV('dc-db-subnets-selected.csv', formatSubnetsCSVRows(selectedSubnets))
@@ -659,7 +656,6 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       </>}
       actions={<>
         {editable && <Button size="sm" variant="outline" onClick={() => { setImportFile(null); setImportError(''); setImportOpen(true) }}><Download />导入</Button>}
-        <Button size="sm" variant="outline" disabled={!visibleSubnetRows.length} onClick={exportSubnets}><Upload />导出</Button>
         {editable && <Button size="sm" onClick={event => addSubnet(event.currentTarget)}><Plus />新增网段</Button>}
       </>}
     />

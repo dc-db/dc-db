@@ -1,7 +1,7 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type RowSelectionState, type SortingState, type VisibilityState } from '@tanstack/react-table'
-import { Plus, RefreshCw, Upload } from 'lucide-react'
+import { Plus, RefreshCw } from 'lucide-react'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
 import type { Asset, IPAddress, Link, Subnet } from '../api'
@@ -480,9 +480,6 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       ]),
     ]
   }
-  function exportCSV() {
-    downloadCSV('dc-db-ip-addresses.csv', formatIPsCSVRows(visible))
-  }
   function exportSelectedIPsCSV() {
     if (!selectedRows.length) return
     downloadCSV('dc-db-ip-addresses-selected.csv', formatIPsCSVRows(selectedRows))
@@ -513,7 +510,6 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
         />
       </>}
       actions={<>
-        <Button size="sm" variant="outline" disabled={!visible.length} onClick={exportCSV}><Upload />导出</Button>
         <Button size="sm" variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
         {editable && <Button size="sm" onClick={() => showForm(null)}><Plus />分配 IP</Button>}
       </>}
