@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import {
   Alert, App as UIApp, Button, Card, ConfigProvider, Descriptions,
@@ -6,6 +6,7 @@ import {
   Space, Spin, Table, Tabs, Tag, Tooltip, Upload, theme,
 } from './components/AppControls'
 import type { TableColumnsType } from './components/AppControls'
+import { Tooltip as UiTooltip, TooltipContent, TooltipTrigger } from './components/ui/tooltip'
 const zhCN = {}
 import {
   Building2 as BuildingOutlined, Server as CloudServerOutlined,
@@ -16,7 +17,16 @@ import {
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
 import { formatDateTime } from './lib/date'
-import { formatMemory } from './lib/memory'
+import {
+  configFilterKey,
+  formatConfigSummary,
+  formatDiskGiB,
+  formatDiskLine,
+  formatDiskSummary,
+  formatDiskTooltipLines,
+  formatMemoryCompact,
+  totalDiskGiB,
+} from './lib/hardware'
 import { downloadCSV } from './csv'
 import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, Person, Subnet, Team, User, VLAN } from './api'
 import { assetLocations, assetRoomId, buildRoomCounts, locationLabel, matchesRoomFilter } from './facilities'
@@ -97,14 +107,58 @@ const PROBE_CATALOG = [
 function platformLabel(asset: Pick<Asset, 'platform'>) {
   return asset.platform === 'pve' ? 'Proxmox VE' : asset.platform === 'kvm' ? 'KVM' : asset.platform === 'esxi' ? 'VMware ESXi' : '—'
 }
-function capacityLabel(cpu: number, memoryMiB: number): string {
-  return `${cpu || 0} 核 / ${formatMemory(memoryMiB) || '—'}`
-}
-function capacityFilterValue(asset: Pick<Asset, 'kind' | 'cpu' | 'memoryMiB'>): string {
+function capacityFilterValue(asset: Pick<Asset, 'kind' | 'cpu' | 'memoryMiB' | 'disks'>): string {
   if (isNetworkKind(asset.kind)) return EMPTY_FILTER_VALUE
-  const cpu = asset.cpu || 0
-  const memoryMiB = asset.memoryMiB || 0
-  return cpu > 0 || memoryMiB > 0 ? `${cpu}:${memoryMiB}` : EMPTY_FILTER_VALUE
+  return configFilterKey(asset.cpu || 0, asset.memoryMiB || 0, asset.disks ?? []) || EMPTY_FILTER_VALUE
+}
+function renderConfigCell(asset: Asset): ReactNode {
+  if (isNetworkKind(asset.kind)) return <span className="text-muted-foreground">—</span>
+  const disks = asset.disks ?? []
+  const cpuText = asset.cpu > 0 ? `${asset.cpu}C` : ''
+  const memText = formatMemoryCompact(asset.memoryMiB)
+  const diskGiB = totalDiskGiB(disks)
+  const diskText = diskGiB > 0 ? formatDiskGiB(diskGiB) : ''
+  const segments: ReactNode[] = []
+  if (cpuText) segments.push(<span key="cpu">{cpuText}</span>)
+  if (memText) segments.push(<span key="mem">{memText}</span>)
+  if (diskGiB > 0 && diskText) {
+    const { lines, footer } = formatDiskTooltipLines(disks)
+    segments.push(
+      <UiTooltip key="disk">
+        <TooltipTrigger asChild>
+          <span
+            tabIndex={0}
+            className="underline decoration-dotted underline-offset-4 decoration-muted-foreground/50 hover:decoration-foreground cursor-default"
+          >
+            {diskText}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" align="start" className="max-w-xs space-y-1 py-1.5 text-left">
+          <div className="space-y-0.5">
+            {lines.map((line, index) => (
+              <div key={index} className="tabular-nums leading-snug">{line}</div>
+            ))}
+          </div>
+          {footer && (
+            <div className="border-t border-background/20 pt-1 text-[11px] opacity-80 tabular-nums">
+              {footer}
+            </div>
+          )}
+        </TooltipContent>
+      </UiTooltip>,
+    )
+  }
+  if (!segments.length) return <span className="text-muted-foreground">—</span>
+  return (
+    <span className="inline-flex items-center tabular-nums whitespace-nowrap">
+      {segments.map((segment, index) => (
+        <Fragment key={index}>
+          {index > 0 && <span aria-hidden="true" className="mx-1 text-muted-foreground/60">·</span>}
+          {segment}
+        </Fragment>
+      ))}
+    </span>
+  )
 }
 function probeOf(asset: Asset): { label: string; color: string } {
   if (!asset.probeEnabled) return { label: '未开启', color: 'default' }
@@ -429,24 +483,35 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     [teams],
   )
   const capacityCatalog = useMemo(() => {
-    const specs = new Map<string, { cpu: number; memoryMiB: number }>()
+    const specs = new Map<string, { cpu: number; memoryMiB: number; diskGiB: number; label: string }>()
     for (const asset of scoped) {
       if (isNetworkKind(asset.kind)) continue
       const cpu = asset.cpu || 0
       const memoryMiB = asset.memoryMiB || 0
-      if (cpu <= 0 && memoryMiB <= 0) continue
-      const key = `${cpu}:${memoryMiB}`
-      if (!specs.has(key)) specs.set(key, { cpu, memoryMiB })
+      const disks = asset.disks ?? []
+      const key = configFilterKey(cpu, memoryMiB, disks)
+      if (!key) continue
+      if (!specs.has(key)) {
+        specs.set(key, {
+          cpu,
+          memoryMiB,
+          diskGiB: totalDiskGiB(disks),
+          label: formatConfigSummary(cpu, memoryMiB, disks),
+        })
+      }
     }
     return Array.from(specs.entries())
-      .sort(([, left], [, right]) => left.cpu - right.cpu || left.memoryMiB - right.memoryMiB)
-      .map(([value, spec]) => ({ value, label: capacityLabel(spec.cpu, spec.memoryMiB) }))
+      .sort(([, left], [, right]) => left.cpu - right.cpu || left.memoryMiB - right.memoryMiB || left.diskGiB - right.diskGiB)
+      .map(([value, spec]) => ({ value, label: spec.label }))
   }, [scoped])
   const baseFiltered = useMemo(() => {
     const query = keyword.trim().toLowerCase()
     return scoped.filter(asset => {
       if (!matchesRoomFilter(assetRoomId(asset, locations, byId, links), roomFilter)) return false
-      return !query || [asset.name, asset.brand, asset.model, asset.address, asset.owner, projectNames.get(asset.groupId), teamNames.get(asset.teamId ?? 0), asset.environment, ...(vmRelations.get(asset.id) ?? [])]
+      const configTerms = isNetworkKind(asset.kind)
+        ? []
+        : [formatConfigSummary(asset.cpu || 0, asset.memoryMiB || 0, asset.disks ?? []), formatDiskSummary(asset.disks ?? [])]
+      return !query || [asset.name, asset.brand, asset.model, asset.address, asset.owner, projectNames.get(asset.groupId), teamNames.get(asset.teamId ?? 0), asset.environment, ...configTerms, ...(vmRelations.get(asset.id) ?? [])]
         .some(value => value?.toLowerCase().includes(query))
     })
   }, [scoped, byId, links, locations, roomFilter, keyword, vmRelations, projectNames, teamNames])
@@ -527,7 +592,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
           const value = capacityFilterValue(asset)
           return value === EMPTY_FILTER_VALUE
             ? EMPTY_FILTER_VALUE
-            : { value, label: capacityLabel(asset.cpu || 0, asset.memoryMiB || 0) }
+            : { value, label: formatConfigSummary(asset.cpu || 0, asset.memoryMiB || 0, asset.disks ?? []) }
         },
         catalog: capacityCatalog,
         includeEmpty: true,
@@ -1145,12 +1210,14 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
   function exportAssetsCSV(items: Asset[], filename = 'dc-db-assets.csv') {
     if (page === 'host') {
       const rows: (string | number)[][] = [[
-        '资源名称', '类型', '品牌', '型号', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '团队', '环境', '备注',
+        '资源名称', '类型', '品牌', '型号', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '硬盘总容量 GiB', '硬盘明细', '团队', '环境', '备注',
       ]]
       for (const asset of items) {
+        const disks = asset.disks ?? []
         rows.push([
           asset.name, kindLabel(asset.kind), asset.brand ?? '', asset.model ?? '', platformLabel(asset), statusOf(asset).label,
           asset.lifecycle === 'retired' ? '已退役' : '在册', asset.address, asset.cpu, asset.memoryMiB,
+          totalDiskGiB(disks) || '', formatDiskSummary(disks),
           teamNames.get(asset.teamId ?? 0) ?? '', asset.environment, asset.notes,
         ])
       }
@@ -1159,12 +1226,14 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     }
     if (page === 'vm') {
       const rows: (string | number)[][] = [[
-        '资源名称', '类型', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '项目', '团队', '环境', '备注',
+        '资源名称', '类型', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '硬盘总容量 GiB', '硬盘明细', '项目', '团队', '环境', '备注',
       ]]
       for (const asset of items) {
+        const disks = asset.disks ?? []
         rows.push([
           asset.name, kindLabel(asset.kind), platformLabel(asset), statusOf(asset).label,
           asset.lifecycle === 'retired' ? '已退役' : '在册', asset.address, asset.cpu, asset.memoryMiB,
+          totalDiskGiB(disks) || '', formatDiskSummary(disks),
           projectNames.get(asset.groupId) ?? '', teamNames.get(asset.teamId ?? 0) ?? '', asset.environment, asset.notes,
         ])
       }
@@ -1459,16 +1528,16 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       },
     },
     {
-      key: 'capacity', label: 'CPU / 内存',
+      key: 'capacity', label: '配置',
       column: {
-        title: 'CPU / 内存', key: 'capacity', width: 140,
+        title: '配置', key: 'capacity', width: 190,
         filter: {
           options: assetColumnFilterOptions.capacity,
           selectedValues: columnFilters.capacity ?? [],
           onChange: next => setColumnFilter('capacity', next),
-          searchPlaceholder: '搜索 CPU 或内存',
+          searchPlaceholder: '搜索配置',
         },
-        render: (_, asset) => isNetworkKind(asset.kind) ? '—' : capacityLabel(asset.cpu, asset.memoryMiB),
+        render: (_, asset) => renderConfigCell(asset),
       },
     },
     {
@@ -1561,10 +1630,28 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     ...(isNetworkKind(selected.kind) ? [{ key: 'owner', label: '负责人', children: selected.owner || '—' }] : []),
     { key: 'environment', label: '环境', children: selected.environment || '—' },
     { key: 'address', label: '管理地址 / IP', children: <span className="mono">{selected.address || '—'}</span> },
-    ...(selected.kind === 'host' || selected.kind === 'vm' ? [{
-      key: 'capacity', label: 'CPU / 内存',
-      children: `${selected.cpu || '—'} 核 · ${formatMemory(selected.memoryMiB) || '—'}`,
-    }] : []),
+    ...(selected.kind === 'host' || selected.kind === 'vm' ? [
+      {
+        key: 'capacity', label: '配置',
+        children: <span className="tabular-nums">{formatConfigSummary(selected.cpu || 0, selected.memoryMiB || 0, selected.disks ?? []) || '—'}</span>,
+      },
+      ...((selected.disks ?? []).length > 0 ? [{
+        key: 'disks', label: '硬盘明细',
+        children: (() => {
+          const disks = selected.disks ?? []
+          const total = totalDiskGiB(disks)
+          const footer = formatDiskTooltipLines(disks).footer || (total > 0 ? `总容量 ${formatDiskGiB(total)}` : '')
+          return (
+            <div className="flex flex-col gap-1 tabular-nums">
+              {disks.map((disk, index) => (
+                <div key={index} className="leading-snug">{formatDiskLine(disk)}</div>
+              ))}
+              {footer && <div className="border-t border-border/60 pt-1 text-xs text-muted-foreground">{footer}</div>}
+            </div>
+          )
+        })(),
+      }] : []),
+    ] : []),
     ...(selectedLocation ? [{
       key: 'location', label: '数据中心位置',
       children: (

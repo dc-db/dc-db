@@ -13,6 +13,20 @@ import (
 
 var ErrConflict = errors.New("记录已被更新，请刷新后重试")
 
+type DiskSpec struct {
+	Type    string `json:"type"`           // "", "nvme", "ssd", "hdd"
+	SizeGiB int    `json:"sizeGiB"`        // 1..1048576
+	Count   int    `json:"count"`          // 1..256 (default 1)
+	Note    string `json:"note,omitempty"` // <= 40 runes
+}
+
+const (
+	maxDiskEntries = 32
+	maxDiskSizeGiB = 1048576
+	maxDiskCount   = 256
+	maxDiskNoteLen = 40
+)
+
 type Fields struct {
 	Services     *[]ServiceInstance `json:"services,omitempty"`
 	Kind         string             `json:"kind"`
@@ -28,6 +42,7 @@ type Fields struct {
 	ProbeEnabled bool               `json:"probeEnabled"`
 	CPU          int                `json:"cpu"`
 	MemoryMiB    int64              `json:"memoryMiB"`
+	Disks        []DiskSpec         `json:"disks"`
 	TeamID       int64              `json:"teamId"`
 	PersonID     int64              `json:"personId"`
 	GroupID      int64              `json:"groupId"`
@@ -75,7 +90,7 @@ type Change struct {
 const assetOwnerSQL = "COALESCE((SELECT p.name FROM people p WHERE p.id=assets.person_id), assets.owner)"
 
 const assetColumns = `id, kind, name, brand, model, platform, status, lifecycle, ` + assetOwnerSQL + `, environment, address, cpu,
-	memory_mib, notes, COALESCE(room_id, 0), version, created_at, updated_at, COALESCE(source_key, ''),
+	memory_mib, disks, notes, COALESCE(room_id, 0), version, created_at, updated_at, COALESCE(source_key, ''),
 	COALESCE(external_key, ''), last_seen_at, missing_count, observed, COALESCE(group_id, 0),
 	probe_enabled, probe_status, probe_checked_at, COALESCE(team_id,0), COALESCE(person_id,0)`
 
@@ -83,13 +98,18 @@ type scanner interface{ Scan(...any) error }
 
 func readAsset(row scanner) (Asset, error) {
 	var a Asset
+	var disksRaw string
 	var observed string
 	err := row.Scan(&a.ID, &a.Kind, &a.Name, &a.Brand, &a.Model, &a.Platform, &a.Status, &a.Lifecycle, &a.Owner,
-		&a.Environment, &a.Address, &a.CPU, &a.MemoryMiB, &a.Notes, &a.RoomID,
+		&a.Environment, &a.Address, &a.CPU, &a.MemoryMiB, &disksRaw, &a.Notes, &a.RoomID,
 		&a.Version, &a.CreatedAt, &a.UpdatedAt, &a.SourceKey, &a.ExternalKey, &a.LastSeenAt, &a.MissingCount, &observed,
 		&a.GroupID, &a.ProbeEnabled, &a.ProbeStatus, &a.ProbeCheckedAt, &a.TeamID, &a.PersonID)
+	if err != nil {
+		return a, err
+	}
+	a.Disks = parseStoredDisks(disksRaw)
 	a.Observed = json.RawMessage(observed)
-	return a, err
+	return a, nil
 }
 
 func ListAssets(ctx context.Context, db *sql.DB) ([]Asset, error) {
@@ -191,10 +211,79 @@ func normalizeAndValidateBrandModel(fields *Fields) error {
 	return nil
 }
 
+func normalizeAndValidateDisks(disks []DiskSpec) ([]DiskSpec, error) {
+	if len(disks) > maxDiskEntries {
+		return nil, fmt.Errorf("%w: 硬盘条目不能超过 32 组", ErrInvalid)
+	}
+	normalized := make([]DiskSpec, 0, len(disks))
+	for _, d := range disks {
+		diskType := strings.ToLower(strings.TrimSpace(d.Type))
+		switch diskType {
+		case "", "nvme", "ssd", "hdd":
+		default:
+			return nil, fmt.Errorf("%w: 硬盘类型无效，可用 NVMe、SSD、HDD 或留空", ErrInvalid)
+		}
+		if d.SizeGiB < 1 || d.SizeGiB > maxDiskSizeGiB {
+			return nil, fmt.Errorf("%w: 硬盘容量需在 1 至 1048576 GiB 之间", ErrInvalid)
+		}
+		count := d.Count
+		if count == 0 {
+			count = 1
+		}
+		if count < 1 || count > maxDiskCount {
+			return nil, fmt.Errorf("%w: 硬盘块数需在 1 至 256 之间", ErrInvalid)
+		}
+		note := strings.TrimSpace(d.Note)
+		if utf8.RuneCountInString(note) > maxDiskNoteLen {
+			return nil, fmt.Errorf("%w: 硬盘备注不能超过 40 个字符", ErrInvalid)
+		}
+		normalized = append(normalized, DiskSpec{
+			Type:    diskType,
+			SizeGiB: d.SizeGiB,
+			Count:   count,
+			Note:    note,
+		})
+	}
+	return normalized, nil
+}
+
+func marshalDisks(disks []DiskSpec) (string, error) {
+	if len(disks) == 0 {
+		return "[]", nil
+	}
+	encoded, err := json.Marshal(disks)
+	if err != nil {
+		return "", err
+	}
+	return string(encoded), nil
+}
+
+func parseStoredDisks(raw string) []DiskSpec {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || raw == "null" {
+		return []DiskSpec{}
+	}
+	var disks []DiskSpec
+	if err := json.Unmarshal([]byte(raw), &disks); err != nil || disks == nil {
+		return []DiskSpec{}
+	}
+	for i := range disks {
+		if disks[i].Count == 0 {
+			disks[i].Count = 1
+		}
+	}
+	return disks
+}
+
 func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fields, actor string) (Asset, error) {
 	if err := normalizeAndValidateBrandModel(&fields); err != nil {
 		return Asset{}, err
 	}
+	disks, err := normalizeAndValidateDisks(fields.Disks)
+	if err != nil {
+		return Asset{}, err
+	}
+	fields.Disks = disks
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return Asset{}, err
@@ -254,9 +343,13 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 		return before, tx.Commit()
 	}
 
+	disksJSON, err := marshalDisks(fields.Disks)
+	if err != nil {
+		return Asset{}, err
+	}
 	asset, err := readAsset(tx.QueryRowContext(ctx, `
 		UPDATE assets SET name=$2, brand=$18, model=$19, platform=$3, status=$4, lifecycle=$5, owner=CASE WHEN $17::bigint=0 THEN $6 ELSE '' END, environment=$7,
-			address=$8, cpu=$9, memory_mib=$10, notes=$11, room_id=NULLIF($12,0),
+			address=$8, cpu=$9, memory_mib=$10, disks=$20, notes=$11, room_id=NULLIF($12,0),
 			group_id=NULLIF($13,0), version=version+1, updated_at=$14,
 			probe_status=CASE WHEN address IS DISTINCT FROM $8 OR probe_enabled IS DISTINCT FROM $15 OR lifecycle IS DISTINCT FROM $5 THEN 'unknown' ELSE probe_status END,
 			probe_checked_at=CASE WHEN address IS DISTINCT FROM $8 OR probe_enabled IS DISTINCT FROM $15 OR lifecycle IS DISTINCT FROM $5 THEN NULL ELSE probe_checked_at END,
@@ -264,7 +357,7 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 		WHERE id=$1 RETURNING `+assetColumns, id, fields.Name, fields.Platform, fields.Status,
 		fields.Lifecycle, fields.Owner, fields.Environment, fields.Address, fields.CPU, fields.MemoryMiB,
 		fields.Notes, fields.RoomID, fields.GroupID, nowText(), fields.ProbeEnabled, fields.TeamID, fields.PersonID,
-		fields.Brand, fields.Model))
+		fields.Brand, fields.Model, disksJSON))
 	if err != nil {
 		return Asset{}, assetAssignmentError(err)
 	}
@@ -302,17 +395,26 @@ func createAsset(ctx context.Context, tx *sql.Tx, fields Fields, actor string) (
 	if err := normalizeAndValidateBrandModel(&fields); err != nil {
 		return Asset{}, err
 	}
+	disks, err := normalizeAndValidateDisks(fields.Disks)
+	if err != nil {
+		return Asset{}, err
+	}
+	fields.Disks = disks
 	if err := resolveAssetPerson(ctx, tx, &fields); err != nil {
+		return Asset{}, err
+	}
+	disksJSON, err := marshalDisks(fields.Disks)
+	if err != nil {
 		return Asset{}, err
 	}
 	asset, err := readAsset(tx.QueryRowContext(ctx, `
 		INSERT INTO assets (kind, name, platform, status, lifecycle, owner, environment, address,
-			cpu, memory_mib, notes, room_id, group_id, updated_at, probe_enabled, team_id, person_id, brand, model)
-		VALUES ($1,$2,$3,$4,$5,CASE WHEN $17::bigint=0 THEN $6 ELSE '' END,$7,$8,$9,$10,$11,NULLIF($12,0),NULLIF($13,0),$14,$15,NULLIF($16,0),NULLIF($17,0),$18,$19) RETURNING `+assetColumns,
+			cpu, memory_mib, disks, notes, room_id, group_id, updated_at, probe_enabled, team_id, person_id, brand, model)
+		VALUES ($1,$2,$3,$4,$5,CASE WHEN $17::bigint=0 THEN $6 ELSE '' END,$7,$8,$9,$10,$20,$11,NULLIF($12,0),NULLIF($13,0),$14,$15,NULLIF($16,0),NULLIF($17,0),$18,$19) RETURNING `+assetColumns,
 		fields.Kind, fields.Name, fields.Platform, fields.Status, fields.Lifecycle, fields.Owner,
 		fields.Environment, fields.Address, fields.CPU, fields.MemoryMiB, fields.Notes,
 		fields.RoomID, fields.GroupID, nowText(), fields.ProbeEnabled, fields.TeamID, fields.PersonID,
-		fields.Brand, fields.Model))
+		fields.Brand, fields.Model, disksJSON))
 	if err != nil {
 		return Asset{}, assetAssignmentError(err)
 	}

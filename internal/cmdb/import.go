@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"mime"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -40,6 +42,7 @@ var importHeaderAliases = map[string]string{
 	"地址 / ip": "address", "地址/ip": "address", "地址": "address", "ip": "address", "address": "address",
 	"cpu":    "cpu",
 	"内存 mib": "memory", "内存mib": "memory", "内存": "memory", "memorymib": "memory", "memory_mib": "memory", "memory": "memory",
+	"硬盘": "disks", "磁盘": "disks", "硬盘 gib": "disks", "硬盘gib": "disks", "disks": "disks",
 	"负责人": "owner", "owner": "owner",
 	"环境": "environment", "environment": "environment",
 	"备注": "notes", "notes": "notes",
@@ -119,20 +122,21 @@ type ImportRowError struct {
 }
 
 type ImportPreviewRow struct {
-	Row         int    `json:"row"`
-	Name        string `json:"name"`
-	Kind        string `json:"kind"`
-	Brand       string `json:"brand"`
-	Model       string `json:"model"`
-	Platform    string `json:"platform"`
-	Status      string `json:"status"`
-	Lifecycle   string `json:"lifecycle"`
-	Address     string `json:"address"`
-	CPU         int    `json:"cpu"`
-	MemoryMiB   int64  `json:"memoryMiB"`
-	Owner       string `json:"owner"`
-	Environment string `json:"environment"`
-	Notes       string `json:"notes"`
+	Row         int        `json:"row"`
+	Name        string     `json:"name"`
+	Kind        string     `json:"kind"`
+	Brand       string     `json:"brand"`
+	Model       string     `json:"model"`
+	Platform    string     `json:"platform"`
+	Status      string     `json:"status"`
+	Lifecycle   string     `json:"lifecycle"`
+	Address     string     `json:"address"`
+	CPU         int        `json:"cpu"`
+	MemoryMiB   int64      `json:"memoryMiB"`
+	Disks       []DiskSpec `json:"disks"`
+	Owner       string     `json:"owner"`
+	Environment string     `json:"environment"`
+	Notes       string     `json:"notes"`
 }
 
 type ImportPreview struct {
@@ -212,7 +216,7 @@ func PreviewImport(ctx context.Context, db *sql.DB, source io.Reader) (ImportPre
 			Row: row.number, Name: row.fields.Name, Kind: row.fields.Kind,
 			Brand: row.fields.Brand, Model: row.fields.Model,
 			Platform: row.fields.Platform, Status: row.fields.Status, Lifecycle: row.fields.Lifecycle,
-			Address: row.fields.Address, CPU: row.fields.CPU, MemoryMiB: row.fields.MemoryMiB,
+			Address: row.fields.Address, CPU: row.fields.CPU, MemoryMiB: row.fields.MemoryMiB, Disks: row.fields.Disks,
 			Owner: row.fields.Owner, Environment: row.fields.Environment, Notes: row.fields.Notes,
 		})
 	}
@@ -393,16 +397,150 @@ func decodeImportRow(record []string, columns map[string]int, rowNumber int) (Fi
 	if err != nil {
 		return Fields{}, err
 	}
+	disks, err := parseImportDisks(value("disks"), rowNumber)
+	if err != nil {
+		return Fields{}, err
+	}
 	fields := Fields{
 		Kind: kind, Name: name, Brand: value("brand"), Model: value("model"),
 		Platform: platform, Status: status, Lifecycle: lifecycle,
 		Owner: value("owner"), Environment: value("environment"), Address: value("address"),
-		CPU: int(cpu), MemoryMiB: memory, Notes: value("notes"),
+		CPU: int(cpu), MemoryMiB: memory, Disks: disks, Notes: value("notes"),
 	}
 	if err := validateFields(&fields); err != nil {
 		return Fields{}, importRowError(rowNumber, "%s", strings.TrimPrefix(err.Error(), ErrInvalid.Error()+": "))
 	}
 	return fields, nil
+}
+
+var (
+	diskPlainIntRe    = regexp.MustCompile(`^\d+$`)
+	diskPrefixCountRe = regexp.MustCompile(`(?i)^(\d+)\s*[x×*]\s*(\d+(?:\.\d+)?)\s*(gib|gb|g|tib|tb|t)$`)
+	diskSuffixCountRe = regexp.MustCompile(`(?i)^(\d+(?:\.\d+)?)\s*(gib|gb|g|tib|tb|t)\s*[x×*]\s*(\d+)$`)
+	diskSingleSpecRe  = regexp.MustCompile(`(?i)^(\d+(?:\.\d+)?)\s*(gib|gb|g|tib|tb|t)$`)
+)
+
+func parseImportDisks(raw string, rowNumber int) ([]DiskSpec, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return []DiskSpec{}, nil
+	}
+	if diskPlainIntRe.MatchString(raw) {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 || n > maxDiskSizeGiB {
+			return nil, importRowError(rowNumber, "硬盘容量需在 1 至 %d GiB 之间", maxDiskSizeGiB)
+		}
+		return []DiskSpec{{SizeGiB: n, Count: 1}}, nil
+	}
+	normalized := strings.NewReplacer(";", "+", "；", "+", "、", "+").Replace(raw)
+	parts := strings.Split(normalized, "+")
+	disks := make([]DiskSpec, 0, len(parts))
+	for _, part := range parts {
+		entry, err := parseImportDiskEntry(part)
+		if err != nil {
+			return nil, importRowError(rowNumber, "%s", err.Error())
+		}
+		disks = append(disks, entry)
+	}
+	validated, err := normalizeAndValidateDisks(disks)
+	if err != nil {
+		return nil, importRowError(rowNumber, "%s", strings.TrimPrefix(err.Error(), ErrInvalid.Error()+": "))
+	}
+	return validated, nil
+}
+
+func isDiskTypeToken(token string) (string, bool) {
+	switch strings.ToLower(token) {
+	case "nvme", "ssd", "hdd":
+		return strings.ToLower(token), true
+	default:
+		return "", false
+	}
+}
+
+func parseImportDiskEntry(part string) (DiskSpec, error) {
+	part = strings.TrimSpace(part)
+	if part == "" {
+		return DiskSpec{}, errors.New("硬盘配置包含空条目")
+	}
+	if diskPlainIntRe.MatchString(part) {
+		n, err := strconv.Atoi(part)
+		if err != nil || n < 1 || n > maxDiskSizeGiB {
+			return DiskSpec{}, fmt.Errorf("硬盘容量需在 1 至 %d GiB 之间", maxDiskSizeGiB)
+		}
+		return DiskSpec{SizeGiB: n, Count: 1}, nil
+	}
+
+	tokens := strings.Fields(part)
+	if len(tokens) == 0 {
+		return DiskSpec{}, errors.New("硬盘配置包含空条目")
+	}
+	diskType := ""
+	if t, ok := isDiskTypeToken(tokens[0]); ok {
+		diskType = t
+		tokens = tokens[1:]
+	} else if t, ok := isDiskTypeToken(tokens[len(tokens)-1]); ok {
+		diskType = t
+		tokens = tokens[:len(tokens)-1]
+	}
+	if len(tokens) == 0 {
+		return DiskSpec{}, fmt.Errorf("硬盘规格 %q 缺少容量", part)
+	}
+	spec := strings.Join(tokens, " ")
+
+	var sizeStr, unit, countStr string
+	switch {
+	case diskPrefixCountRe.MatchString(spec):
+		m := diskPrefixCountRe.FindStringSubmatch(spec)
+		countStr, sizeStr, unit = m[1], m[2], m[3]
+	case diskSuffixCountRe.MatchString(spec):
+		m := diskSuffixCountRe.FindStringSubmatch(spec)
+		sizeStr, unit, countStr = m[1], m[2], m[3]
+	case diskSingleSpecRe.MatchString(spec):
+		m := diskSingleSpecRe.FindStringSubmatch(spec)
+		sizeStr, unit = m[1], m[2]
+	default:
+		return DiskSpec{}, fmt.Errorf("硬盘规格 %q 格式无效，示例：500、100G SSD 或 2x480G NVMe + 4x4T HDD", part)
+	}
+
+	sizeGiB, err := parseDiskSizeGiB(sizeStr, unit)
+	if err != nil {
+		return DiskSpec{}, err
+	}
+	count := 1
+	if countStr != "" {
+		count, err = strconv.Atoi(countStr)
+		if err != nil || count < 1 || count > maxDiskCount {
+			return DiskSpec{}, fmt.Errorf("硬盘块数需在 1 至 %d 之间", maxDiskCount)
+		}
+	}
+	return DiskSpec{Type: diskType, SizeGiB: sizeGiB, Count: count}, nil
+}
+
+func parseDiskSizeGiB(sizeStr, unit string) (int, error) {
+	switch strings.ToLower(unit) {
+	case "g", "gib", "gb":
+		if strings.Contains(sizeStr, ".") {
+			return 0, errors.New("GiB 容量须为正整数")
+		}
+		n, err := strconv.Atoi(sizeStr)
+		if err != nil || n < 1 || n > maxDiskSizeGiB {
+			return 0, fmt.Errorf("硬盘容量需在 1 至 %d GiB 之间", maxDiskSizeGiB)
+		}
+		return n, nil
+	case "t", "tib", "tb":
+		v, err := strconv.ParseFloat(sizeStr, 64)
+		if err != nil || math.IsNaN(v) || math.IsInf(v, 0) || v <= 0 {
+			return 0, errors.New("硬盘容量无效")
+		}
+		gib := math.Round(v * 1024)
+		if gib < 1 || gib > maxDiskSizeGiB {
+			return 0, fmt.Errorf("硬盘容量需在 1 至 %d GiB 之间", maxDiskSizeGiB)
+		}
+		return int(gib), nil
+	default:
+		return 0, errors.New("硬盘容量单位无效")
+	}
 }
 
 func importInt(value, label string, rowNumber, bits int) (int64, error) {

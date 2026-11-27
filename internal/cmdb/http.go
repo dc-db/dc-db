@@ -203,6 +203,11 @@ func validateFields(fields *Fields) error {
 	if err := normalizeAndValidateBrandModel(fields); err != nil {
 		return err
 	}
+	disks, err := normalizeAndValidateDisks(fields.Disks)
+	if err != nil {
+		return err
+	}
+	fields.Disks = disks
 
 	switch fields.Kind {
 	case "host", "vm", "switch", "router", "firewall", "load_balancer":

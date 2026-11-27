@@ -24,6 +24,15 @@ export interface NetworkInterface extends InterfaceFields {
   peerName?: string
 }
 
+export type DiskType = '' | 'nvme' | 'ssd' | 'hdd'
+
+export interface DiskSpec {
+  type: DiskType
+  sizeGiB: number
+  count: number
+  note?: string
+}
+
 export interface AssetFields {
   kind: Kind
   name: string
@@ -38,6 +47,7 @@ export interface AssetFields {
   probeEnabled: boolean
   cpu: number
   memoryMiB: number
+  disks?: DiskSpec[]
   groupId: number
   teamId?: number
   personId?: number
@@ -77,6 +87,7 @@ export interface ServiceInput {
 }
 
 export interface Asset extends AssetFields {
+  disks: DiskSpec[]
   services?: ServiceInstance[]
   probeStatus: 'unknown' | 'reachable' | 'unreachable' | 'error'
   probeCheckedAt: string | null
@@ -220,6 +231,7 @@ export interface ImportPreviewRow {
   address: string
   cpu: number
   memoryMiB: number
+  disks?: DiskSpec[]
   owner: string
   environment: string
   notes: string

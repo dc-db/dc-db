@@ -64,6 +64,7 @@ CREATE TABLE assets (
     probe_checked_at TIMESTAMPTZ,
     cpu INTEGER NOT NULL DEFAULT 0 CHECK (cpu >= 0),
     memory_mib INTEGER NOT NULL DEFAULT 0 CHECK (memory_mib >= 0),
+    disks TEXT NOT NULL DEFAULT '[]' CHECK (jsonb_typeof(disks::jsonb) = 'array'),
     notes TEXT NOT NULL DEFAULT '',
     observed TEXT NOT NULL DEFAULT '{}' CHECK (jsonb_typeof(observed::jsonb) = 'object'),
     source_key TEXT,

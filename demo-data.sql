@@ -500,7 +500,7 @@ SELECT m.asset_id, m.service_name FROM (VALUES
  (3::bigint,'nginx'), (19,'nginx'), (4,'postgresql'), (3,'redis'), (10,'grafana'), (1,'etcd')
 ) AS m(asset_id, service_name) WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
--- 10. 为所有服务器（153 台）填充虚构品牌、型号与虚拟化平台（PVE/KVM/ESXi），并清空服务器与虚拟机负责人字段。
+-- 10. 为所有服务器（153 台）填充虚构品牌、型号、虚拟化平台（PVE/KVM/ESXi）与硬盘配置，为所有虚拟机（287 台）填充平台与硬盘配置，并清空服务器与虚拟机负责人字段。
 UPDATE assets
 SET brand = CASE (id % 9)
         WHEN 0 THEN 'Dell'
@@ -529,6 +529,14 @@ SET brand = CASE (id % 9)
         WHEN 1 THEN 'kvm'
         ELSE 'esxi'
     END,
+    disks = CASE (id % 6)
+        WHEN 0 THEN '[{"type":"nvme","sizeGiB":480,"count":2,"note":"系统盘"},{"type":"hdd","sizeGiB":4096,"count":4,"note":"数据盘"}]'
+        WHEN 1 THEN '[{"type":"nvme","sizeGiB":960,"count":2,"note":"系统盘"},{"type":"ssd","sizeGiB":1920,"count":6,"note":"数据盘"}]'
+        WHEN 2 THEN '[{"type":"ssd","sizeGiB":480,"count":2,"note":"系统盘"},{"type":"hdd","sizeGiB":8192,"count":8,"note":"存储池"}]'
+        WHEN 3 THEN '[{"type":"nvme","sizeGiB":1920,"count":4,"note":"全闪存"}]'
+        WHEN 4 THEN '[{"type":"ssd","sizeGiB":960,"count":2,"note":"系统盘"},{"type":"ssd","sizeGiB":3840,"count":4,"note":"数据盘"}]'
+        ELSE '[{"type":"nvme","sizeGiB":480,"count":2,"note":"系统盘"},{"type":"nvme","sizeGiB":3840,"count":2,"note":"高速盘"}]'
+    END,
     owner = '',
     person_id = NULL
 WHERE kind = 'host' AND EXISTS (SELECT 1 FROM demo_empty_guard);
@@ -546,6 +554,14 @@ SET platform = COALESCE(
             ELSE 'esxi'
         END
     ),
+    disks = CASE (v.id % 6)
+        WHEN 0 THEN '[{"type":"ssd","sizeGiB":100,"count":1,"note":"系统盘"}]'
+        WHEN 1 THEN '[{"type":"ssd","sizeGiB":100,"count":1,"note":"系统盘"},{"type":"ssd","sizeGiB":500,"count":1,"note":"数据盘"}]'
+        WHEN 2 THEN '[{"type":"nvme","sizeGiB":100,"count":1,"note":"系统盘"},{"type":"nvme","sizeGiB":1024,"count":1,"note":"数据盘"}]'
+        WHEN 3 THEN '[{"type":"ssd","sizeGiB":200,"count":1,"note":"系统盘"},{"type":"hdd","sizeGiB":2048,"count":1,"note":"归档盘"}]'
+        WHEN 4 THEN '[{"type":"ssd","sizeGiB":80,"count":1,"note":"系统盘"},{"type":"ssd","sizeGiB":200,"count":1,"note":"数据盘"}]'
+        ELSE '[{"type":"nvme","sizeGiB":120,"count":1,"note":"系统盘"},{"type":"nvme","sizeGiB":500,"count":1,"note":"数据盘"}]'
+    END,
     owner = '',
     person_id = NULL
 WHERE v.kind = 'vm' AND EXISTS (SELECT 1 FROM demo_empty_guard);
