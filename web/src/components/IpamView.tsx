@@ -16,13 +16,21 @@ import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
-import { ColumnHeaderMenu, DataTableViewOptions, type SortDirection, type ViewColumnOption } from './TableColumnControls'
+import {
+  buildFacetedOptions,
+  ClearFiltersButton,
+  ColumnHeaderMenu,
+  DataTableViewOptions,
+  matchesMultiFilter,
+  type ColumnFilterConfig,
+  type SortDirection,
+  type ViewColumnOption,
+} from './TableColumnControls'
 import { BulkActionBar, RowIndexSelectCell, RowIndexSelectHeader } from './TableSelectionControls'
 import { Input } from './ui/input'
 import { UsageBar } from './UsageBar'
 import { Textarea } from './ui/textarea'
 import { SearchableSelect } from './SearchableSelect'
-import { Select } from './AppControls'
 import { api, apiCSV, APIError } from '../api'
 import { downloadCSV } from '../csv'
 import type { Subnet, SubnetFields, VLAN } from '../api'
@@ -47,11 +55,11 @@ interface Props {
 
 type SubnetDraft = SubnetFields & { id?: number; version?: number }
 
-const subnetStatusMeta: Record<string, { label: string; color: string }> = {
-  container: { label: '聚合', color: 'default' },
-  active: { label: '启用', color: 'green' },
-  reserved: { label: '预留', color: 'orange' },
-  deprecated: { label: '停用', color: 'default' },
+const subnetStatusMeta: Record<string, { label: string; className: string }> = {
+  container: { label: '聚合', className: 'border-border bg-secondary text-secondary-foreground' },
+  active: { label: '启用', className: 'border-border bg-transparent text-foreground gap-1.5 before:size-1.5 before:rounded-full before:bg-success before:content-[""]' },
+  reserved: { label: '预留', className: 'border-border bg-transparent text-foreground gap-1.5 before:size-1.5 before:rounded-full before:bg-warning before:content-[""]' },
+  deprecated: { label: '停用', className: 'border-border bg-muted/60 text-muted-foreground' },
 }
 const roleLabels: Record<string, string> = {
   loopback: '环回', secondary: '辅助', vip: 'VIP', vrrp: 'VRRP',
@@ -147,12 +155,13 @@ function flattenSubnetTree(nodes: SubnetNode[], collapsed: Set<number>): SubnetR
   return rows
 }
 
-type SubnetColumnKey = 'name' | 'cidr' | 'vlan' | 'gateway' | 'usable' | 'used' | 'free' | 'utilization'
+type SubnetColumnKey = 'name' | 'cidr' | 'status' | 'vlan' | 'gateway' | 'usable' | 'used' | 'free' | 'utilization'
 type SubnetSortKey = SubnetColumnKey
 
 const SUBNET_COLUMNS: { key: SubnetColumnKey; label: string }[] = [
   { key: 'name', label: '网段名称' },
   { key: 'cidr', label: 'CIDR' },
+  { key: 'status', label: '状态' },
   { key: 'vlan', label: 'VLAN' },
   { key: 'gateway', label: '网关' },
   { key: 'usable', label: '地址数' },
@@ -193,6 +202,12 @@ function compareSubnets(left: Subnet, right: Subnet, key: SubnetSortKey, directi
       } else {
         result = left.cidr.localeCompare(right.cidr, undefined, { numeric: true }) * dir
       }
+      break
+    }
+    case 'status': {
+      const leftLabel = subnetStatusMeta[left.status]?.label ?? left.status
+      const rightLabel = subnetStatusMeta[right.status]?.label ?? right.status
+      result = leftLabel.localeCompare(rightLabel, 'zh-CN') * dir
       break
     }
     case 'vlan': {
@@ -246,7 +261,8 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [subnetSearch, setSubnetSearch] = useState('')
-  const [subnetStatus, setSubnetStatus] = useState<string | undefined>()
+  const [statusFilter, setStatusFilter] = useState<string[]>([])
+  const [vlanFilter, setVlanFilter] = useState<string[]>([])
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
   const [sort, setSort] = useState<{ key: SubnetSortKey; direction: 'asc' | 'desc' } | null>(null)
   const [visibleColumns, setVisibleColumns] = useState<SubnetColumnKey[]>(ALL_SUBNET_COLUMN_KEYS)
@@ -291,14 +307,93 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
     () => subnets.filter(subnet => matchesRoomFilter(subnet.roomId || null, roomFilter)),
     [roomFilter, subnets],
   )
+  const searchQuery = subnetSearch.trim().toLowerCase()
+  const searchedSubnets = useMemo(() => {
+    if (!searchQuery) return scopedSubnets
+    return scopedSubnets.filter(subnet =>
+      [subnet.name, subnet.cidr, subnet.gateway, subnet.vlan, subnet.vlanName, subnet.role, subnetStatusMeta[subnet.status]?.label]
+        .some(value => value?.toLowerCase().includes(searchQuery)),
+    )
+  }, [scopedSubnets, searchQuery])
+
+  const statusCatalog = useMemo(
+    () => Object.entries(subnetStatusMeta).map(([value, meta]) => ({ value, label: meta.label })),
+    [],
+  )
+  const vlanCatalog = useMemo(() => {
+    const byVid = new Map<string, string>()
+    for (const vlan of vlans) {
+      byVid.set(String(vlan.vid), `VLAN ${vlan.vid} · ${vlan.name}`)
+    }
+    for (const subnet of subnets) {
+      const vid = subnet.vlan.trim()
+      if (!vid || byVid.has(vid)) continue
+      byVid.set(vid, subnet.vlanName ? `VLAN ${vid} · ${subnet.vlanName}` : `VLAN ${vid}`)
+    }
+    return Array.from(byVid.entries())
+      .sort(([a], [b]) => {
+        const an = Number(a)
+        const bn = Number(b)
+        if (Number.isFinite(an) && Number.isFinite(bn)) return an - bn
+        return a.localeCompare(b, 'zh-CN', { numeric: true })
+      })
+      .map(([value, label]) => ({ value, label }))
+  }, [subnets, vlans])
+
+  const statusFilterOptions = useMemo(() => buildFacetedOptions({
+    items: searchedSubnets.filter(subnet => matchesMultiFilter(vlanFilter, subnet.vlan)),
+    getEntries: subnet => ({
+      value: subnet.status,
+      label: subnetStatusMeta[subnet.status]?.label ?? subnet.status,
+    }),
+    catalog: statusCatalog,
+    includeZeroCatalog: true,
+    selectedValues: statusFilter,
+  }), [searchedSubnets, statusCatalog, statusFilter, vlanFilter])
+
+  const vlanFilterOptions = useMemo(() => buildFacetedOptions({
+    items: searchedSubnets.filter(subnet => matchesMultiFilter(statusFilter, subnet.status)),
+    getEntries: subnet => {
+      const vid = subnet.vlan.trim()
+      if (!vid) return null
+      return {
+        value: vid,
+        label: subnet.vlanName ? `VLAN ${vid} · ${subnet.vlanName}` : `VLAN ${vid}`,
+      }
+    },
+    catalog: vlanCatalog,
+    includeEmpty: true,
+    emptyLabel: '未关联',
+    selectedValues: vlanFilter,
+  }), [searchedSubnets, statusFilter, vlanCatalog, vlanFilter])
+
+  const activeFilterCount = statusFilter.length + vlanFilter.length
+  const columnFilters = useMemo<Partial<Record<SubnetColumnKey, ColumnFilterConfig>>>(() => ({
+    status: {
+      options: statusFilterOptions,
+      selectedValues: statusFilter,
+      onChange: setStatusFilter,
+      searchPlaceholder: '搜索状态…',
+    },
+    vlan: {
+      options: vlanFilterOptions,
+      selectedValues: vlanFilter,
+      onChange: setVlanFilter,
+      searchPlaceholder: '搜索 VLAN…',
+    },
+  }), [statusFilter, statusFilterOptions, vlanFilter, vlanFilterOptions])
+
   const subnetTree = useMemo(() => buildSubnetTree(scopedSubnets), [scopedSubnets])
+  const allTreeRows = useMemo(() => flattenSubnetTree(subnetTree, new Set()), [subnetTree])
   const subnetRows = useMemo(() => flattenSubnetTree(subnetTree, collapsed), [subnetTree, collapsed])
   const visibleSubnetRows = useMemo(() => {
-    const query = subnetSearch.trim().toLowerCase()
+    const matchesSearch = (subnet: Subnet) =>
+      !searchQuery || [subnet.name, subnet.cidr, subnet.gateway, subnet.vlan,
+        subnet.vlanName, subnet.role, subnetStatusMeta[subnet.status]?.label].some(value => value?.toLowerCase().includes(searchQuery))
     const matchesFilters = (subnet: Subnet) =>
-      (!subnetStatus || subnet.status === subnetStatus)
-      && (!query || [subnet.name, subnet.cidr, subnet.gateway, subnet.vlan,
-        subnet.vlanName, subnet.role].some(value => value?.toLowerCase().includes(query)))
+      matchesMultiFilter(statusFilter, subnet.status)
+      && matchesMultiFilter(vlanFilter, subnet.vlan)
+      && matchesSearch(subnet)
 
     if (sort) {
       return scopedSubnets
@@ -308,10 +403,14 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
         .map(subnet => ({ subnet, depth: 0, children: 0 }))
     }
 
+    if (searchQuery || activeFilterCount > 0) {
+      return allTreeRows
+        .filter(row => matchesFilters(row.subnet))
+        .map(row => ({ ...row, depth: 0, children: 0 }))
+    }
+
     return subnetRows
-      .filter(row => matchesFilters(row.subnet))
-      .map(row => query || subnetStatus ? ({ ...row, depth: 0, children: 0 }) : row)
-  }, [scopedSubnets, sort, subnetRows, subnetSearch, subnetStatus])
+  }, [activeFilterCount, allTreeRows, scopedSubnets, searchQuery, sort, statusFilter, subnetRows, vlanFilter])
   const selectedSubnetIdSet = useMemo(() => new Set(selectedSubnetIds), [selectedSubnetIds])
   const selectedSubnets = useMemo(
     () => subnets.filter(subnet => selectedSubnetIdSet.has(subnet.id)),
@@ -529,7 +628,7 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
     ]
   }
   function exportSubnets() {
-    downloadCSV('dc-db-subnets.csv', formatSubnetsCSVRows(subnetRows.map(row => row.subnet)))
+    downloadCSV('dc-db-subnets.csv', formatSubnetsCSVRows(visibleSubnetRows.map(row => row.subnet)))
   }
   function exportSelectedSubnetsCSV() {
     if (!selectedSubnets.length) return
@@ -549,16 +648,18 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       title={hideTitle ? undefined : '网段'}
       filters={<>
         <Input className="h-8 w-[240px]" placeholder="搜索名称、CIDR、VLAN、用途" value={subnetSearch} onChange={event => setSubnetSearch(event.target.value)} />
-        <Select
-          size="small" style={{ width: 140 }} allowClear searchable={false} placeholder="全部状态" value={subnetStatus}
-          onChange={(value: string | undefined) => setSubnetStatus(value ?? undefined)}
-          options={Object.entries(subnetStatusMeta).map(([value, meta]) => ({ value, label: meta.label }))}
+        <ClearFiltersButton
+          count={activeFilterCount}
+          onReset={() => {
+            setStatusFilter([])
+            setVlanFilter([])
+          }}
         />
       </>}
       actions={<>
         <DataTableViewOptions columns={viewColumns} onToggle={toggleColumnVisibility} />
         {editable && <Button size="sm" variant="outline" onClick={() => { setImportFile(null); setImportError(''); setImportOpen(true) }}><Download />导入</Button>}
-        <Button size="sm" variant="outline" disabled={!subnetRows.length} onClick={exportSubnets}><Upload />导出</Button>
+        <Button size="sm" variant="outline" disabled={!visibleSubnetRows.length} onClick={exportSubnets}><Upload />导出</Button>
         {editable && <Button size="sm" onClick={event => addSubnet(event.currentTarget)}><Plus />新增网段</Button>}
       </>}
     />
@@ -594,6 +695,7 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
                       sortable
                       sortDirection={sortDir}
                       onSortChange={next => setSort(next === false ? null : { key: col.key, direction: next })}
+                      filter={columnFilters[col.key]}
                       hideable={visibleColumns.length > 1}
                       onHide={() => toggleColumnVisibility(col.key, false)}
                     />
@@ -648,6 +750,10 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
                         )
                       case 'cidr':
                         return <td key="cidr"><span className="font-mono text-xs tabular-nums">{item.cidr}</span></td>
+                      case 'status': {
+                        const meta = subnetStatusMeta[item.status] ?? { label: item.status, className: '' }
+                        return <td key="status" className="whitespace-nowrap"><Badge variant="outline" className={meta.className}>{meta.label}</Badge></td>
+                      }
                       case 'vlan':
                         return <td key="vlan">{item.vlan ? (item.vlanName ? `${item.vlan} ${item.vlanName}` : item.vlan) : <span className="text-muted-foreground">—</span>}</td>
                       case 'gateway':

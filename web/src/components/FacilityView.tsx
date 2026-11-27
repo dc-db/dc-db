@@ -19,8 +19,14 @@ import { PageHeader } from './PageHeader'
 import { RackDetailDrawer } from './RackDetailDrawer'
 import { RoomTreeLayout } from './RoomTreeLayout'
 import { RowActionsMenu } from './RowActionsMenu'
-import { ColumnHeaderMenu, DataTableViewOptions } from './TableColumnControls'
-import type { SortDirection } from './TableColumnControls'
+import {
+  buildFacetedOptions,
+  ClearFiltersButton,
+  ColumnHeaderMenu,
+  DataTableViewOptions,
+  matchesMultiFilter,
+} from './TableColumnControls'
+import type { ColumnFilterConfig, SortDirection } from './TableColumnControls'
 import { BulkActionBar, RowIndexSelectCell, RowIndexSelectHeader } from './TableSelectionControls'
 
 interface Props {
@@ -107,6 +113,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
   const [rackKeyword, setRackKeyword] = useState('')
+  const [rackFilters, setRackFilters] = useState<{ zone: string[]; height: string[] }>({ zone: [], height: [] })
   const [importOpen, setImportOpen] = useState(false)
   const [importFile, setImportFile] = useState<File | null>(null)
   const [importError, setImportError] = useState('')
@@ -137,10 +144,49 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   const rack = racks.find(item => item.id === rackId)
   const rackIds = useMemo(() => new Set(racks.map(item => item.id)), [racks])
   const roomPlacements = useMemo(() => layout.placements.filter(item => rackIds.has(item.rackId)), [layout.placements, rackIds])
-  const rackRows = useMemo(() => {
+  const keywordRackRows = useMemo(() => {
     const needle = rackKeyword.trim().toLowerCase()
     return needle ? racks.filter(item => item.name.toLowerCase().includes(needle) || item.zone.toLowerCase().includes(needle)) : racks
   }, [racks, rackKeyword])
+  const heightCatalog = useMemo(
+    () => Array.from(new Set(racks.map(item => item.heightU)))
+      .sort((a, b) => a - b)
+      .map(heightU => ({ value: String(heightU), label: `${heightU}U` })),
+    [racks],
+  )
+  const zoneFilterOptions = useMemo(() => {
+    const items = rackFilters.height.length
+      ? keywordRackRows.filter(item => matchesMultiFilter(rackFilters.height, String(item.heightU)))
+      : keywordRackRows
+    return buildFacetedOptions({
+      items,
+      getEntries: item => item.zone,
+      includeEmpty: true,
+      emptyLabel: '未分区',
+      selectedValues: rackFilters.zone,
+    })
+  }, [keywordRackRows, rackFilters.height, rackFilters.zone])
+  const heightFilterOptions = useMemo(() => {
+    const items = rackFilters.zone.length
+      ? keywordRackRows.filter(item => matchesMultiFilter(rackFilters.zone, item.zone))
+      : keywordRackRows
+    return buildFacetedOptions({
+      items,
+      getEntries: item => ({ value: String(item.heightU), label: `${item.heightU}U` }),
+      catalog: heightCatalog,
+      selectedValues: rackFilters.height,
+    })
+  }, [keywordRackRows, heightCatalog, rackFilters.zone, rackFilters.height])
+  const activeRackFilterCount = rackFilters.zone.length + rackFilters.height.length
+  const hasRackFilter = Boolean(rackKeyword.trim()) || activeRackFilterCount > 0
+  const clearRackFilters = () => setRackFilters({ zone: [], height: [] })
+  const rackRows = useMemo(() => {
+    if (!activeRackFilterCount) return keywordRackRows
+    return keywordRackRows.filter(item =>
+      matchesMultiFilter(rackFilters.zone, item.zone)
+      && matchesMultiFilter(rackFilters.height, String(item.heightU)),
+    )
+  }, [keywordRackRows, activeRackFilterCount, rackFilters])
   const rackMetrics = useMemo(() => {
     const placementsByRack = new Map<number, Placement[]>()
     for (const placement of roomPlacements) {
@@ -206,6 +252,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   useEffect(() => {
     setSelectedRackIds([])
     setBulkDeleteOpen(false)
+    setRackFilters({ zone: [], height: [] })
   }, [activeRoomId])
 
   useEffect(() => {
@@ -562,6 +609,9 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                 title="机柜"
                 filters={<>
                   <Input type="search" className="h-8 w-[200px]" aria-label="搜索机柜" placeholder="搜索机柜…" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />
+                  {view === 'table' && (
+                    <ClearFiltersButton count={activeRackFilterCount} onReset={clearRackFilters} />
+                  )}
                   <div className="view-toggle view-switch" role="tablist" aria-label="机柜视图">
                     <button
                       type="button" role="tab" aria-selected={view === 'table'}
@@ -632,12 +682,28 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                           {rackColumns.filter(column => visibleRackColumns.includes(column.key)).map(column => {
                           const sortKey = isRackSortColumn(column.key) ? column.key : null
                           const sortDirection: SortDirection = sortKey && rackSort?.key === sortKey ? rackSort.direction : false
+                          const filter: ColumnFilterConfig | undefined = column.key === 'zone'
+                            ? {
+                                options: zoneFilterOptions,
+                                selectedValues: rackFilters.zone,
+                                onChange: next => setRackFilters(current => ({ ...current, zone: next })),
+                                searchPlaceholder: '搜索区域…',
+                              }
+                            : column.key === 'height'
+                              ? {
+                                  options: heightFilterOptions,
+                                  selectedValues: rackFilters.height,
+                                  onChange: next => setRackFilters(current => ({ ...current, height: next })),
+                                  searchPlaceholder: '搜索高度…',
+                                }
+                              : undefined
                           return <th key={column.key} aria-sort={sortKey ? (sortDirection === 'asc' ? 'ascending' : sortDirection === 'desc' ? 'descending' : 'none') : undefined}>
                             <ColumnHeaderMenu
                               title={column.label}
                               sortable={Boolean(sortKey)}
                               sortDirection={sortDirection}
                               onSortChange={sortKey ? next => setRackSort(next === false ? null : { key: sortKey, direction: next }) : undefined}
+                              filter={filter}
                               hideable={visibleRackColumns.length > 1}
                               onHide={() => {
                                 if (visibleRackColumns.length <= 1) return
@@ -694,7 +760,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                               </tr>
                             )
                           })}
-                          {!rackRows.length && <tr><td colSpan={visibleRackColumns.length + 1 + (editable ? 1 : 0)} className="facility-table-empty">{rackKeyword ? '没有匹配的机柜' : '还没有机柜，点右上角「新增机柜」开始'}</td></tr>}
+                          {!rackRows.length && <tr><td colSpan={visibleRackColumns.length + 1 + (editable ? 1 : 0)} className="facility-table-empty">{hasRackFilter ? '没有匹配的机柜' : '还没有机柜，点右上角「新增机柜」开始'}</td></tr>}
                         </tbody>
                       </table>
                     </div>
@@ -751,7 +817,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                           </div>
                         )
                       })}
-                      {!rackRows.length && <p className="muted">当前数据中心还没有机柜</p>}
+                      {!rackRows.length && <p className="muted">{hasRackFilter ? '没有匹配的机柜' : '当前数据中心还没有机柜'}</p>}
                     </div>
                   )}
                 </CardContent>

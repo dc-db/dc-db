@@ -7,7 +7,12 @@ import { downloadCSV } from '../csv'
 import { Alert, Button, Input, Modal, Select, Space, Table, Tag } from './AppControls'
 import type { TableColumnsType } from './AppControls'
 import { RowActionsMenu } from './RowActionsMenu'
-import { DataTableViewOptions } from './TableColumnControls'
+import {
+  buildFacetedOptions,
+  ClearFiltersButton,
+  DataTableViewOptions,
+  matchesMultiFilter,
+} from './TableColumnControls'
 import { BulkActionBar } from './TableSelectionControls'
 import {
   AlertDialog,
@@ -82,6 +87,11 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
   const [peerId, setPeerId] = useState<number | null>(null)
   const [pendingDelete, setPendingDelete] = useState<NetworkInterface | null>(null)
   const [visibleColumns, setVisibleColumns] = useState<InterfaceColumnKey[]>(defaultInterfaceColumns)
+  const [ifaceFilters, setIfaceFilters] = useState<{ media: string[]; speed: string[]; status: string[] }>({
+    media: [],
+    speed: [],
+    status: [],
+  })
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
@@ -100,20 +110,83 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
   useEffect(() => {
     setSelectedIds([])
     setBulkDeleteOpen(false)
+    setIfaceFilters({ media: [], speed: [], status: [] })
   }, [assetId])
 
+  const speedCatalog = useMemo(
+    () => Array.from(new Set(items.map(item => item.speedMbps).filter(value => value > 0)))
+      .sort((a, b) => a - b)
+      .map(mbps => ({ value: String(mbps), label: speedLabel(mbps) })),
+    [items],
+  )
+
+  const mediaFilterOptions = useMemo(() => {
+    const cross = items.filter(item =>
+      matchesMultiFilter(ifaceFilters.speed, item.speedMbps > 0 ? String(item.speedMbps) : '')
+      && matchesMultiFilter(ifaceFilters.status, item.status),
+    )
+    return buildFacetedOptions({
+      items: cross,
+      getEntries: item => ({ value: item.medium, label: mediumLabel(item.medium) }),
+      catalog: mediumOptions,
+      includeZeroCatalog: true,
+      selectedValues: ifaceFilters.media,
+    })
+  }, [items, ifaceFilters.speed, ifaceFilters.status, ifaceFilters.media])
+
+  const speedFilterOptions = useMemo(() => {
+    const cross = items.filter(item =>
+      matchesMultiFilter(ifaceFilters.media, item.medium)
+      && matchesMultiFilter(ifaceFilters.status, item.status),
+    )
+    return buildFacetedOptions({
+      items: cross,
+      getEntries: item => (item.speedMbps > 0 ? { value: String(item.speedMbps), label: speedLabel(item.speedMbps) } : null),
+      catalog: speedCatalog,
+      includeEmpty: true,
+      emptyLabel: '未设置',
+      selectedValues: ifaceFilters.speed,
+    })
+  }, [items, speedCatalog, ifaceFilters.media, ifaceFilters.status, ifaceFilters.speed])
+
+  const statusFilterOptions = useMemo(() => {
+    const cross = items.filter(item =>
+      matchesMultiFilter(ifaceFilters.media, item.medium)
+      && matchesMultiFilter(ifaceFilters.speed, item.speedMbps > 0 ? String(item.speedMbps) : ''),
+    )
+    return buildFacetedOptions({
+      items: cross,
+      getEntries: item => ({ value: item.status, label: statusLabel(item.status) }),
+      catalog: statusOptions,
+      includeZeroCatalog: true,
+      selectedValues: ifaceFilters.status,
+    })
+  }, [items, ifaceFilters.media, ifaceFilters.speed, ifaceFilters.status])
+
+  const activeFilterCount = ifaceFilters.media.length + ifaceFilters.speed.length + ifaceFilters.status.length
+  const clearIfaceFilters = () => setIfaceFilters({ media: [], speed: [], status: [] })
+
+  const filteredItems = useMemo(() => {
+    if (!activeFilterCount) return items
+    return items.filter(item =>
+      matchesMultiFilter(ifaceFilters.media, item.medium)
+      && matchesMultiFilter(ifaceFilters.speed, item.speedMbps > 0 ? String(item.speedMbps) : '')
+      && matchesMultiFilter(ifaceFilters.status, item.status),
+    )
+  }, [items, activeFilterCount, ifaceFilters])
+
   useEffect(() => {
-    const validIds = new Set(items.map(item => item.id))
+    const validIds = new Set(filteredItems.map(item => item.id))
     setSelectedIds(current => {
       const next = current.filter(id => validIds.has(id))
       return next.length === current.length ? current : next
     })
-  }, [items])
+  }, [filteredItems])
 
   const selectedInterfaces = useMemo(() => {
     const idSet = new Set(selectedIds)
-    return items.filter(item => idSet.has(item.id))
-  }, [items, selectedIds])
+    return filteredItems.filter(item => idSet.has(item.id))
+  }, [filteredItems, selectedIds])
 
   const connectedSelectedCount = useMemo(
     () => selectedInterfaces.filter(item => Boolean(item.peerId)).length,
@@ -309,6 +382,12 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
         title: '介质',
         key: 'medium',
         sorter: (left, right) => mediumLabel(left.medium).localeCompare(mediumLabel(right.medium), 'zh-CN'),
+        filter: {
+          options: mediaFilterOptions,
+          selectedValues: ifaceFilters.media,
+          onChange: next => setIfaceFilters(current => ({ ...current, media: next })),
+          searchPlaceholder: '搜索介质…',
+        },
         render: (_: unknown, item: NetworkInterface) => <Tag>{mediumLabel(item.medium)}</Tag>,
       },
     },
@@ -319,6 +398,12 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
         title: '速率',
         key: 'speed',
         sorter: (left, right) => (left.speedMbps ?? 0) - (right.speedMbps ?? 0),
+        filter: {
+          options: speedFilterOptions,
+          selectedValues: ifaceFilters.speed,
+          onChange: next => setIfaceFilters(current => ({ ...current, speed: next })),
+          searchPlaceholder: '搜索速率…',
+        },
         render: (_: unknown, item: NetworkInterface) => speedLabel(item.speedMbps),
       },
     },
@@ -339,6 +424,12 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
         title: '状态',
         key: 'status',
         sorter: (left, right) => statusLabel(left.status).localeCompare(statusLabel(right.status), 'zh-CN'),
+        filter: {
+          options: statusFilterOptions,
+          selectedValues: ifaceFilters.status,
+          onChange: next => setIfaceFilters(current => ({ ...current, status: next })),
+          searchPlaceholder: '搜索状态…',
+        },
         render: (_: unknown, item: NetworkInterface) => (
           <Tag color={statusColor(item.status)}>{statusLabel(item.status)}</Tag>
         ),
@@ -403,6 +494,7 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
       <div className="asset-interfaces-head">
         <span className="muted">记录设备的网口与上联关系，连接后两端都会显示对端设备。</span>
         <Space>
+          <ClearFiltersButton count={activeFilterCount} onReset={clearIfaceFilters} />
           <DataTableViewOptions
             columns={dataColumns.map(item => ({
               id: item.key,
@@ -415,14 +507,15 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
         </Space>
       </div>
       <Table<NetworkInterface>
-        rowKey="id" columns={columns} dataSource={items} loading={busy || bulkDeleting} size="small"
+        rowKey="id" columns={columns} dataSource={filteredItems} loading={busy || bulkDeleting} size="small"
         onHideColumn={hideColumn}
         rowSelection={{
           selectedRowKeys: selectedIds,
           onChange: keys => setSelectedIds(keys.map(Number)),
           getRowLabel: item => `选择接口 ${item.name}`,
         }}
-        pagination={false} locale={{ emptyText: '暂无接口，点击「添加接口」开始记录' }}
+        pagination={false}
+        locale={{ emptyText: activeFilterCount > 0 ? '没有匹配的接口' : '暂无接口，点击「添加接口」开始记录' }}
       />
       <BulkActionBar
         count={selectedInterfaces.length}

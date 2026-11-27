@@ -16,7 +16,7 @@ import type { Asset, AvailableIPs, IPAddress, IPUsage, Link, Subnet, SubnetDetai
 import { assetLocations, uRange, type Facilities } from '../facilities'
 import { DataTable } from './DataTable'
 import { RowIconBox } from './ServiceIcon'
-import { DataTableViewOptions } from './TableColumnControls'
+import { buildFacetedOptions, ClearFiltersButton, DataTableViewOptions, matchesMultiFilter } from './TableColumnControls'
 import { BulkActionBar, createRowSelectionColumn } from './TableSelectionControls'
 import { TopologyCanvas, type TopoEdgeInput, type TopoItem, type TopoTier } from './TopologyCanvas'
 import { Badge } from './ui/badge'
@@ -138,12 +138,18 @@ export function SubnetDetailView({
   const [usedSorting, setUsedSorting] = useState<SortingState>([])
   const [usedColumnVisibility, setUsedColumnVisibility] = useState<VisibilityState>({})
   const [usedRowSelection, setUsedRowSelection] = useState<RowSelectionState>({})
+  const [usedStateFilter, setUsedStateFilter] = useState<string[]>([])
+  const [usedSourceFilter, setUsedSourceFilter] = useState<string[]>([])
+  const [usedRoleFilter, setUsedRoleFilter] = useState<string[]>([])
   const freePageSize = 10
 
   useEffect(() => {
     setView('details')
     setFreePage(0)
     setUsedRowSelection({})
+    setUsedStateFilter([])
+    setUsedSourceFilter([])
+    setUsedRoleFilter([])
   }, [subnet.id])
 
   useEffect(() => {
@@ -186,6 +192,69 @@ export function SubnetDetailView({
   const usedPct = current.usable > 0 ? Math.min(100, Math.round((current.used / current.usable) * 100)) : 0
   const statusInfo = subnetStatusMeta[current.status] ?? subnetStatusMeta.active
 
+  const usedIps = useMemo(() => detail?.usedIps ?? [], [detail?.usedIps])
+  const usedActiveFilterCount = usedStateFilter.length + usedSourceFilter.length + usedRoleFilter.length
+  const ipStateCatalog = useMemo(
+    () => Object.entries(ipStateMeta).map(([value, meta]) => ({ value, label: meta.label })),
+    [],
+  )
+  const ipSourceCatalog = useMemo(
+    () => Object.entries(ipSourceMeta).map(([value, label]) => ({ value, label })),
+    [],
+  )
+  const ipRoleCatalog = useMemo(
+    () => Object.entries(ipRoleLabels).map(([value, label]) => ({ value, label })),
+    [],
+  )
+  const usedStateOptions = useMemo(() => buildFacetedOptions({
+    items: usedIps.filter(row =>
+      matchesMultiFilter(usedSourceFilter, row.source)
+      && matchesMultiFilter(usedRoleFilter, row.role),
+    ),
+    getEntries: row => ({
+      value: row.state,
+      label: ipStateMeta[row.state]?.label ?? row.state,
+    }),
+    catalog: ipStateCatalog,
+    includeZeroCatalog: true,
+    selectedValues: usedStateFilter,
+  }), [ipStateCatalog, usedIps, usedRoleFilter, usedSourceFilter, usedStateFilter])
+  const usedSourceOptions = useMemo(() => buildFacetedOptions({
+    items: usedIps.filter(row =>
+      matchesMultiFilter(usedStateFilter, row.state)
+      && matchesMultiFilter(usedRoleFilter, row.role),
+    ),
+    getEntries: row => ({
+      value: row.source,
+      label: ipSourceMeta[row.source] ?? row.source,
+    }),
+    catalog: ipSourceCatalog,
+    includeZeroCatalog: true,
+    selectedValues: usedSourceFilter,
+  }), [ipSourceCatalog, usedIps, usedRoleFilter, usedSourceFilter, usedStateFilter])
+  const usedRoleOptions = useMemo(() => buildFacetedOptions({
+    items: usedIps.filter(row =>
+      matchesMultiFilter(usedStateFilter, row.state)
+      && matchesMultiFilter(usedSourceFilter, row.source),
+    ),
+    getEntries: row => {
+      const role = row.role?.trim()
+      return role ? { value: role, label: ipRoleLabels[role] ?? role } : null
+    },
+    catalog: ipRoleCatalog,
+    includeEmpty: true,
+    emptyLabel: '未设置',
+    selectedValues: usedRoleFilter,
+  }), [ipRoleCatalog, usedIps, usedRoleFilter, usedSourceFilter, usedStateFilter])
+  const filteredUsedIps = useMemo(
+    () => usedIps.filter(row =>
+      matchesMultiFilter(usedStateFilter, row.state)
+      && matchesMultiFilter(usedSourceFilter, row.source)
+      && matchesMultiFilter(usedRoleFilter, row.role),
+    ),
+    [usedIps, usedRoleFilter, usedSourceFilter, usedStateFilter],
+  )
+
   const usedColumns = useMemo<ColumnDef<IPUsage>[]>(() => [
     createRowSelectionColumn<IPUsage>({
       selectAllLabel: '全选当前页已用 IP',
@@ -203,7 +272,15 @@ export function SubnetDetailView({
       accessorFn: row => ipStateMeta[row.state]?.label ?? row.state,
       header: '状态',
       sortingFn: (a, b) => compareText(a.getValue<string>('state'), b.getValue<string>('state')),
-      meta: { cellClassName: 'whitespace-nowrap' },
+      meta: {
+        cellClassName: 'whitespace-nowrap',
+        filter: {
+          options: usedStateOptions,
+          selectedValues: usedStateFilter,
+          onChange: setUsedStateFilter,
+          searchPlaceholder: '搜索状态…',
+        },
+      },
       cell: ({ row }) => {
         const meta = ipStateMeta[row.original.state]
         return <Badge variant="outline" className={meta?.className}>{meta?.label ?? row.original.state}</Badge>
@@ -214,7 +291,15 @@ export function SubnetDetailView({
       accessorFn: row => ipSourceMeta[row.source] ?? row.source,
       header: '来源',
       sortingFn: (a, b) => compareText(a.getValue<string>('source'), b.getValue<string>('source')),
-      meta: { cellClassName: 'whitespace-nowrap' },
+      meta: {
+        cellClassName: 'whitespace-nowrap',
+        filter: {
+          options: usedSourceOptions,
+          selectedValues: usedSourceFilter,
+          onChange: setUsedSourceFilter,
+          searchPlaceholder: '搜索来源…',
+        },
+      },
       cell: ({ row }) => <Badge variant="secondary">{ipSourceMeta[row.original.source] ?? row.original.source}</Badge>,
     },
     {
@@ -234,7 +319,15 @@ export function SubnetDetailView({
       header: '角色',
       sortUndefined: 'last',
       sortingFn: (a, b) => compareText(a.getValue<string | undefined>('role'), b.getValue<string | undefined>('role')),
-      meta: { cellClassName: 'whitespace-nowrap' },
+      meta: {
+        cellClassName: 'whitespace-nowrap',
+        filter: {
+          options: usedRoleOptions,
+          selectedValues: usedRoleFilter,
+          onChange: setUsedRoleFilter,
+          searchPlaceholder: '搜索角色…',
+        },
+      },
       cell: ({ row }) => ipRoleLabels[row.original.role ?? ''] ?? (row.original.role || <span className="text-muted-foreground">—</span>),
     },
     {
@@ -263,10 +356,10 @@ export function SubnetDetailView({
         ? <span className="text-muted-foreground">{row.original.notes}</span>
         : <span className="text-muted-foreground">—</span>,
     },
-  ], [onOpenAsset])
+  ], [onOpenAsset, usedRoleFilter, usedRoleOptions, usedSourceFilter, usedSourceOptions, usedStateFilter, usedStateOptions])
 
   const usedTable = useReactTable({
-    data: detail?.usedIps ?? [],
+    data: filteredUsedIps,
     columns: usedColumns,
     getRowId: ipUsageRowId,
     enableRowSelection: true,
@@ -460,14 +553,24 @@ export function SubnetDetailView({
             <div className="svc-bound-head items-center">
               <h3>已用 IP 清单</h3>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground tabular-nums">共 {detail?.usedIps.length ?? 0} 个</span>
+                <ClearFiltersButton
+                  count={usedActiveFilterCount}
+                  onReset={() => {
+                    setUsedStateFilter([])
+                    setUsedSourceFilter([])
+                    setUsedRoleFilter([])
+                  }}
+                />
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {usedActiveFilterCount > 0 ? `匹配 ${filteredUsedIps.length} / 共 ${usedIps.length} 个` : `共 ${usedIps.length} 个`}
+                </span>
                 <DataTableViewOptions table={usedTable} />
               </div>
             </div>
             <DataTable
               table={usedTable}
               loading={loading}
-              emptyMessage="该网段暂无已用 IP 地址"
+              emptyMessage={usedActiveFilterCount > 0 ? '没有匹配的已用 IP 地址' : '该网段暂无已用 IP 地址'}
             />
           </section>
           <BulkActionBar
@@ -544,10 +647,12 @@ export function VLANDetailView({
   const [subnetSorting, setSubnetSorting] = useState<SortingState>([])
   const [subnetColumnVisibility, setSubnetColumnVisibility] = useState<VisibilityState>({})
   const [subnetRowSelection, setSubnetRowSelection] = useState<RowSelectionState>({})
+  const [subnetStatusFilter, setSubnetStatusFilter] = useState<string[]>([])
 
   useEffect(() => {
     setView('details')
     setSubnetRowSelection({})
+    setSubnetStatusFilter([])
   }, [vlan.id])
   useEffect(() => {
     let active = true
@@ -572,6 +677,24 @@ export function VLANDetailView({
     })
   }, [relatedSubnets])
   const statusInfo = subnetStatusMeta[vlan.status] ?? subnetStatusMeta.active
+  const subnetStatusCatalog = useMemo(
+    () => Object.entries(subnetStatusMeta).map(([value, meta]) => ({ value, label: meta.label })),
+    [],
+  )
+  const subnetStatusOptions = useMemo(() => buildFacetedOptions({
+    items: relatedSubnets,
+    getEntries: row => ({
+      value: row.status,
+      label: subnetStatusMeta[row.status]?.label ?? row.status,
+    }),
+    catalog: subnetStatusCatalog,
+    includeZeroCatalog: true,
+    selectedValues: subnetStatusFilter,
+  }), [relatedSubnets, subnetStatusCatalog, subnetStatusFilter])
+  const filteredRelatedSubnets = useMemo(
+    () => relatedSubnets.filter(row => matchesMultiFilter(subnetStatusFilter, row.status)),
+    [relatedSubnets, subnetStatusFilter],
+  )
 
   const subnetColumns = useMemo<ColumnDef<Subnet>[]>(() => [
     createRowSelectionColumn<Subnet>({
@@ -591,6 +714,25 @@ export function VLANDetailView({
       sortingFn: (a, b) => compareCIDR(a.original.cidr, b.original.cidr),
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => <span className="font-mono text-xs tabular-nums">{row.original.cidr}</span>,
+    },
+    {
+      id: 'status',
+      accessorFn: row => subnetStatusMeta[row.status]?.label ?? row.status,
+      header: '状态',
+      sortingFn: (a, b) => compareText(a.getValue<string>('status'), b.getValue<string>('status')),
+      meta: {
+        cellClassName: 'whitespace-nowrap',
+        filter: {
+          options: subnetStatusOptions,
+          selectedValues: subnetStatusFilter,
+          onChange: setSubnetStatusFilter,
+          searchPlaceholder: '搜索状态…',
+        },
+      },
+      cell: ({ row }) => {
+        const meta = subnetStatusMeta[row.original.status] ?? { label: row.original.status, className: '' }
+        return <Badge variant="outline" className={meta.className}>{meta.label}</Badge>
+      },
     },
     {
       id: 'gateway',
@@ -621,10 +763,10 @@ export function VLANDetailView({
       sortingFn: (a, b) => compareText(a.getValue<string | undefined>('notes'), b.getValue<string | undefined>('notes')),
       cell: ({ row }) => row.original.notes ? <span className="text-muted-foreground">{row.original.notes}</span> : <span className="text-muted-foreground">—</span>,
     },
-  ], [])
+  ], [subnetStatusFilter, subnetStatusOptions])
 
   const subnetTable = useReactTable({
-    data: relatedSubnets,
+    data: filteredRelatedSubnets,
     columns: subnetColumns,
     getRowId: row => String(row.id),
     enableRowSelection: true,
@@ -774,7 +916,15 @@ export function VLANDetailView({
             <div className="svc-bound-head items-center">
               <h3>关联网段清单</h3>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground tabular-nums">共 {relatedSubnets.length} 个 · 点击查看网段详情</span>
+                <ClearFiltersButton
+                  count={subnetStatusFilter.length}
+                  onReset={() => setSubnetStatusFilter([])}
+                />
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {subnetStatusFilter.length > 0
+                    ? `匹配 ${filteredRelatedSubnets.length} / 共 ${relatedSubnets.length} 个 · 点击查看网段详情`
+                    : `共 ${relatedSubnets.length} 个 · 点击查看网段详情`}
+                </span>
                 <DataTableViewOptions table={subnetTable} />
               </div>
             </div>
@@ -785,7 +935,7 @@ export function VLANDetailView({
                 if ((event.target as HTMLElement).closest('button, a, [role="checkbox"], [role="menuitem"], [data-slot="dropdown-menu-content"]')) return
                 onOpenSubnetDetail(item)
               }}
-              emptyMessage="尚未有网段关联此 VLAN"
+              emptyMessage={subnetStatusFilter.length > 0 ? '没有匹配的关联网段' : '尚未有网段关联此 VLAN'}
             />
           </section>
           <BulkActionBar

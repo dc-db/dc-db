@@ -7,7 +7,7 @@ import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
 import { SearchableSelect } from './SearchableSelect'
-import { DataTableViewOptions } from './TableColumnControls'
+import { buildFacetedOptions, ClearFiltersButton, DataTableViewOptions, matchesMultiFilter } from './TableColumnControls'
 import { BulkActionBar, createRowSelectionColumn } from './TableSelectionControls'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -21,6 +21,10 @@ import { Textarea } from './ui/textarea'
 
 type Entry = Person | Team
 type Draft = Pick<DirectoryEntry, 'name' | 'description'> & { username: string; memberIds: number[] }
+const ACCOUNT_FILTER_CATALOG = [
+  { value: 'linked', label: '已关联账号' },
+  { value: 'unlinked', label: '未关联账号' },
+]
 
 interface Props {
   kind: 'people' | 'teams'
@@ -38,6 +42,9 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
   const teamPage = kind === 'teams'
   const title = teamPage ? '团队' : '人员'
   const [keyword, setKeyword] = useState('')
+  const [teamFilter, setTeamFilter] = useState<string[]>([])
+  const [accountFilter, setAccountFilter] = useState<string[]>([])
+  const [memberFilter, setMemberFilter] = useState<string[]>([])
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
@@ -58,9 +65,18 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
     setColumnVisibility({})
     setSorting([])
     setRowSelection({})
+    setTeamFilter([])
+    setAccountFilter([])
+    setMemberFilter([])
     setBulkDeleteOpen(false)
     setBulkError('')
   }, [kind])
+
+  useEffect(() => {
+    if (!canLinkAccount) {
+      setAccountFilter([])
+    }
+  }, [canLinkAccount])
 
   useEffect(() => {
     setRowSelection(prev => {
@@ -132,11 +148,6 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
     }
   }
 
-  const visible = useMemo(() => {
-    const query = keyword.trim().toLowerCase()
-    return entries.filter(entry =>
-      [entry.name, entry.description].some(value => value.toLowerCase().includes(query)))
-  }, [entries, keyword])
   const teamNamesByPerson = useMemo(() => {
     const namesByPerson = new Map<number, string[]>()
     for (const team of teams) {
@@ -148,6 +159,76 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
     }
     return namesByPerson
   }, [teams])
+  const effectiveAccountFilter = !teamPage && canLinkAccount ? accountFilter : []
+  const keywordFiltered = useMemo(() => {
+    const query = keyword.trim().toLowerCase()
+    if (!query) return entries
+    return entries.filter(entry =>
+      [entry.name, entry.description].some(value => (value ?? '').toLowerCase().includes(query)))
+  }, [entries, keyword])
+  const teamFilterOptions = useMemo(() => {
+    if (teamPage) return []
+    const scoped = keywordFiltered.filter(entry =>
+      matchesMultiFilter(effectiveAccountFilter, (entry as Person).username?.trim() ? 'linked' : 'unlinked'))
+    return buildFacetedOptions({
+      items: scoped,
+      getEntries: entry => teamNamesByPerson.get(entry.id) ?? [],
+      includeEmpty: true,
+      emptyLabel: '未加入团队',
+      selectedValues: teamFilter,
+    })
+  }, [effectiveAccountFilter, keywordFiltered, teamFilter, teamNamesByPerson, teamPage])
+  const accountFilterOptions = useMemo(() => {
+    if (teamPage || !canLinkAccount) return []
+    const scoped = keywordFiltered.filter(entry =>
+      matchesMultiFilter(teamFilter, teamNamesByPerson.get(entry.id) ?? []))
+    return buildFacetedOptions({
+      items: scoped,
+      getEntries: entry => ((entry as Person).username?.trim() ? 'linked' : 'unlinked'),
+      catalog: ACCOUNT_FILTER_CATALOG,
+      includeZeroCatalog: true,
+      selectedValues: accountFilter,
+    })
+  }, [accountFilter, canLinkAccount, keywordFiltered, teamFilter, teamNamesByPerson, teamPage])
+  const memberFilterOptions = useMemo(() => {
+    if (!teamPage) return []
+    return buildFacetedOptions({
+      items: keywordFiltered,
+      getEntries: entry =>
+        (entry as Team).memberIds
+          .map(id => peopleById.get(id)?.name)
+          .filter((name): name is string => Boolean(name)),
+      includeEmpty: true,
+      emptyLabel: '无成员',
+      selectedValues: memberFilter,
+    })
+  }, [keywordFiltered, memberFilter, peopleById, teamPage])
+  const visible = useMemo(() => {
+    if (teamPage) {
+      if (memberFilter.length === 0) return keywordFiltered
+      return keywordFiltered.filter(entry =>
+        matchesMultiFilter(
+          memberFilter,
+          (entry as Team).memberIds
+            .map(id => peopleById.get(id)?.name)
+            .filter((name): name is string => Boolean(name)),
+        ))
+    }
+    if (teamFilter.length === 0 && effectiveAccountFilter.length === 0) return keywordFiltered
+    return keywordFiltered.filter(entry =>
+      matchesMultiFilter(teamFilter, teamNamesByPerson.get(entry.id) ?? [])
+      && matchesMultiFilter(effectiveAccountFilter, (entry as Person).username?.trim() ? 'linked' : 'unlinked'))
+  }, [effectiveAccountFilter, keywordFiltered, memberFilter, peopleById, teamFilter, teamNamesByPerson, teamPage])
+  const activeFilterCount = teamPage
+    ? memberFilter.length
+    : teamFilter.length + effectiveAccountFilter.length
+  const hasActiveFilter = Boolean(keyword.trim()) || activeFilterCount > 0
+
+  function resetColumnFilters() {
+    setTeamFilter([])
+    setAccountFilter([])
+    setMemberFilter([])
+  }
   const selectedItems = useMemo(
     () => entries.filter(entry => Boolean(rowSelection[String(entry.id)])),
     [entries, rowSelection],
@@ -263,6 +344,14 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
         const rightNames = right.memberIds.map(id => peopleById.get(id)?.name).filter(Boolean).join('、')
         return leftNames.localeCompare(rightNames, 'zh-CN')
       },
+      meta: {
+        filter: {
+          options: memberFilterOptions,
+          selectedValues: memberFilter,
+          onChange: setMemberFilter,
+          searchPlaceholder: '搜索成员…',
+        },
+      },
       cell: ({ row }) => {
         const team = row.original as Team
         const names = team.memberIds.map(id => peopleById.get(id)?.name).filter(Boolean).join('、')
@@ -273,7 +362,14 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
       header: '登录账号',
       accessorFn: (row: Entry) => (row as Person).username ?? '',
       sortingFn: (a, b) => ((a.original as Person).username ?? '').localeCompare((b.original as Person).username ?? '', 'zh-CN'),
-      meta: { cellClassName: 'whitespace-nowrap' },
+      meta: {
+        cellClassName: 'whitespace-nowrap',
+        filter: {
+          options: accountFilterOptions,
+          selectedValues: accountFilter,
+          onChange: setAccountFilter,
+        },
+      },
       cell: ({ row }) => {
         const username = (row.original as Person).username
         return username ? <span className="font-mono text-xs">{username}</span> : <span className="text-muted-foreground">—</span>
@@ -284,6 +380,14 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
       header: '所属团队',
       accessorFn: (row: Entry) => teamNamesByPerson.get(row.id)?.join('、') ?? '',
       sortingFn: (a, b) => (teamNamesByPerson.get(a.original.id)?.join('、') ?? '').localeCompare(teamNamesByPerson.get(b.original.id)?.join('、') ?? '', 'zh-CN'),
+      meta: {
+        filter: {
+          options: teamFilterOptions,
+          selectedValues: teamFilter,
+          onChange: setTeamFilter,
+          searchPlaceholder: '搜索团队…',
+        },
+      },
       cell: ({ row }) => {
         const names = teamNamesByPerson.get(row.original.id)?.join('、')
         return names || <span className="text-muted-foreground">—</span>
@@ -346,7 +450,12 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
   return <>
     <PageHeader
       title={title}
-      filters={<Input type="search" aria-label={`搜索${title}`} placeholder={`搜索${title}名称或备注`} className="h-8 w-[240px]" value={keyword} onChange={event => setKeyword(event.target.value)} />}
+      filters={
+        <>
+          <Input type="search" aria-label={`搜索${title}`} placeholder={`搜索${title}名称或备注`} className="h-8 w-[240px]" value={keyword} onChange={event => setKeyword(event.target.value)} />
+          <ClearFiltersButton count={activeFilterCount} onReset={resetColumnFilters} />
+        </>
+      }
       actions={
         <>
           <DataTableViewOptions table={table} />
@@ -360,7 +469,7 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
         <button type="button" aria-label="关闭" onClick={() => setBulkError('')}>×</button>
       </div>
     )}
-    <DataTable table={table} loading={loading} emptyMessage={keyword ? `未找到匹配的${title}` : `暂无${title}`} />
+    <DataTable table={table} loading={loading} emptyMessage={hasActiveFilter ? `未找到匹配的${title}` : `暂无${title}`} />
     <BulkActionBar
       count={selectedItems.length}
       unit={teamPage ? '个团队' : '名人员'}

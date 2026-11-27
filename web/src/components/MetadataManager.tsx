@@ -14,7 +14,7 @@ import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
 import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
-import { DataTableViewOptions } from './TableColumnControls'
+import { buildFacetedOptions, ClearFiltersButton, DataTableViewOptions, matchesMultiFilter } from './TableColumnControls'
 import { BulkActionBar, createRowSelectionColumn } from './TableSelectionControls'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -45,6 +45,7 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  const [roomColumnFilter, setRoomColumnFilter] = useState<string[]>([])
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
@@ -60,6 +61,7 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
 
   useEffect(() => {
     setKeyword('')
+    setRoomColumnFilter([])
     setSorting([])
     setColumnVisibility({})
     setRowSelection({})
@@ -68,10 +70,15 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
   }, [kind])
 
   useEffect(() => {
+    setRoomColumnFilter([])
     setColumnVisibility({})
     setRowSelection({})
     setBulkDeleteOpen(false)
   }, [withRoomTree])
+
+  useEffect(() => {
+    setRoomColumnFilter([])
+  }, [roomFilter])
 
   useEffect(() => {
     setRowSelection(prev => {
@@ -103,13 +110,29 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
     [entries, withRoomTree],
   )
 
-  const visible = useMemo(() => {
+  const baseVisible = useMemo(() => {
     const query = keyword.trim().toLowerCase()
     return entries.filter(item => {
       if (withRoomTree && roomFilter !== undefined && !matchesRoomFilter(item.roomId || null, roomFilter)) return false
       return !query || [item.name, item.description, item.roomName].some(value => value?.toLowerCase().includes(query))
     })
   }, [entries, keyword, roomFilter, withRoomTree])
+
+  const roomColumnFilterOptions = useMemo(() => {
+    if (!withRoomTree) return []
+    return buildFacetedOptions({
+      items: baseVisible,
+      getEntries: item => item.roomName,
+      includeEmpty: true,
+      emptyLabel: '未指定',
+      selectedValues: roomColumnFilter,
+    })
+  }, [baseVisible, roomColumnFilter, withRoomTree])
+
+  const visible = useMemo(() => {
+    if (!withRoomTree || roomColumnFilter.length === 0) return baseVisible
+    return baseVisible.filter(item => matchesMultiFilter(roomColumnFilter, item.roomName))
+  }, [baseVisible, roomColumnFilter, withRoomTree])
 
   function showForm(entry: MetadataEntry | null) {
     setEditing(entry)
@@ -232,7 +255,16 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
       accessorKey: 'roomName',
       header: '所属数据中心',
       sortingFn: (a, b) => (a.original.roomName ?? '').localeCompare(b.original.roomName ?? '', 'zh-CN'),
-      meta: { headerClassName: 'w-[18%]', cellClassName: 'whitespace-nowrap' },
+      meta: {
+        headerClassName: 'w-[18%]',
+        cellClassName: 'whitespace-nowrap',
+        filter: {
+          options: roomColumnFilterOptions,
+          selectedValues: roomColumnFilter,
+          onChange: setRoomColumnFilter,
+          searchPlaceholder: '搜索数据中心…',
+        },
+      },
       cell: ({ row }) => row.original.roomName || <span className="text-muted-foreground">—</span>,
     } satisfies ColumnDef<MetadataEntry>] : []),
     {
@@ -270,7 +302,9 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
         </div>
       ),
     }] : []),
-  ], [editable, kind, title, withRoomTree])
+  ], [editable, kind, roomColumnFilter, roomColumnFilterOptions, title, withRoomTree])
+
+  const activeColumnFilterCount = withRoomTree ? roomColumnFilter.length : 0
 
   const table = useReactTable({
     data: visible,
@@ -291,7 +325,12 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
     <>
       <PageHeader
         title={hideTitle ? undefined : title}
-        filters={<Input className="h-8 w-[240px]" placeholder={`搜索${title}名称或备注`} value={keyword} onChange={event => setKeyword(event.target.value)} />}
+        filters={
+          <>
+            <Input className="h-8 w-[240px]" placeholder={`搜索${title}名称或备注`} value={keyword} onChange={event => setKeyword(event.target.value)} />
+            <ClearFiltersButton count={activeColumnFilterCount} onReset={() => setRoomColumnFilter([])} />
+          </>
+        }
         actions={
           <>
             <DataTableViewOptions table={table} />
@@ -303,7 +342,7 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
       <DataTable
         table={table}
         loading={loading}
-        emptyMessage={keyword || (withRoomTree && roomFilter !== 'all') ? `没有匹配的${title}` : `还没有${title}，新增一个开始归类`}
+        emptyMessage={keyword.trim() || (withRoomTree && (roomFilter !== 'all' || roomColumnFilter.length > 0)) ? `没有匹配的${title}` : `还没有${title}，新增一个开始归类`}
       />
       <BulkActionBar
         count={selectedEntries.length}

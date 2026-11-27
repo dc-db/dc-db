@@ -8,7 +8,7 @@ import { downloadCSV } from '../csv'
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
-import { DataTableViewOptions } from './TableColumnControls'
+import { buildFacetedOptions, ClearFiltersButton, DataTableViewOptions, matchesMultiFilter } from './TableColumnControls'
 import { BulkActionBar, createRowSelectionColumn } from './TableSelectionControls'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -30,12 +30,14 @@ const roleMeta: Record<Role, { label: string; className: string; description: st
   viewer: { label: '只读', className: 'border-border bg-transparent text-muted-foreground', description: '只能查看，不能修改数据' },
 }
 const roles: Role[] = ['admin', 'operator', 'viewer']
+const roleCatalog = roles.map(role => ({ value: role, label: roleMeta[role].label }))
 const initialFields: UserFields = { username: '', role: 'viewer', password: '' }
 
 export function UserManager({ currentUser, onChangePassword, onSessionError }: Props) {
   const canManageUsers = currentUser.role === 'admin'
   const currentUsername = currentUser.username
   const [users, setUsers] = useState<User[]>([])
+  const [roleFilter, setRoleFilter] = useState<string[]>([])
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
@@ -62,9 +64,24 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
   const [showPassword, setShowPassword] = useState(false)
   const [fields, setFields] = useState<UserFields>(initialFields)
   const adminCount = useMemo(() => users.filter(user => user.role === 'admin').length, [users])
-  const tableData = useMemo(() => (canManageUsers ? users : [currentUser]), [canManageUsers, users, currentUser])
+  const baseTableData = useMemo(() => (canManageUsers ? users : [currentUser]), [canManageUsers, users, currentUser])
+  const effectiveRoleFilter = canManageUsers ? roleFilter : []
+  const roleFilterOptions = useMemo(() => {
+    if (!canManageUsers) return []
+    return buildFacetedOptions({
+      items: baseTableData,
+      getEntries: user => user.role,
+      catalog: roleCatalog,
+      includeZeroCatalog: true,
+      selectedValues: roleFilter,
+    })
+  }, [baseTableData, canManageUsers, roleFilter])
+  const tableData = useMemo(() => {
+    if (effectiveRoleFilter.length === 0) return baseTableData
+    return baseTableData.filter(user => matchesMultiFilter(effectiveRoleFilter, user.role))
+  }, [baseTableData, effectiveRoleFilter])
 
-  useEffect(() => { if (canManageUsers) void load() }, [canManageUsers])
+  useEffect(() => { if (canManageUsers) void load(); else setRoleFilter([]) }, [canManageUsers])
   useEffect(() => {
     setRowSelection(prev => {
       const valid = new Set(tableData.map(user => user.username))
@@ -277,7 +294,18 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
       accessorKey: 'role',
       header: '角色',
       sortingFn: (a, b) => roles.indexOf(a.original.role) - roles.indexOf(b.original.role),
-      meta: { cellClassName: 'whitespace-nowrap' },
+      meta: {
+        cellClassName: 'whitespace-nowrap',
+        ...(canManageUsers
+          ? {
+              filter: {
+                options: roleFilterOptions,
+                selectedValues: roleFilter,
+                onChange: setRoleFilter,
+              },
+            }
+          : {}),
+      },
       cell: ({ row }) => {
         const meta = roleMeta[row.original.role]
         return meta ? <Badge variant="outline" className={meta.className}>{meta.label}</Badge> : row.original.role
@@ -354,14 +382,17 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
     <PageHeader
       title={canManageUsers ? '用户管理' : '我的账号'}
       filters={canManageUsers && (
-        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-          {roles.map(role => (
-            <span key={role} className="inline-flex items-center gap-1.5">
-              <Badge variant="outline" className={roleMeta[role].className}>{roleMeta[role].label}</Badge>
-              <span>{roleMeta[role].description}</span>
-            </span>
-          ))}
-        </div>
+        <>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            {roles.map(role => (
+              <span key={role} className="inline-flex items-center gap-1.5">
+                <Badge variant="outline" className={roleMeta[role].className}>{roleMeta[role].label}</Badge>
+                <span>{roleMeta[role].description}</span>
+              </span>
+            ))}
+          </div>
+          <ClearFiltersButton count={roleFilter.length} onReset={() => setRoleFilter([])} />
+        </>
       )}
       actions={
         <>
@@ -373,7 +404,7 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
     />
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
     {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
-    <DataTable table={table} loading={loading} showPager={false} emptyMessage="暂无账号" />
+    <DataTable table={table} loading={loading} showPager={false} emptyMessage={effectiveRoleFilter.length > 0 ? '没有匹配的账号' : '暂无账号'} />
     <BulkActionBar
       count={selectedUsers.length}
       unit="个账号"

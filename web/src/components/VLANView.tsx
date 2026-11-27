@@ -22,12 +22,11 @@ import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
-import { Select } from './AppControls'
 import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
 import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
-import { DataTableViewOptions } from './TableColumnControls'
+import { buildFacetedOptions, ClearFiltersButton, DataTableViewOptions, matchesMultiFilter } from './TableColumnControls'
 import { BulkActionBar, createRowSelectionColumn } from './TableSelectionControls'
 
 interface Props {
@@ -56,7 +55,8 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
   const [modalError, setModalError] = useState('')
   const [feedback, setFeedback] = useState('')
   const [keyword, setKeyword] = useState('')
-  const [status, setStatus] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string[]>([])
+  const [roomNameFilter, setRoomNameFilter] = useState<string[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<VLAN | null>(null)
   const [deleting, setDeleting] = useState<VLAN | null>(null)
@@ -119,10 +119,42 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
     catch (e) { setDeleting(null); report(e) } finally { setBusy(false) }
   }
   const roomCounts = useMemo(() => buildRoomCounts(vlans, vlan => vlan.roomId || null), [vlans])
-  const visible = useMemo(() => {
+  const scopedVLANs = useMemo(() => {
     const query = keyword.trim().toLowerCase()
-    return vlans.filter(vlan => matchesRoomFilter(vlan.roomId || null, roomFilter) && (!status || vlan.status === status) && (!query || [String(vlan.vid), vlan.name, vlan.description, vlan.roomName].some(value => value?.toLowerCase().includes(query))))
-  }, [keyword, roomFilter, status, vlans])
+    return vlans.filter(vlan =>
+      matchesRoomFilter(vlan.roomId || null, roomFilter)
+      && (!query || [String(vlan.vid), vlan.name, vlan.description, vlan.roomName].some(value => value?.toLowerCase().includes(query))),
+    )
+  }, [keyword, roomFilter, vlans])
+  const statusCatalog = useMemo(
+    () => Object.entries(statusMeta).map(([value, meta]) => ({ value, label: meta.label })),
+    [],
+  )
+  const statusFilterOptions = useMemo(() => buildFacetedOptions({
+    items: scopedVLANs.filter(vlan => matchesMultiFilter(roomNameFilter, vlan.roomName)),
+    getEntries: vlan => ({
+      value: vlan.status,
+      label: statusMeta[vlan.status]?.label ?? vlan.status,
+    }),
+    catalog: statusCatalog,
+    includeZeroCatalog: true,
+    selectedValues: statusFilter,
+  }), [roomNameFilter, scopedVLANs, statusCatalog, statusFilter])
+  const roomNameFilterOptions = useMemo(() => buildFacetedOptions({
+    items: scopedVLANs.filter(vlan => matchesMultiFilter(statusFilter, vlan.status)),
+    getEntries: vlan => vlan.roomName?.trim() || null,
+    includeEmpty: true,
+    emptyLabel: '未指定',
+    selectedValues: roomNameFilter,
+  }), [roomNameFilter, scopedVLANs, statusFilter])
+  const activeFilterCount = statusFilter.length + roomNameFilter.length
+  const visible = useMemo(
+    () => scopedVLANs.filter(vlan =>
+      matchesMultiFilter(statusFilter, vlan.status)
+      && matchesMultiFilter(roomNameFilter, vlan.roomName),
+    ),
+    [roomNameFilter, scopedVLANs, statusFilter],
+  )
 
   const columns: ColumnDef<VLAN>[] = [
     createRowSelectionColumn<VLAN>({
@@ -136,7 +168,15 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       accessorFn: row => statusMeta[row.status]?.label ?? row.status,
       header: '状态',
       sortingFn: (a, b) => (a.getValue<string>('status') ?? '').localeCompare(b.getValue<string>('status') ?? '', 'zh-CN'),
-      meta: { cellClassName: 'whitespace-nowrap' },
+      meta: {
+        cellClassName: 'whitespace-nowrap',
+        filter: {
+          options: statusFilterOptions,
+          selectedValues: statusFilter,
+          onChange: setStatusFilter,
+          searchPlaceholder: '搜索状态…',
+        },
+      },
       cell: ({ row }) => { const meta = statusMeta[row.original.status] ?? { label: row.original.status, className: '' }; return <Badge variant="outline" className={meta.className}>{meta.label}</Badge> },
     },
     {
@@ -145,7 +185,15 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       header: '所属数据中心',
       sortUndefined: 'last',
       sortingFn: (a, b) => (a.getValue<string | undefined>('roomName') ?? '').localeCompare(b.getValue<string | undefined>('roomName') ?? '', 'zh-CN', { numeric: true }),
-      meta: { cellClassName: 'whitespace-nowrap' },
+      meta: {
+        cellClassName: 'whitespace-nowrap',
+        filter: {
+          options: roomNameFilterOptions,
+          selectedValues: roomNameFilter,
+          onChange: setRoomNameFilter,
+          searchPlaceholder: '搜索数据中心…',
+        },
+      },
       cell: ({ row }) => row.original.roomName || <span className="text-muted-foreground">—</span>,
     },
     { accessorKey: 'prefixCount', header: '关联网段', meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <Badge variant={row.original.prefixCount ? 'secondary' : 'outline'} className="tabular-nums">{row.original.prefixCount}</Badge> },
@@ -271,10 +319,12 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       title={hideTitle ? undefined : 'VLAN'}
       filters={<>
         <Input className="h-8 w-[240px]" placeholder="搜索 VLAN ID、名称、描述或数据中心" value={keyword} onChange={event => setKeyword(event.target.value)} />
-        <Select
-          size="small" style={{ width: 130 }} allowClear searchable={false} placeholder="全部状态" value={status || undefined}
-          onChange={(value: string | undefined) => setStatus(value ?? '')}
-          options={Object.entries(statusMeta).map(([value, meta]) => ({ value, label: meta.label }))}
+        <ClearFiltersButton
+          count={activeFilterCount}
+          onReset={() => {
+            setStatusFilter([])
+            setRoomNameFilter([])
+          }}
         />
       </>}
       actions={<>
@@ -294,7 +344,7 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
         if ((event.target as HTMLElement).closest('button, a, [role="checkbox"], [role="menuitem"], [data-slot="dropdown-menu-content"]')) return
         onSelectVLAN(vlan)
       } : undefined}
-      emptyMessage={keyword || status || roomFilter !== 'all' ? '没有匹配的 VLAN' : '暂无 VLAN，新增一个开始规划二层网络'}
+      emptyMessage={keyword || activeFilterCount > 0 || roomFilter !== 'all' ? '没有匹配的 VLAN' : '暂无 VLAN，新增一个开始规划二层网络'}
     />
     <Dialog open={modalOpen} onOpenChange={next => { if (!busy) { setModalOpen(next); if (!next) setEditing(null) } }}><DialogContent><DialogHeader><DialogTitle>{editing ? `编辑 VLAN ${editing.vid}` : '新增 VLAN'}</DialogTitle></DialogHeader>
       {modalError && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{modalError}</div>}

@@ -1,9 +1,25 @@
 import type { MouseEvent, ReactNode } from 'react'
-import { flexRender, type Table as TanStackTable } from '@tanstack/react-table'
+import { flexRender, type RowData, type Table as TanStackTable } from '@tanstack/react-table'
 import { LoaderCircle } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
-import { ColumnHeaderMenu } from './TableColumnControls'
+import { ColumnHeaderMenu, type ColumnFilterConfig } from './TableColumnControls'
 import { TablePager } from './TablePager'
+
+declare module '@tanstack/react-table' {
+  interface ColumnMeta<TData extends RowData, TValue> {
+    label?: string
+    headerClassName?: string
+    cellClassName?: string
+    filter?: ColumnFilterConfig
+  }
+}
+
+export interface DataTableColumnMeta {
+  label?: string
+  headerClassName?: string
+  cellClassName?: string
+  filter?: ColumnFilterConfig
+}
 
 interface Props<T> {
   table: TanStackTable<T>
@@ -56,7 +72,9 @@ export function DataTable<T>({
                 const canSort = !system && header.column.getCanSort()
                 const canHide = !system && header.column.getCanHide() && canStillHide
                 const sorted = header.column.getIsSorted()
-                const meta = header.column.columnDef.meta as { headerClassName?: string } | undefined
+                const meta = header.column.columnDef.meta as DataTableColumnMeta | undefined
+                const filter = !system ? meta?.filter : undefined
+                const canFilter = Boolean(filter)
                 const title = flexRender(header.column.columnDef.header, header.getContext())
                 return (
                   <TableHead
@@ -64,7 +82,7 @@ export function DataTable<T>({
                     className={meta?.headerClassName}
                     aria-sort={canSort ? (sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none') : undefined}
                   >
-                    {header.isPlaceholder ? null : (canSort || canHide) ? (
+                    {header.isPlaceholder ? null : (canSort || canFilter || canHide) ? (
                       <ColumnHeaderMenu
                         title={title}
                         sortable={canSort}
@@ -76,6 +94,7 @@ export function DataTable<T>({
                             header.column.toggleSorting(next === 'desc')
                           }
                         }}
+                        filter={filter}
                         hideable={canHide}
                         onHide={() => header.column.toggleVisibility(false)}
                       />

@@ -13,7 +13,7 @@ import { Popover as UiPopover, PopoverContent, PopoverTrigger } from '@/componen
 import { Tabs as UiTabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { ColumnHeaderMenu } from './TableColumnControls'
+import { ColumnHeaderMenu, type ColumnFilterConfig } from './TableColumnControls'
 import { RowIndexSelectCell, RowIndexSelectHeader } from './TableSelectionControls'
 import './app-controls.css'
 
@@ -147,6 +147,7 @@ export type TableColumn<T> = {
   width?: number
   sorter?: (a: T, b: T) => number
   render?: (value: any, item: T) => ReactNode
+  filter?: ColumnFilterConfig
   hideable?: boolean
   onHide?: () => void
 }
@@ -213,10 +214,12 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, r
     const colDef = columnMap.get(colId)
     const canSort = !isSystem && header.column.getCanSort()
     const sortDirection = header.column.getIsSorted()
+    const filter = !isSystem ? colDef?.filter : undefined
+    const canFilter = Boolean(filter)
     const hideHandler = colDef?.onHide ?? (onHideColumn ? () => onHideColumn(colId) : undefined)
     const canHide = !isSystem && colDef?.hideable !== false && Boolean(hideHandler) && visibleDataColumnCount > 1
     const title = flexRender(header.column.columnDef.header, header.getContext())
-    if (!canSort && !canHide) return title
+    if (!canSort && !canFilter && !canHide) return title
     return (
       <ColumnHeaderMenu
         title={title}
@@ -229,6 +232,7 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, r
             setSorting([{ id: colId, desc: next === 'desc' }])
           }
         }}
+        filter={filter}
         hideable={canHide}
         onHide={hideHandler}
       />

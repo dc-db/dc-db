@@ -28,9 +28,8 @@ import { DataTable } from './DataTable'
 import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
 import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
-import { DataTableViewOptions } from './TableColumnControls'
+import { buildFacetedOptions, ClearFiltersButton, DataTableViewOptions, matchesMultiFilter } from './TableColumnControls'
 import { BulkActionBar, createRowSelectionColumn } from './TableSelectionControls'
-import { Select } from './AppControls'
 
 interface Props {
   editable: boolean
@@ -100,14 +99,15 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
   const [modalError, setModalError] = useState('')
   const [feedback, setFeedback] = useState('')
   const [keyword, setKeyword] = useState('')
-  const [source, setSource] = useState('')
+  const [sourceFilter, setSourceFilter] = useState<string[]>([])
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [bulkReleaseOpen, setBulkReleaseOpen] = useState(false)
   const [bulkReleasing, setBulkReleasing] = useState(false)
-  const [state, setState] = useState('')
-  const [subnetId, setSubnetId] = useState(() => (initialSubnetId ? String(initialSubnetId) : ''))
+  const [stateFilter, setStateFilter] = useState<string[]>([])
+  const [roleFilter, setRoleFilter] = useState<string[]>([])
+  const [subnetFilter, setSubnetFilter] = useState<string[]>(() => (initialSubnetId ? [String(initialSubnetId)] : []))
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<IPAddress | null>(null)
   const [releasing, setReleasing] = useState<IPAddress | null>(null)
@@ -115,7 +115,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
   useEffect(() => { void load() }, [])
   useEffect(() => {
     if (initialSubnetId) {
-      setSubnetId(String(initialSubnetId))
+      setSubnetFilter([String(initialSubnetId)])
       onInitialSubnetConsumed?.()
     }
   }, [initialSubnetId, onInitialSubnetConsumed])
@@ -173,10 +173,106 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
     () => buildRoomCounts(addresses, resolveAddressRoomId),
     [addresses, resolveAddressRoomId],
   )
-  const visible = useMemo(() => {
+  const scopedAddresses = useMemo(() => {
     const query = keyword.trim().toLowerCase()
-    return addresses.filter(address => matchesRoomFilter(resolveAddressRoomId(address), roomFilter) && (!source || address.source === source) && (!state || address.state === state) && (!subnetId || address.subnetId === Number(subnetId)) && (!query || [address.ip, address.dnsName, address.assetName, address.label, address.notes, address.subnetName, stateMeta[address.state], sourceMeta[address.source]].some(value => value?.toLowerCase().includes(query))))
-  }, [addresses, keyword, resolveAddressRoomId, roomFilter, source, state, subnetId])
+    return addresses.filter(address =>
+      matchesRoomFilter(resolveAddressRoomId(address), roomFilter)
+      && (!query || [
+        address.ip,
+        address.dnsName,
+        address.assetName,
+        address.label,
+        address.notes,
+        address.subnetName,
+        subnetById.get(address.subnetId)?.cidr,
+        roleLabels[address.role ?? ''] ?? address.role,
+        stateMeta[address.state],
+        sourceMeta[address.source],
+      ].some(value => value?.toLowerCase().includes(query))),
+    )
+  }, [addresses, keyword, resolveAddressRoomId, roomFilter, subnetById])
+  const stateCatalog = useMemo(
+    () => Object.entries(stateMeta).map(([value, label]) => ({ value, label })),
+    [],
+  )
+  const sourceCatalog = useMemo(
+    () => Object.entries(sourceMeta).map(([value, label]) => ({ value, label })),
+    [],
+  )
+  const roleCatalog = useMemo(
+    () => Object.entries(roleLabels).map(([value, label]) => ({ value, label })),
+    [],
+  )
+  const subnetCatalog = useMemo(
+    () => subnets
+      .slice()
+      .sort((a, b) => compareText(a.name, b.name) || compareText(a.cidr, b.cidr))
+      .map(subnet => ({ value: String(subnet.id), label: `${subnet.name} · ${subnet.cidr}` })),
+    [subnets],
+  )
+  const stateFilterOptions = useMemo(() => buildFacetedOptions({
+    items: scopedAddresses.filter(address =>
+      matchesMultiFilter(sourceFilter, address.source)
+      && matchesMultiFilter(roleFilter, address.role)
+      && matchesMultiFilter(subnetFilter, String(address.subnetId)),
+    ),
+    getEntries: address => ({ value: address.state, label: stateMeta[address.state] ?? address.state }),
+    catalog: stateCatalog,
+    includeZeroCatalog: true,
+    selectedValues: stateFilter,
+  }), [roleFilter, scopedAddresses, sourceFilter, stateCatalog, stateFilter, subnetFilter])
+  const sourceFilterOptions = useMemo(() => buildFacetedOptions({
+    items: scopedAddresses.filter(address =>
+      matchesMultiFilter(stateFilter, address.state)
+      && matchesMultiFilter(roleFilter, address.role)
+      && matchesMultiFilter(subnetFilter, String(address.subnetId)),
+    ),
+    getEntries: address => ({ value: address.source, label: sourceMeta[address.source] ?? address.source }),
+    catalog: sourceCatalog,
+    includeZeroCatalog: true,
+    selectedValues: sourceFilter,
+  }), [roleFilter, scopedAddresses, sourceCatalog, sourceFilter, stateFilter, subnetFilter])
+  const roleFilterOptions = useMemo(() => buildFacetedOptions({
+    items: scopedAddresses.filter(address =>
+      matchesMultiFilter(stateFilter, address.state)
+      && matchesMultiFilter(sourceFilter, address.source)
+      && matchesMultiFilter(subnetFilter, String(address.subnetId)),
+    ),
+    getEntries: address => {
+      const role = address.role?.trim()
+      return role ? { value: role, label: roleLabels[role] ?? role } : null
+    },
+    catalog: roleCatalog,
+    includeEmpty: true,
+    emptyLabel: '未设置',
+    selectedValues: roleFilter,
+  }), [roleCatalog, roleFilter, scopedAddresses, sourceFilter, stateFilter, subnetFilter])
+  const subnetFilterOptions = useMemo(() => buildFacetedOptions({
+    items: scopedAddresses.filter(address =>
+      matchesMultiFilter(stateFilter, address.state)
+      && matchesMultiFilter(sourceFilter, address.source)
+      && matchesMultiFilter(roleFilter, address.role),
+    ),
+    getEntries: address => {
+      const subnet = subnetById.get(address.subnetId)
+      return {
+        value: String(address.subnetId),
+        label: subnet ? `${subnet.name} · ${subnet.cidr}` : address.subnetName,
+      }
+    },
+    catalog: subnetCatalog,
+    selectedValues: subnetFilter,
+  }), [roleFilter, scopedAddresses, sourceFilter, stateFilter, subnetById, subnetCatalog, subnetFilter])
+  const activeFilterCount = stateFilter.length + sourceFilter.length + roleFilter.length + subnetFilter.length
+  const visible = useMemo(
+    () => scopedAddresses.filter(address =>
+      matchesMultiFilter(stateFilter, address.state)
+      && matchesMultiFilter(sourceFilter, address.source)
+      && matchesMultiFilter(roleFilter, address.role)
+      && matchesMultiFilter(subnetFilter, String(address.subnetId)),
+    ),
+    [roleFilter, scopedAddresses, sourceFilter, stateFilter, subnetFilter],
+  )
   const columns: ColumnDef<IPAddress>[] = [
     createRowSelectionColumn<IPAddress>({
       selectAllLabel: '全选当前页 IP 地址',
@@ -194,7 +290,15 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       accessorFn: row => stateMeta[row.state] ?? row.state,
       header: '状态',
       sortingFn: (a, b) => compareText(a.getValue<string>('state'), b.getValue<string>('state')),
-      meta: { cellClassName: 'whitespace-nowrap' },
+      meta: {
+        cellClassName: 'whitespace-nowrap',
+        filter: {
+          options: stateFilterOptions,
+          selectedValues: stateFilter,
+          onChange: setStateFilter,
+          searchPlaceholder: '搜索状态…',
+        },
+      },
       cell: ({ row }) => <Badge variant="outline" className={stateBadgeClass[row.original.state]}>{stateMeta[row.original.state] ?? row.original.state}</Badge>,
     },
     {
@@ -202,7 +306,15 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       accessorFn: row => sourceMeta[row.source] ?? row.source,
       header: '来源',
       sortingFn: (a, b) => compareText(a.getValue<string>('source'), b.getValue<string>('source')),
-      meta: { cellClassName: 'whitespace-nowrap' },
+      meta: {
+        cellClassName: 'whitespace-nowrap',
+        filter: {
+          options: sourceFilterOptions,
+          selectedValues: sourceFilter,
+          onChange: setSourceFilter,
+          searchPlaceholder: '搜索来源…',
+        },
+      },
       cell: ({ row }) => <Badge variant="secondary">{sourceMeta[row.original.source] ?? row.original.source}</Badge>,
     },
     {
@@ -220,7 +332,15 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       header: '角色',
       sortUndefined: 'last',
       sortingFn: (a, b) => compareText(a.getValue<string | undefined>('role'), b.getValue<string | undefined>('role')),
-      meta: { cellClassName: 'whitespace-nowrap' },
+      meta: {
+        cellClassName: 'whitespace-nowrap',
+        filter: {
+          options: roleFilterOptions,
+          selectedValues: roleFilter,
+          onChange: setRoleFilter,
+          searchPlaceholder: '搜索角色…',
+        },
+      },
       cell: ({ row }) => roleLabels[row.original.role ?? ''] ?? (row.original.role || <span className="text-muted-foreground">—</span>),
     },
     {
@@ -237,7 +357,15 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       accessorFn: row => row.subnetName,
       header: '网段',
       sortingFn: (a, b) => compareText(a.original.subnetName, b.original.subnetName),
-      meta: { cellClassName: 'whitespace-nowrap' },
+      meta: {
+        cellClassName: 'whitespace-nowrap',
+        filter: {
+          options: subnetFilterOptions,
+          selectedValues: subnetFilter,
+          onChange: setSubnetFilter,
+          searchPlaceholder: '搜索网段…',
+        },
+      },
       cell: ({ row }) => <Button variant="link" className="h-auto p-0" onClick={() => onOpenSubnet(row.original.subnetId)}>{row.original.subnetName}</Button>,
     },
     {
@@ -373,20 +501,14 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       title={hideTitle ? undefined : 'IP 地址'}
       filters={<>
         <Input className="h-8 w-[240px]" placeholder="搜索 IP、DNS、资产、用途或网段" value={keyword} onChange={event => setKeyword(event.target.value)} />
-        <Select
-          size="small" style={{ width: 220 }} allowClear placeholder="全部网段" value={subnetId || undefined}
-          onChange={(value: string | undefined) => setSubnetId(value ?? '')}
-          options={subnets.map(subnet => ({ value: String(subnet.id), label: `${subnet.name} · ${subnet.cidr}` }))}
-        />
-        <Select
-          size="small" style={{ width: 140 }} allowClear searchable={false} placeholder="全部来源" value={source || undefined}
-          onChange={(value: string | undefined) => setSource(value ?? '')}
-          options={Object.entries(sourceMeta).map(([value, label]) => ({ value, label }))}
-        />
-        <Select
-          size="small" style={{ width: 130 }} allowClear searchable={false} placeholder="全部状态" value={state || undefined}
-          onChange={(value: string | undefined) => setState(value ?? '')}
-          options={Object.entries(stateMeta).map(([value, label]) => ({ value, label }))}
+        <ClearFiltersButton
+          count={activeFilterCount}
+          onReset={() => {
+            setStateFilter([])
+            setSourceFilter([])
+            setRoleFilter([])
+            setSubnetFilter([])
+          }}
         />
       </>}
       actions={<>

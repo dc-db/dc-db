@@ -18,7 +18,7 @@ import { api, apiCSV, APIError } from './api'
 import { formatDateTime } from './lib/date'
 import { formatMemory } from './lib/memory'
 import { downloadCSV } from './csv'
-import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, NetworkKind, Person, Subnet, Team, User, VLAN } from './api'
+import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, Person, Subnet, Team, User, VLAN } from './api'
 import { assetLocations, assetRoomId, buildRoomCounts, locationLabel, matchesRoomFilter } from './facilities'
 import type { AssetLocation, Facilities } from './facilities'
 import { isNetworkKind, KIND_LABELS, kindLabel, NETWORK_KINDS } from './kinds'
@@ -44,7 +44,12 @@ import { OrganizationManager } from './components/OrganizationManager'
 import { PageHeader } from './components/PageHeader'
 import { RowActionsMenu } from './components/RowActionsMenu'
 import { readStoredThemeMode, THEME_STORAGE_KEY, ThemeToggle, type ThemeMode } from './components/ThemeToggle'
-import { DataTableViewOptions } from './components/TableColumnControls'
+import {
+  buildFacetedOptions,
+  ClearFiltersButton,
+  DataTableViewOptions,
+  matchesMultiFilter,
+} from './components/TableColumnControls'
 import { BulkActionBar } from './components/TableSelectionControls'
 import { ServiceIcon } from './components/ServiceIcon'
 import { serviceCategory } from './serviceCatalog'
@@ -75,6 +80,20 @@ const defaultNetworkDeviceColumns = ['name', 'kind', 'address', 'owner']
 const assetColumnKeys = ['name', 'capacity', 'kind', 'address', 'platform', 'meta', 'services', 'group', 'team', 'owner', 'environment', 'notes', 'created', 'updated']
 
 
+const PLATFORM_CATALOG = [
+  { value: 'pve', label: 'Proxmox VE' },
+  { value: 'kvm', label: 'KVM' },
+]
+const NETWORK_KIND_CATALOG = NETWORK_KINDS.map(kind => ({ value: kind, label: KIND_LABELS[kind] }))
+const PROBE_CATALOG = [
+  { value: 'reachable', label: '可达' },
+  { value: 'unreachable', label: '不可达' },
+  { value: 'error', label: '探测异常' },
+  { value: 'pending', label: '待探测' },
+  { value: 'disabled', label: '未开启' },
+  { value: 'retired', label: '已停用' },
+]
+
 function platformLabel(asset: Pick<Asset, 'platform'>) {
   return asset.platform === 'pve' ? 'Proxmox VE' : asset.platform === 'kvm' ? 'KVM' : '—'
 }
@@ -86,6 +105,36 @@ function probeOf(asset: Asset): { label: string; color: string } {
     case 'unreachable': return { label: '不可达', color: 'red' }
     case 'error': return { label: '探测异常', color: 'orange' }
     default: return { label: '待探测', color: 'default' }
+  }
+}
+function probeFilterValue(asset: Asset): string {
+  if (!asset.probeEnabled || !asset.address) return 'disabled'
+  if (asset.lifecycle === 'retired') return 'retired'
+  switch (asset.probeStatus) {
+    case 'reachable': return 'reachable'
+    case 'unreachable': return 'unreachable'
+    case 'error': return 'error'
+    default: return 'pending'
+  }
+}
+function assetFilterValues(
+  asset: Asset,
+  colKey: string,
+  vmRelations: Map<number, string[]>,
+  projectNames: Map<number, string>,
+  teamNames: Map<number, string>,
+): string | string[] | null | undefined {
+  switch (colKey) {
+    case 'kind': return asset.kind
+    case 'platform': return asset.platform
+    case 'meta': return vmRelations.get(asset.id) ?? []
+    case 'address': return probeFilterValue(asset)
+    case 'services': return (asset.services ?? []).map(service => service.name)
+    case 'group': return asset.groupId && projectNames.has(asset.groupId) ? String(asset.groupId) : ''
+    case 'team': return asset.teamId && teamNames.has(asset.teamId) ? String(asset.teamId) : ''
+    case 'owner': return asset.owner
+    case 'environment': return asset.environment
+    default: return undefined
   }
 }
 
@@ -226,8 +275,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
 
   const [keyword, setKeyword] = useState('')
   const [roomFilter, setRoomFilter] = useState<RoomFilter>('all')
-  const [networkKindFilter, setNetworkKindFilter] = useState<'' | NetworkKind>('')
-  const [platformFilter, setPlatformFilter] = useState<string | undefined>()
+  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({})
   const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultAssetColumns)
   const [pagination, setPagination] = useState(1)
   const [pageSize, setPageSize] = useState(() => {
@@ -360,16 +408,145 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
 
   const projectNames = useMemo(() => new Map(groups.map(item => [item.id, item.name])), [groups])
   const teamNames = useMemo(() => new Map(teams.map(item => [item.id, item.name])), [teams])
-  const filtered = useMemo(() => {
+  const projectCatalog = useMemo(
+    () => groups
+      .map(item => ({ value: String(item.id), label: item.name }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN', { numeric: true })),
+    [groups],
+  )
+  const teamCatalog = useMemo(
+    () => teams
+      .map(item => ({ value: String(item.id), label: item.name }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN', { numeric: true })),
+    [teams],
+  )
+  const baseFiltered = useMemo(() => {
     const query = keyword.trim().toLowerCase()
     return scoped.filter(asset => {
       if (!matchesRoomFilter(assetRoomId(asset, locations, byId, links), roomFilter)) return false
-      if (page === 'network_devices' && networkKindFilter && asset.kind !== networkKindFilter) return false
-      if (page === 'vm' && platformFilter && asset.platform !== platformFilter) return false
       return !query || [asset.name, asset.address, asset.owner, projectNames.get(asset.groupId), teamNames.get(asset.teamId ?? 0), asset.environment, ...(vmRelations.get(asset.id) ?? [])]
         .some(value => value?.toLowerCase().includes(query))
     })
-  }, [scoped, byId, links, locations, roomFilter, page, networkKindFilter, platformFilter, keyword, vmRelations, projectNames, teamNames])
+  }, [scoped, byId, links, locations, roomFilter, keyword, vmRelations, projectNames, teamNames])
+  const activeColumnFilterEntries = useMemo(
+    () => Object.entries(columnFilters).filter(([, values]) => values.length > 0),
+    [columnFilters],
+  )
+  const activeFilterCount = useMemo(
+    () => activeColumnFilterEntries.reduce((total, [, values]) => total + values.length, 0),
+    [activeColumnFilterEntries],
+  )
+  const filtered = useMemo(() => {
+    if (!activeColumnFilterEntries.length) return baseFiltered
+    return baseFiltered.filter(asset =>
+      activeColumnFilterEntries.every(([colKey, values]) =>
+        matchesMultiFilter(values, assetFilterValues(asset, colKey, vmRelations, projectNames, teamNames)),
+      ),
+    )
+  }, [baseFiltered, activeColumnFilterEntries, vmRelations, projectNames, teamNames])
+  const assetColumnFilterOptions = useMemo(() => {
+    const crossItems = (colKey: string) => {
+      const others = activeColumnFilterEntries.filter(([key]) => key !== colKey)
+      if (!others.length) return baseFiltered
+      return baseFiltered.filter(asset =>
+        others.every(([key, values]) =>
+          matchesMultiFilter(values, assetFilterValues(asset, key, vmRelations, projectNames, teamNames)),
+        ),
+      )
+    }
+    return {
+      kind: buildFacetedOptions({
+        items: crossItems('kind'),
+        getEntries: asset => ({ value: asset.kind, label: kindLabel(asset.kind) }),
+        catalog: NETWORK_KIND_CATALOG,
+        includeZeroCatalog: true,
+        selectedValues: columnFilters.kind,
+      }),
+      platform: buildFacetedOptions({
+        items: crossItems('platform'),
+        getEntries: asset => asset.platform ? { value: asset.platform, label: platformLabel(asset) } : null,
+        catalog: PLATFORM_CATALOG,
+        includeZeroCatalog: true,
+        includeEmpty: true,
+        emptyLabel: '未设置',
+        selectedValues: columnFilters.platform,
+      }),
+      meta: buildFacetedOptions({
+        items: crossItems('meta'),
+        getEntries: asset => vmRelations.get(asset.id) ?? [],
+        includeEmpty: true,
+        emptyLabel: '未关联',
+        selectedValues: columnFilters.meta,
+      }),
+      address: buildFacetedOptions({
+        items: crossItems('address'),
+        getEntries: asset => probeFilterValue(asset),
+        catalog: PROBE_CATALOG,
+        selectedValues: columnFilters.address,
+      }),
+      services: buildFacetedOptions({
+        items: crossItems('services'),
+        getEntries: asset => (asset.services ?? []).map(service => service.name),
+        includeEmpty: true,
+        emptyLabel: '无服务',
+        selectedValues: columnFilters.services,
+      }),
+      group: buildFacetedOptions({
+        items: crossItems('group'),
+        getEntries: asset => {
+          if (!asset.groupId) return null
+          const label = projectNames.get(asset.groupId)
+          return label ? { value: String(asset.groupId), label } : null
+        },
+        catalog: projectCatalog,
+        includeEmpty: true,
+        emptyLabel: '未设置',
+        selectedValues: columnFilters.group,
+      }),
+      team: buildFacetedOptions({
+        items: crossItems('team'),
+        getEntries: asset => {
+          if (!asset.teamId) return null
+          const label = teamNames.get(asset.teamId)
+          return label ? { value: String(asset.teamId), label } : null
+        },
+        catalog: teamCatalog,
+        includeEmpty: true,
+        emptyLabel: '未设置',
+        selectedValues: columnFilters.team,
+      }),
+      owner: buildFacetedOptions({
+        items: crossItems('owner'),
+        getEntries: asset => asset.owner,
+        includeEmpty: true,
+        emptyLabel: '未设置',
+        selectedValues: columnFilters.owner,
+      }),
+      environment: buildFacetedOptions({
+        items: crossItems('environment'),
+        getEntries: asset => asset.environment,
+        includeEmpty: true,
+        emptyLabel: '未设置',
+        selectedValues: columnFilters.environment,
+      }),
+    }
+  }, [baseFiltered, activeColumnFilterEntries, columnFilters, vmRelations, projectNames, teamNames, projectCatalog, teamCatalog])
+
+  function setColumnFilter(colKey: string, nextValues: string[]) {
+    setColumnFilters(current => {
+      if (nextValues.length === 0) {
+        if (!(colKey in current)) return current
+        const next = { ...current }
+        delete next[colKey]
+        return next
+      }
+      return { ...current, [colKey]: nextValues }
+    })
+  }
+
+  function clearAllColumnFilters() {
+    setColumnFilters({})
+  }
 
   const relationOptions = useMemo(() => {
     if (!selected) return []
@@ -413,8 +590,12 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
   }, [])
 
   useEffect(() => {
+    setColumnFilters({})
+  }, [page])
+
+  useEffect(() => {
     setPagination(1)
-  }, [keyword, roomFilter, networkKindFilter, platformFilter, page])
+  }, [keyword, roomFilter, columnFilters, page])
 
   useEffect(() => {
     try {
@@ -443,7 +624,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
 
   useEffect(() => {
     setSelectedAssetIds([])
-  }, [page, keyword, roomFilter, networkKindFilter, platformFilter])
+  }, [page, keyword, roomFilter, columnFilters])
 
   useEffect(() => {
     const validIds = new Set(filtered.map(asset => asset.id))
@@ -657,8 +838,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     if (next !== 'subnets') setSelectedSubnetId(null)
     if (next !== 'vlans') setSelectedVLAN(null)
     setKeyword('')
-    setNetworkKindFilter('')
-    setPlatformFilter(undefined)
+    setColumnFilters({})
     setPagination(1)
     setFacilityFocus(null)
   }
@@ -673,8 +853,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
 
   function clearFilters() {
     setKeyword('')
-    setNetworkKindFilter('')
-    setPlatformFilter(undefined)
+    setColumnFilters({})
     setPagination(1)
   }
 
@@ -724,7 +903,10 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
   function startNew(kind?: Kind) {
     createTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     setSelectedId(null)
-    setNewKind(kind ?? (page === 'vm' ? 'vm' : page === 'network_devices' ? (networkKindFilter || 'switch') : 'host'))
+    const singleNetworkKind = columnFilters.kind?.length === 1 && isNetworkKind(columnFilters.kind[0])
+      ? columnFilters.kind[0]
+      : null
+    setNewKind(kind ?? (page === 'vm' ? 'vm' : page === 'network_devices' ? (singleNetworkKind || 'switch') : 'host'))
     setDrawerError('')
     setCreateOpen(true)
   }
@@ -980,6 +1162,12 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       column: {
         title: '设备类型', key: 'kind', width: 120,
         sorter: (left, right) => kindLabel(left.kind).localeCompare(kindLabel(right.kind), 'zh-CN'),
+        filter: {
+          options: assetColumnFilterOptions.kind,
+          selectedValues: columnFilters.kind ?? [],
+          onChange: next => setColumnFilter('kind', next),
+          searchPlaceholder: '搜索设备类型…',
+        },
         render: (_, asset) => (
           <span className="device-kind-cell">
             {kindLabel(asset.kind)}
@@ -989,17 +1177,43 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     },
     {
       key: 'platform', label: '平台',
-      column: { title: '平台', key: 'platform', width: 130, sorter: (left, right) => platformLabel(left).localeCompare(platformLabel(right), 'zh-CN'), render: (_, asset) => platformLabel(asset) },
+      column: {
+        title: '平台', key: 'platform', width: 130,
+        sorter: (left, right) => platformLabel(left).localeCompare(platformLabel(right), 'zh-CN'),
+        filter: {
+          options: assetColumnFilterOptions.platform,
+          selectedValues: columnFilters.platform ?? [],
+          onChange: next => setColumnFilter('platform', next),
+          searchPlaceholder: '搜索平台…',
+        },
+        render: (_, asset) => platformLabel(asset),
+      },
     },
     {
       key: 'meta', label: metaTitle,
-      column: { title: metaTitle, key: 'meta', width: 130, sorter: (left, right) => metaValue(left).localeCompare(metaValue(right), 'zh-CN'), render: (_, asset) => metaValue(asset) },
+      column: {
+        title: metaTitle, key: 'meta', width: 130,
+        sorter: (left, right) => metaValue(left).localeCompare(metaValue(right), 'zh-CN'),
+        filter: page === 'vm' ? {
+          options: assetColumnFilterOptions.meta,
+          selectedValues: columnFilters.meta ?? [],
+          onChange: next => setColumnFilter('meta', next),
+          searchPlaceholder: '搜索宿主机…',
+        } : undefined,
+        render: (_, asset) => metaValue(asset),
+      },
     },
     {
       key: 'address', label: 'IP / 状态',
       column: {
         title: 'IP / 状态', dataIndex: 'address', key: 'address', width: 170,
         sorter: (left, right) => left.address.localeCompare(right.address, 'zh-CN', { numeric: true }),
+        filter: {
+          options: assetColumnFilterOptions.address,
+          selectedValues: columnFilters.address ?? [],
+          onChange: next => setColumnFilter('address', next),
+          searchPlaceholder: '搜索探测状态…',
+        },
         render: (_, asset) => {
           const address = asset.address || '—'
           if (!asset.probeEnabled || !asset.address) return <span className="mono">{address}</span>
@@ -1014,6 +1228,12 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       key: 'services', label: '服务',
       column: {
         title: '服务', key: 'services', width: 200,
+        filter: {
+          options: assetColumnFilterOptions.services,
+          selectedValues: columnFilters.services ?? [],
+          onChange: next => setColumnFilter('services', next),
+          searchPlaceholder: '搜索服务…',
+        },
         render: (_, asset) => {
           const bound = asset.services ?? []
           if (!bound.length) return '—'
@@ -1033,24 +1253,56 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       column: {
         title: '运维团队', key: 'team', width: 120,
         sorter: (left, right) => teamName(left.teamId).localeCompare(teamName(right.teamId), 'zh-CN'),
+        filter: {
+          options: assetColumnFilterOptions.team,
+          selectedValues: columnFilters.team ?? [],
+          onChange: next => setColumnFilter('team', next),
+          searchPlaceholder: '搜索运维团队…',
+        },
         render: (_, asset) => teamName(asset.teamId),
       },
     },
     {
       key: 'owner', label: '负责人',
-      column: { title: '负责人', dataIndex: 'owner', key: 'owner', width: 120, sorter: (left, right) => left.owner.localeCompare(right.owner, 'zh-CN'), render: value => value || '—' },
+      column: {
+        title: '负责人', dataIndex: 'owner', key: 'owner', width: 120,
+        sorter: (left, right) => left.owner.localeCompare(right.owner, 'zh-CN'),
+        filter: {
+          options: assetColumnFilterOptions.owner,
+          selectedValues: columnFilters.owner ?? [],
+          onChange: next => setColumnFilter('owner', next),
+          searchPlaceholder: '搜索负责人…',
+        },
+        render: value => value || '—',
+      },
     },
     {
       key: 'group', label: '项目',
       column: {
         title: '项目', key: 'group', width: 120,
         sorter: (left, right) => groupName(left.groupId).localeCompare(groupName(right.groupId), 'zh-CN'),
+        filter: {
+          options: assetColumnFilterOptions.group,
+          selectedValues: columnFilters.group ?? [],
+          onChange: next => setColumnFilter('group', next),
+          searchPlaceholder: '搜索项目…',
+        },
         render: (_, asset) => groupName(asset.groupId),
       },
     },
     {
       key: 'environment', label: '环境',
-      column: { title: '环境', dataIndex: 'environment', key: 'environment', width: 100, sorter: (left, right) => left.environment.localeCompare(right.environment, 'zh-CN'), render: value => value || '—' },
+      column: {
+        title: '环境', dataIndex: 'environment', key: 'environment', width: 100,
+        sorter: (left, right) => left.environment.localeCompare(right.environment, 'zh-CN'),
+        filter: {
+          options: assetColumnFilterOptions.environment,
+          selectedValues: columnFilters.environment ?? [],
+          onChange: next => setColumnFilter('environment', next),
+          searchPlaceholder: '搜索环境…',
+        },
+        render: value => value || '—',
+      },
     },
     {
       key: 'capacity', label: 'CPU / 内存',
@@ -1572,20 +1824,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
                     placeholder={`搜索${pageLabel}…`}
                     value={keyword} onChange={(event: React.ChangeEvent<HTMLInputElement>) => setKeyword(event.target.value)}
                   />
-                  {page === 'network_devices' ? (
-                    <Select
-                      size="small" style={{ width: 135 }} allowClear searchable={false} placeholder="全部类型"
-                      value={networkKindFilter || undefined}
-                      onChange={(value: NetworkKind | undefined) => setNetworkKindFilter(value ?? '')}
-                      options={NETWORK_KINDS.map(kind => ({ value: kind, label: KIND_LABELS[kind] }))}
-                    />
-                  ) : page === 'vm' ? (
-                    <Select
-                      size="small" style={{ width: 145 }} allowClear searchable={false} placeholder="全部平台" value={platformFilter}
-                      onChange={setPlatformFilter}
-                      options={[{ value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM' }]}
-                    />
-                  ) : null}
+                  <ClearFiltersButton count={activeFilterCount} onReset={clearAllColumnFilters} />
                 </Space>}
                 actions={<Space wrap>
                   <DataTableViewOptions
