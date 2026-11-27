@@ -93,7 +93,7 @@ export function ServiceManager({ editable, assets, groups, onOpenAsset, onSessio
     const q = keyword.trim().toLowerCase()
     if (!q) return services
     return services.filter(s => [
-      s.name, resolvedCategory(s), s.port ? String(s.port) : '', s.description,
+      s.name, resolvedCategory(s), s.description,
       ...s.assets.map(a => a.name), ...s.projects.map(p => p.name),
     ].some(v => v.toLowerCase().includes(q)))
   }, [services, keyword])
@@ -188,13 +188,6 @@ export function ServiceManager({ editable, assets, groups, onOpenAsset, onSessio
       cell: ({ row }) => <Badge variant="outline">{sourceLabel(row.original)}</Badge>,
     },
     {
-      accessorKey: 'port',
-      header: '默认端口',
-      enableSorting: false,
-      meta: { cellClassName: 'whitespace-nowrap tabular-nums' },
-      cell: ({ row }) => row.original.port ?? <span className="text-muted-foreground">—</span>,
-    },
-    {
       accessorKey: 'assetCount',
       header: '部署节点',
       meta: { cellClassName: 'whitespace-nowrap' },
@@ -287,9 +280,9 @@ export function ServiceManager({ editable, assets, groups, onOpenAsset, onSessio
   function exportSelectedCSV() {
     if (!selectedServices.length) return
     downloadCSV('已选服务.csv', [
-      ['服务名称', '分类', '来源', '默认端口', '部署节点数', '部署节点', '依赖项目', '备注', '最近更新'],
+      ['服务名称', '分类', '来源', '部署节点数', '部署节点', '依赖项目', '备注', '最近更新'],
       ...selectedServices.map(s => [
-        s.name, resolvedCategory(s), sourceLabel(s), s.port ?? '', s.assetCount,
+        s.name, resolvedCategory(s), sourceLabel(s), s.assetCount,
         s.assets.map(a => a.name).join('、'), s.projects.map(p => p.name).join('、'),
         s.description ?? '', formatDateTime(s.updatedAt),
       ]),
@@ -356,7 +349,7 @@ export function ServiceManager({ editable, assets, groups, onOpenAsset, onSessio
         <>
           <Input
             className="h-8 w-[240px]"
-            placeholder="搜索服务名称、分类、端口、节点或项目"
+            placeholder="搜索服务名称、分类、节点或项目"
             value={keyword}
             onChange={e => setKeyword(e.target.value)}
           />
@@ -406,7 +399,6 @@ export function ServiceManager({ editable, assets, groups, onOpenAsset, onSessio
             <SheetDescription className="flex flex-wrap items-center gap-2 pt-1">
               <span>{resolvedCategory(viewing) || '未分类'}</span>
               <Badge variant="outline">{sourceLabel(viewing)}</Badge>
-              {viewing.port != null && <span className="tabular-nums">端口 {viewing.port}</span>}
             </SheetDescription>
           </SheetHeader>
           <div className="space-y-5 px-5 py-4 text-sm">

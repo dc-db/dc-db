@@ -253,7 +253,6 @@ CREATE TABLE services (
     name TEXT NOT NULL CHECK (length(name) BETWEEN 1 AND 120),
     category TEXT NOT NULL DEFAULT '' CHECK (length(category) <= 40),
     builtin BOOLEAN NOT NULL DEFAULT FALSE,
-    port INTEGER CHECK (port IS NULL OR (port BETWEEN 1 AND 65535)),
     description TEXT NOT NULL DEFAULT '' CHECK (length(description) <= 300),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

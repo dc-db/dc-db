@@ -88,8 +88,6 @@ func TestAssetRoomAssignment(t *testing.T) {
 	}
 }
 
-func intPtr(v int) *int { return &v }
-
 func TestNormalizeServiceInput(t *testing.T) {
 	t.Run("valid builtin and custom inputs", func(t *testing.T) {
 		assetIDs := []int64{3, 1, 3}
@@ -98,7 +96,6 @@ func TestNormalizeServiceInput(t *testing.T) {
 			Name:        "  Redis  ",
 			Category:    "  cache  ",
 			Builtin:     true,
-			Port:        intPtr(6379),
 			Description: "  in-memory cache  ",
 			AssetIDs:    &assetIDs,
 			ProjectIDs:  &projectIDs,
@@ -120,7 +117,6 @@ func TestNormalizeServiceInput(t *testing.T) {
 			Name:        "custom-billing-svc",
 			Category:    "",
 			Builtin:     false,
-			Port:        nil,
 			Description: "",
 		}
 		if err := normalizeServiceInput(&custom); err != nil {
@@ -135,8 +131,6 @@ func TestNormalizeServiceInput(t *testing.T) {
 		{"empty name", ServiceInput{Name: "   "}},
 		{"too long name", ServiceInput{Name: strings.Repeat("a", 121)}},
 		{"too long category", ServiceInput{Name: "svc", Category: strings.Repeat("c", 41)}},
-		{"port zero", ServiceInput{Name: "svc", Port: intPtr(0)}},
-		{"port too high", ServiceInput{Name: "svc", Port: intPtr(70000)}},
 		{"too long description", ServiceInput{Name: "svc", Description: strings.Repeat("d", 301)}},
 		{"invalid asset id", ServiceInput{Name: "svc", AssetIDs: &[]int64{0}}},
 		{"invalid project id", ServiceInput{Name: "svc", ProjectIDs: &[]int64{-1}}},
@@ -180,7 +174,6 @@ func TestServicesLifecycle(t *testing.T) {
 		Name:        "Redis",
 		Category:    "cache",
 		Builtin:     true,
-		Port:        intPtr(6379),
 		Description: "缓存集群",
 		AssetIDs:    &[]int64{host.ID, vm.ID, host.ID},
 		ProjectIDs:  &[]int64{group.ID},
@@ -190,9 +183,6 @@ func TestServicesLifecycle(t *testing.T) {
 	}
 	if created.ID == 0 || created.AssetCount != 2 || len(created.Assets) != 2 || created.ProjectCount != 1 || len(created.Projects) != 1 {
 		t.Fatalf("unexpected created service: %+v", created)
-	}
-	if created.Port == nil || *created.Port != 6379 {
-		t.Fatalf("unexpected port: %+v", created.Port)
 	}
 
 	// Case-insensitive duplicate name returns ErrConflict.
@@ -213,7 +203,6 @@ func TestServicesLifecycle(t *testing.T) {
 		Name:        "Redis-Cluster",
 		Category:    "cache",
 		Builtin:     true,
-		Port:        intPtr(6380),
 		Description: "主缓存集群",
 	}, "tester")
 	if err != nil {
@@ -293,7 +282,6 @@ func TestServicesHTTP(t *testing.T) {
 		"name":        "PostgreSQL",
 		"category":    "database",
 		"builtin":     true,
-		"port":        5432,
 		"description": "主库",
 	})
 	if rec.Code != http.StatusCreated {
@@ -313,18 +301,11 @@ func TestServicesHTTP(t *testing.T) {
 		t.Fatalf("duplicate POST = %d %s, want 409", rec.Code, rec.Body.String())
 	}
 
-	// Invalid port returns 400.
-	rec = doReq(http.MethodPost, "/api/services", map[string]any{"name": "BadPort", "port": 70000})
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("invalid POST = %d %s, want 400", rec.Code, rec.Body.String())
-	}
-
 	// Update returns 200.
 	rec = doReq(http.MethodPut, fmt.Sprintf("/api/services/%d", created.ID), map[string]any{
 		"name":        "PostgreSQL-Primary",
 		"category":    "database",
 		"builtin":     true,
-		"port":        5432,
 		"description": "核心数据库",
 	})
 	if rec.Code != http.StatusOK {

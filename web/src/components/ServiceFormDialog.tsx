@@ -2,7 +2,7 @@ import { type FormEvent, type JSX, useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Check, ChevronDown, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, APIError, type Asset, type Group, type ServiceEntry, type ServiceInput } from '../api'
-import { SERVICE_CATEGORIES, serviceCatalog, serviceDefaultPort } from '../serviceCatalog'
+import { SERVICE_CATEGORIES, serviceCatalog } from '../serviceCatalog'
 import { OptionSelect } from './OptionSelect'
 import { ServiceIcon } from './ServiceIcon'
 import { Badge } from './ui/badge'
@@ -36,7 +36,6 @@ export function ServiceFormDialog({
   const [name, setName] = useState('')
   const [category, setCategory] = useState<string>('业务应用')
   const [builtin, setBuiltin] = useState(true)
-  const [port, setPort] = useState('')
   const [description, setDescription] = useState('')
   const [selectedAssetIds, setSelectedAssetIds] = useState<number[]>([])
   const [selectedProjectIds, setSelectedProjectIds] = useState<number[]>([])
@@ -62,7 +61,6 @@ export function ServiceFormDialog({
       setName(editing.name)
       setCategory(editing.category || '其他')
       setBuiltin(editing.builtin)
-      setPort(editing.port ? String(editing.port) : '')
       setDescription(editing.description ?? '')
       setSelectedAssetIds(editing.assets.map(a => a.id))
       setSelectedProjectIds(editing.projects.map(p => p.id))
@@ -71,7 +69,6 @@ export function ServiceFormDialog({
       setName('')
       setCategory('业务应用')
       setBuiltin(true)
-      setPort('')
       setDescription('')
       setSelectedAssetIds([])
       setSelectedProjectIds([])
@@ -104,15 +101,13 @@ export function ServiceFormDialog({
     setBuiltinOpen(false)
     setError('')
     setName('')
-    setPort('')
     setBuiltin(next === 'builtin')
     setCategory('业务应用')
   }
 
-  function selectBuiltin(svcName: string, svcCategory: string, defaultPort: number | undefined) {
+  function selectBuiltin(svcName: string, svcCategory: string) {
     setName(svcName)
     setCategory(svcCategory)
-    setPort(defaultPort ? String(defaultPort) : '')
     setBuiltin(true)
     setError('')
     setBuiltinOpen(false)
@@ -129,21 +124,11 @@ export function ServiceFormDialog({
       setError(`服务「${trimmedName}」已存在`)
       return
     }
-    let parsedPort: number | null = null
-    if (port.trim() !== '') {
-      const num = Number(port)
-      if (!Number.isInteger(num) || num < 1 || num > 65535) {
-        setError('默认端口须为 1–65535 的整数')
-        return
-      }
-      parsedPort = num
-    }
 
     const payload: ServiceInput = {
       name: trimmedName,
       category: category || '其他',
       builtin: editing ? builtin : mode === 'builtin',
-      port: parsedPort,
       description: description.trim(),
       assetIds: selectedAssetIds,
       projectIds: selectedProjectIds,
@@ -218,11 +203,6 @@ export function ServiceFormDialog({
                         <span className="flex min-w-0 items-center gap-2">
                           <ServiceIcon name={name} category={category} />
                           <span className="truncate font-medium text-foreground">{name}</span>
-                          {port && (
-                            <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
-                              :{port}
-                            </span>
-                          )}
                         </span>
                       ) : (
                         <span className="text-muted-foreground">请选择系统内置服务…</span>
@@ -245,7 +225,6 @@ export function ServiceFormDialog({
                             {group.names.map(svcName => {
                               const exists = existingSet.has(svcName.toLowerCase())
                               const selected = name === svcName
-                              const defaultPort = serviceDefaultPort(svcName)
                               return (
                                 <CommandItem
                                   key={svcName}
@@ -253,17 +232,12 @@ export function ServiceFormDialog({
                                   disabled={exists}
                                   onSelect={() => {
                                     if (exists) return
-                                    selectBuiltin(svcName, group.category, defaultPort)
+                                    selectBuiltin(svcName, group.category)
                                   }}
                                   className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm"
                                 >
                                   <ServiceIcon name={svcName} category={group.category} />
                                   <span className="min-w-0 truncate">{svcName}</span>
-                                  {defaultPort && (
-                                    <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
-                                      :{defaultPort}
-                                    </span>
-                                  )}
                                   {exists ? (
                                     <span className="ml-auto shrink-0 text-xs text-muted-foreground">已添加</span>
                                   ) : (
@@ -301,29 +275,15 @@ export function ServiceFormDialog({
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label htmlFor="service-category" className="text-sm font-medium">分类</label>
-                <OptionSelect
-                  id="service-category"
-                  value={category}
-                  onChange={setCategory}
-                  options={CATEGORY_OPTIONS}
-                  className="w-full"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="service-port" className="text-sm font-medium">默认端口</label>
-                <Input
-                  id="service-port"
-                  type="number"
-                  min={1}
-                  max={65535}
-                  value={port}
-                  onChange={e => setPort(e.target.value)}
-                  placeholder="可选，如 8080"
-                />
-              </div>
+            <div className="space-y-1.5">
+              <label htmlFor="service-category" className="text-sm font-medium">分类</label>
+              <OptionSelect
+                id="service-category"
+                value={category}
+                onChange={setCategory}
+                options={CATEGORY_OPTIONS}
+                className="w-full"
+              />
             </div>
 
             <div className="space-y-1.5">

@@ -56,7 +56,6 @@ export interface ServiceEntry {
   name: string
   category: string
   builtin: boolean
-  port?: number
   description: string
   assets: ServiceRef[]
   assetCount: number
@@ -70,7 +69,6 @@ export interface ServiceInput {
   name: string
   category: string
   builtin: boolean
-  port: number | null
   description: string
   assetIds?: number[] | null
   projectIds?: number[] | null

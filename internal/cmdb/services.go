@@ -25,7 +25,6 @@ type ServiceEntry struct {
 	Name         string       `json:"name"`
 	Category     string       `json:"category"`
 	Builtin      bool         `json:"builtin"`
-	Port         *int         `json:"port,omitempty"`
 	Description  string       `json:"description"`
 	Assets       []ServiceRef `json:"assets"`
 	AssetCount   int          `json:"assetCount"`
@@ -39,7 +38,6 @@ type ServiceInput struct {
 	Name        string   `json:"name"`
 	Category    string   `json:"category"`
 	Builtin     bool     `json:"builtin"`
-	Port        *int     `json:"port"`
 	Description string   `json:"description"`
 	AssetIDs    *[]int64 `json:"assetIds"`
 	ProjectIDs  *[]int64 `json:"projectIds"`
@@ -50,21 +48,16 @@ type serviceQuerier interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
-const serviceColumns = "id, name, category, builtin, port, description, created_at, updated_at"
+const serviceColumns = "id, name, category, builtin, description, created_at, updated_at"
 
 func scanServiceEntry(row scanner) (ServiceEntry, error) {
 	var entry ServiceEntry
-	var port sql.NullInt64
 	err := row.Scan(
 		&entry.ID, &entry.Name, &entry.Category, &entry.Builtin,
-		&port, &entry.Description, &entry.CreatedAt, &entry.UpdatedAt,
+		&entry.Description, &entry.CreatedAt, &entry.UpdatedAt,
 	)
 	if err != nil {
 		return ServiceEntry{}, err
-	}
-	if port.Valid {
-		v := int(port.Int64)
-		entry.Port = &v
 	}
 	entry.Assets = make([]ServiceRef, 0)
 	entry.Projects = make([]ServiceRef, 0)
@@ -80,9 +73,6 @@ func normalizeServiceInput(input *ServiceInput) error {
 	}
 	if utf8.RuneCountInString(input.Category) > 40 {
 		return fmt.Errorf("%w: 服务分类不能超过 40 个字符", ErrInvalid)
-	}
-	if input.Port != nil && (*input.Port < 1 || *input.Port > 65535) {
-		return fmt.Errorf("%w: 端口须为 1–65535", ErrInvalid)
 	}
 	if utf8.RuneCountInString(input.Description) > 300 {
 		return fmt.Errorf("%w: 服务说明不能超过 300 个字符", ErrInvalid)
@@ -302,21 +292,16 @@ func SaveService(ctx context.Context, db *sql.DB, id int64, input ServiceInput, 
 		}
 	}
 
-	var portArg any
-	if input.Port != nil {
-		portArg = *input.Port
-	}
-
 	var before any
 	var savedID int64
 	action := "service.create"
 
 	if id == 0 {
 		err = tx.QueryRowContext(ctx, `
-			INSERT INTO services (name, category, builtin, port, description)
-			VALUES ($1, $2, $3, $4, $5)
+			INSERT INTO services (name, category, builtin, description)
+			VALUES ($1, $2, $3, $4)
 			RETURNING id`,
-			input.Name, input.Category, input.Builtin, portArg, input.Description,
+			input.Name, input.Category, input.Builtin, input.Description,
 		).Scan(&savedID)
 		if err != nil {
 			if isUniqueViolation(err) {
@@ -334,10 +319,10 @@ func SaveService(ctx context.Context, db *sql.DB, id int64, input ServiceInput, 
 
 		err = tx.QueryRowContext(ctx, `
 			UPDATE services
-			SET name=$2, category=$3, builtin=$4, port=$5, description=$6, updated_at=now()
+			SET name=$2, category=$3, builtin=$4, description=$5, updated_at=now()
 			WHERE id=$1
 			RETURNING id`,
-			id, input.Name, input.Category, input.Builtin, portArg, input.Description,
+			id, input.Name, input.Category, input.Builtin, input.Description,
 		).Scan(&savedID)
 		if err != nil {
 			if isUniqueViolation(err) {
