@@ -34,7 +34,7 @@ interface Props {
 const VM_STATUS_LABELS: Record<string, string> = {
   running: '运行中', stopped: '已停止', paused: '已暂停', offline: '离线', online: '在线', unknown: '未知',
 }
-const PLATFORM_LABELS: Record<string, string> = { pve: 'Proxmox VE', kvm: 'KVM / libvirt', '': '未分配' }
+const PLATFORM_LABELS: Record<string, string> = { pve: 'Proxmox VE', kvm: 'KVM', esxi: 'VMware ESXi', '': '未分配' }
 
 function DashboardCard({ children, title, extra }: { children: ReactNode; title: ReactNode; extra?: ReactNode }) {
   return (

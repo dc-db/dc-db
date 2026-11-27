@@ -120,7 +120,7 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, people, t
       cpu: networkDevice ? 0 : Number(fields.cpu || 0),
       memoryMiB: networkDevice ? 0 : (memoryMiB ?? 0),
       groupId: Number(fields.groupId || 0),
-      ...(host ? { personId: 0, owner: '' } : {}),
+      ...(!networkDevice ? { personId: 0, owner: '' } : {}),
       services: networkDevice ? undefined : serviceRows,
       version: asset?.version ?? 0,
     })
@@ -128,7 +128,9 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, people, t
 
   const networkDevice = isNetworkKind(fields.kind)
   const isHost = fields.kind === 'host'
-  const teamLabel = isHost ? '团队' : '运维团队'
+  const isComputeAsset = !networkDevice
+  const teamLabel = isComputeAsset ? '团队' : '运维团队'
+  const projectLabel = isComputeAsset ? '项目' : '所属项目'
 
   return (
     <form onSubmit={event => { event.preventDefault(); save() }} className={`grid grid-cols-2 gap-4${createFromList ? ' asset-create-form' : ''}`}>
@@ -138,7 +140,7 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, people, t
       {(!createFromList || networkDevice) && <label className="grid gap-2 asset-field-kind"><span>{createFromList ? '设备类型' : '资源类型'} <span className="text-destructive" aria-hidden="true">*</span></span><Choice value={fields.kind} disabled={!!asset} onChange={value => update('kind', value as Kind)} options={(createFromList ? NETWORK_KINDS : ALL_KINDS).map(value => ({ value, label: KIND_LABELS[value] }))} /></label>}
       {isHost && <label className={errors.brand ? 'grid gap-2 asset-field-brand field-invalid' : 'grid gap-2 asset-field-brand'}><span>品牌</span><Input value={fields.brand} maxLength={80} placeholder="例如：Dell、华为、浪潮" aria-invalid={!!errors.brand} onChange={event => update('brand', event.target.value)} />{errors.brand && <span className="field-error" role="alert">{errors.brand}</span>}</label>}
       {isHost && <label className={errors.model ? 'grid gap-2 asset-field-model field-invalid' : 'grid gap-2 asset-field-model'}><span>型号</span><Input value={fields.model} maxLength={120} placeholder="例如：PowerEdge R750" aria-invalid={!!errors.model} onChange={event => update('model', event.target.value)} />{errors.model && <span className="field-error" role="alert">{errors.model}</span>}</label>}
-      {!networkDevice && <label className="grid gap-2 asset-field-platform">平台<Choice value={fields.platform} onChange={value => update('platform', value as AssetFields['platform'])} options={[{ value: '', label: '未分配' }, { value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM / libvirt' }]} /></label>}
+      {!networkDevice && <label className="grid gap-2 asset-field-platform">平台<Choice value={fields.platform} onChange={value => update('platform', value as AssetFields['platform'])} options={[{ value: '', label: '未分配' }, { value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM' }, { value: 'esxi', label: 'VMware ESXi' }]} /></label>}
       <label className="grid gap-2 asset-field-environment">环境<Input value={fields.environment} maxLength={40} placeholder="例如：生产" onChange={event => update('environment', event.target.value)} /></label>
       {createFromList && <hr className="asset-create-divider" />}
       {!networkDevice && <div className="col-span-2 grid grid-cols-2 gap-3 asset-create-capacity">
@@ -159,9 +161,9 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, people, t
           />
         </label>
       )}
-      <label className="grid gap-2 asset-field-group">所属项目<Choice value={fields.groupId ? String(fields.groupId) : ''} onChange={value => update('groupId', Number(value || 0))} options={[{ value: '', label: '未分配' }, ...groups.map(group => ({ value: String(group.id), label: group.name }))]} /></label>
+      <label className="grid gap-2 asset-field-group">{projectLabel}<Choice value={fields.groupId ? String(fields.groupId) : ''} onChange={value => update('groupId', Number(value || 0))} options={[{ value: '', label: '未分配' }, ...groups.map(group => ({ value: String(group.id), label: group.name }))]} /></label>
       <div className="grid gap-2"><span>{teamLabel}</span><SearchableSelect label={teamLabel} placeholder="未分配" value={fields.teamId ? String(fields.teamId) : ''} onChange={value => update('teamId', Number(value))} options={teams.map(team => ({ value: String(team.id), label: team.name }))} indicator="down" triggerClassName="max-w-64" /></div>
-      {!isHost && <div className="grid gap-2 asset-field-owner"><span>负责人</span><SearchableSelect
+      {networkDevice && <div className="grid gap-2 asset-field-owner"><span>负责人</span><SearchableSelect
         label="负责人" placeholder="未分配"
         value={fields.personId ? String(fields.personId) : fields.owner ? 'legacy' : ''}
         onChange={value => {

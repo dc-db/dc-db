@@ -53,7 +53,7 @@ CREATE TABLE assets (
     name TEXT NOT NULL CHECK (length(name) BETWEEN 1 AND 160),
     brand TEXT NOT NULL DEFAULT '' CHECK (length(brand) <= 80),
     model TEXT NOT NULL DEFAULT '' CHECK (length(model) <= 120),
-    platform TEXT NOT NULL DEFAULT '' CHECK (platform IN ('','pve','kvm')),
+    platform TEXT NOT NULL DEFAULT '' CHECK (platform IN ('','pve','kvm','esxi')),
     status TEXT NOT NULL DEFAULT 'unknown' CHECK (status IN ('unknown','online','offline','running','stopped','paused')),
     lifecycle TEXT NOT NULL DEFAULT 'active' CHECK (lifecycle IN ('active','retired')),
     owner TEXT NOT NULL DEFAULT '',

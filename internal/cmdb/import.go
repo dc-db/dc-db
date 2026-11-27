@@ -56,6 +56,7 @@ var importKinds = map[string]string{
 
 var importPlatforms = map[string]string{
 	"": "", "pve": "pve", "proxmox ve": "pve", "proxmox": "pve", "kvm": "kvm",
+	"esxi": "esxi", "vmware": "esxi", "vmware esxi": "esxi", "vsphere": "esxi",
 }
 
 var importStatuses = map[string]string{
@@ -355,7 +356,7 @@ func decodeImportRow(record []string, columns map[string]int, rowNumber int) (Fi
 	}
 	platform, ok := importPlatforms[strings.ToLower(rawPlatform)]
 	if !ok {
-		return Fields{}, importRowError(rowNumber, "平台 %q 无效，可用：Proxmox VE、KVM 或留空", rawPlatform)
+		return Fields{}, importRowError(rowNumber, "平台 %q 无效，可用：Proxmox VE、KVM、VMware ESXi 或留空", rawPlatform)
 	}
 
 	rawStatus := value("status")

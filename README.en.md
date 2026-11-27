@@ -194,7 +194,7 @@ Template columns:
 
 - Type: `host`, `vm`, `switch`, or the Chinese labels 物理机, 虚拟机, 交换机.
 - Role: a free-text purpose such as server, switch, router, firewall, or storage; empty means unset.
-- Platform: `pve`, `kvm`, `Proxmox VE`, `KVM`, or empty.
+- Platform: `pve`, `kvm`, `esxi`, `Proxmox VE`, `KVM`, `VMware ESXi`, or empty.
 - Status: `unknown`, `online`, `offline`, `running`, `stopped`, `paused`, or the Chinese labels 未知, 在线, 离线, 运行中, 已停止, 已暂停.
 - Lifecycle: `active`, `retired`, 在册, 已退役; empty defaults to active.
 - CPU and memory MiB must be non-negative integers.

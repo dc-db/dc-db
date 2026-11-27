@@ -29,7 +29,7 @@ export interface AssetFields {
   name: string
   brand: string
   model: string
-  platform: '' | 'pve' | 'kvm'
+  platform: '' | 'pve' | 'kvm' | 'esxi'
   status: string
   lifecycle: 'active' | 'retired'
   owner: string

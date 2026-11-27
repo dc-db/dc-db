@@ -194,7 +194,7 @@ APP_PORT=80 POSTGRES_PASSWORD='更复杂的口令' docker compose up -d
 
 - 类型：物理机、虚拟机、交换机；也接受 `host`、`vm`、`switch`。
 - 角色：服务器、交换机、路由器、防火墙、存储等用途说明，可自定义，留空表示未指定。
-- 平台：Proxmox VE、KVM 或留空；也接受 `pve`、`kvm`。
+- 平台：Proxmox VE、KVM、VMware ESXi 或留空；也接受 `pve`、`kvm`、`esxi`。
 - 状态：未知、在线、离线、运行中、已停止、已暂停；也接受对应英文代码。
 - 生命周期：在册、已退役；留空默认在册。
 - CPU 和内存 MiB 填非负整数。

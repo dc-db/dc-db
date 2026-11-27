@@ -458,7 +458,7 @@ SELECT m.asset_id, m.service_name FROM (VALUES
  (3::bigint,'nginx'), (19,'nginx'), (4,'postgresql'), (3,'redis'), (10,'grafana'), (1,'etcd')
 ) AS m(asset_id, service_name) WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
--- 10. 为所有服务器（153 台）填充虚构品牌与型号，并清空服务器负责人字段。
+-- 10. 为所有服务器（153 台）填充虚构品牌、型号与虚拟化平台（PVE/KVM/ESXi），并清空服务器与虚拟机负责人字段。
 UPDATE assets
 SET brand = CASE (id % 9)
         WHEN 0 THEN 'Dell'
@@ -482,19 +482,41 @@ SET brand = CASE (id % 9)
         WHEN 7 THEN '2288H V6'
         ELSE 'ThinkSystem SR650 V2'
     END,
+    platform = CASE (id % 3)
+        WHEN 0 THEN 'pve'
+        WHEN 1 THEN 'kvm'
+        ELSE 'esxi'
+    END,
     owner = '',
     person_id = NULL
 WHERE kind = 'host' AND EXISTS (SELECT 1 FROM demo_empty_guard);
 
+UPDATE assets v
+SET platform = COALESCE(
+        (SELECT h.platform
+         FROM asset_links l
+         JOIN assets h ON h.id = l.from_id
+         WHERE l.to_id = v.id AND l.kind = 'hosts'
+         LIMIT 1),
+        CASE (v.id % 3)
+            WHEN 0 THEN 'pve'
+            WHEN 1 THEN 'kvm'
+            ELSE 'esxi'
+        END
+    ),
+    owner = '',
+    person_id = NULL
+WHERE v.kind = 'vm' AND EXISTS (SELECT 1 FROM demo_empty_guard);
+
 INSERT INTO people (name)
 SELECT min(owner) FROM assets
-WHERE kind <> 'host' AND length(owner) BETWEEN 1 AND 80 AND EXISTS (SELECT 1 FROM demo_empty_guard)
+WHERE kind NOT IN ('host', 'vm') AND length(owner) BETWEEN 1 AND 80 AND EXISTS (SELECT 1 FROM demo_empty_guard)
 GROUP BY lower(owner)
 ON CONFLICT DO NOTHING;
 
 UPDATE assets a SET person_id=p.id, owner=''
 FROM people p
-WHERE a.kind <> 'host' AND lower(a.owner)=lower(p.name) AND EXISTS (SELECT 1 FROM demo_empty_guard);
+WHERE a.kind NOT IN ('host', 'vm') AND lower(a.owner)=lower(p.name) AND EXISTS (SELECT 1 FROM demo_empty_guard);
 
 INSERT INTO teams (name, description)
 SELECT v.name, v.description FROM (VALUES
@@ -509,12 +531,11 @@ UPDATE assets a SET team_id=t.id
 FROM teams t
 WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
   AND t.name = CASE
-      WHEN a.kind = 'host' THEN CASE (a.id % 3)
+      WHEN a.kind IN ('host', 'vm') THEN CASE (a.id % 3)
           WHEN 0 THEN '示例平台运维组'
           WHEN 1 THEN '示例基础架构组'
           ELSE '示例数据运维组'
       END
-      WHEN a.kind = 'vm' THEN '示例平台运维组'
       ELSE '示例网络运维组'
   END;
 

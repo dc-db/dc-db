@@ -213,7 +213,7 @@ func validateFields(fields *Fields) error {
 		return errors.New("资源名称须为 1–160 个字符")
 	}
 	switch fields.Platform {
-	case "", "pve", "kvm":
+	case "", "pve", "kvm", "esxi":
 	default:
 		return errors.New("虚拟化平台无效")
 	}

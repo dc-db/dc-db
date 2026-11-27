@@ -76,7 +76,7 @@ const relations: { kind: LinkKind; from: Kind; to: Kind[]; outgoing: string; inc
   { kind: 'hosts', from: 'host', to: ['vm'], outgoing: '承载虚拟机', incoming: '所在宿主机' },
 ]
 const defaultPageSize = 10
-const defaultAssetColumns = ['name', 'capacity', 'address', 'platform', 'meta', 'services', 'notes']
+const defaultAssetColumns = ['name', 'capacity', 'address', 'platform', 'meta', 'services', 'group', 'team', 'notes']
 const defaultHostColumns = ['name', 'brand', 'model', 'capacity', 'address', 'services', 'team', 'notes']
 const defaultNetworkDeviceColumns = ['name', 'kind', 'address', 'owner']
 const assetColumnKeys = ['name', 'brand', 'model', 'capacity', 'kind', 'address', 'platform', 'meta', 'services', 'group', 'team', 'owner', 'environment', 'notes', 'created', 'updated']
@@ -85,6 +85,7 @@ const assetColumnKeys = ['name', 'brand', 'model', 'capacity', 'kind', 'address'
 const PLATFORM_CATALOG = [
   { value: 'pve', label: 'Proxmox VE' },
   { value: 'kvm', label: 'KVM' },
+  { value: 'esxi', label: 'VMware ESXi' },
 ]
 const NETWORK_KIND_CATALOG = NETWORK_KINDS.map(kind => ({ value: kind, label: KIND_LABELS[kind] }))
 const PROBE_CATALOG = [
@@ -94,7 +95,7 @@ const PROBE_CATALOG = [
 ]
 
 function platformLabel(asset: Pick<Asset, 'platform'>) {
-  return asset.platform === 'pve' ? 'Proxmox VE' : asset.platform === 'kvm' ? 'KVM' : '—'
+  return asset.platform === 'pve' ? 'Proxmox VE' : asset.platform === 'kvm' ? 'KVM' : asset.platform === 'esxi' ? 'VMware ESXi' : '—'
 }
 function capacityLabel(cpu: number, memoryMiB: number): string {
   return `${cpu || 0} 核 / ${formatMemory(memoryMiB) || '—'}`
@@ -687,10 +688,10 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     if (!assetPage) return
     const fallback = page === 'host' ? defaultHostColumns : page === 'network_devices' ? defaultNetworkDeviceColumns : defaultAssetColumns
     try {
-      const key = 'dc-db-columns:' + page + (page === 'host' ? ':v8' : page === 'vm' ? ':v6' : '')
+      const key = 'dc-db-columns:' + page + (page === 'host' ? ':v8' : page === 'vm' ? ':v7' : '')
       const raw = localStorage.getItem(key)
       const v7 = page === 'host' && !raw ? localStorage.getItem('dc-db-columns:host:v7') : null
-      const v6 = page === 'host' && !raw && !v7 ? localStorage.getItem('dc-db-columns:host:v6') : null
+      const v6 = (page === 'host' || page === 'vm') && !raw && !v7 ? localStorage.getItem('dc-db-columns:' + page + ':v6') : null
       const v5 = (page === 'host' || page === 'vm') && !raw && !v7 && !v6 ? localStorage.getItem('dc-db-columns:' + page + ':v5') : null
       const v4 = v7 || v6 || v5 || ((page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page + ':v4') : null)
       const previous = v4 || ((page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page + ':v3') || localStorage.getItem('dc-db-columns:' + page + ':v2') : null)
@@ -704,7 +705,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
               assetColumnKeys.includes(item)
               && (page === 'host'
                 ? item !== 'meta' && item !== 'platform' && item !== 'owner' && item !== 'environment' && item !== 'kind' && (!!raw || !!v7 || !!v6 || !!v4 || (item !== 'created' && item !== 'updated'))
-                : item !== 'brand' && item !== 'model' && (page !== 'vm' || (item !== 'environment' && (!!raw || !!v5 || item !== 'owner') && (!!raw || !!v4 || (item !== 'created' && item !== 'updated'))))),
+                : item !== 'brand' && item !== 'model' && (page !== 'vm' || (item !== 'kind' && item !== 'owner' && item !== 'environment' && (!!raw || !!v4 || (item !== 'created' && item !== 'updated'))))),
             )
         : []
       if (legacy && valid.length) {
@@ -716,6 +717,10 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
         if (page === 'host') {
           if (!valid.includes('brand')) valid.push('brand')
           if (!valid.includes('model')) valid.push('model')
+          if (!valid.includes('team')) valid.push('team')
+        }
+        if (page === 'vm') {
+          if (!valid.includes('group')) valid.push('group')
           if (!valid.includes('team')) valid.push('team')
         }
         localStorage.setItem(key, JSON.stringify(assetColumnKeys.filter(item => valid.includes(item))))
@@ -1054,12 +1059,14 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       const fields: Record<string, string | number> = {}
       const stringKeys = page === 'host'
         ? (['platform', 'lifecycle', 'brand', 'model', 'environment'] as const)
-        : (['platform', 'lifecycle', 'owner', 'environment'] as const)
+        : page === 'vm'
+          ? (['platform', 'lifecycle', 'environment'] as const)
+          : (['platform', 'lifecycle', 'owner', 'environment'] as const)
       for (const key of stringKeys) {
         const value = values[key]?.trim()
         if (value) fields[key] = value
       }
-      if (page === 'host' && typeof values.teamId === 'number') {
+      if ((page === 'host' || page === 'vm') && typeof values.teamId === 'number') {
         fields.teamId = values.teamId
       }
       if (!Object.keys(fields).length) {
@@ -1085,7 +1092,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     if (!ordered.length) return
     setVisibleColumns(ordered)
     try {
-      localStorage.setItem('dc-db-columns:' + page + (page === 'host' ? ':v8' : page === 'vm' ? ':v6' : ''), JSON.stringify(ordered))
+      localStorage.setItem('dc-db-columns:' + page + (page === 'host' ? ':v8' : page === 'vm' ? ':v7' : ''), JSON.stringify(ordered))
     } catch {
       // Keep the current in-memory column selection.
     }
@@ -1145,6 +1152,20 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
           asset.name, kindLabel(asset.kind), asset.brand ?? '', asset.model ?? '', platformLabel(asset), statusOf(asset).label,
           asset.lifecycle === 'retired' ? '已退役' : '在册', asset.address, asset.cpu, asset.memoryMiB,
           teamNames.get(asset.teamId ?? 0) ?? '', asset.environment, asset.notes,
+        ])
+      }
+      downloadCSV(filename, rows)
+      return
+    }
+    if (page === 'vm') {
+      const rows: (string | number)[][] = [[
+        '资源名称', '类型', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '项目', '团队', '环境', '备注',
+      ]]
+      for (const asset of items) {
+        rows.push([
+          asset.name, kindLabel(asset.kind), platformLabel(asset), statusOf(asset).label,
+          asset.lifecycle === 'retired' ? '已退役' : '在册', asset.address, asset.cpu, asset.memoryMiB,
+          projectNames.get(asset.groupId) ?? '', teamNames.get(asset.teamId ?? 0) ?? '', asset.environment, asset.notes,
         ])
       }
       downloadCSV(filename, rows)
@@ -1232,7 +1253,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
   const metaTitle = page === 'vm' ? '宿主机' : '平台'
   const metaValue = (asset: Asset) => page === 'vm' ? hostName(asset) : platformLabel(asset)
   const assetNameLabel = page === 'host' ? '服务器名称' : page === 'vm' ? '虚拟机名称' : '资源名称'
-  const teamColumnLabel = page === 'host' ? '团队' : '运维团队'
+  const teamColumnLabel = page === 'host' || page === 'vm' ? '团队' : '运维团队'
   const assetColumns: { key: string; label: string; column: TableColumnsType<Asset>[number] }[] = [
     {
       key: 'name', label: assetNameLabel,
@@ -1367,7 +1388,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
           options: assetColumnFilterOptions.team,
           selectedValues: columnFilters.team ?? [],
           onChange: next => setColumnFilter('team', next),
-          searchPlaceholder: page === 'host' ? '搜索团队' : '搜索运维团队',
+          searchPlaceholder: page === 'host' || page === 'vm' ? '搜索团队' : '搜索运维团队',
         },
         render: (_, asset) => teamName(asset.teamId),
       },
@@ -1450,9 +1471,10 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
         .sort((a, b) => ['name', 'kind', 'address', 'group', 'team', 'owner', 'environment', 'updated'].indexOf(a.key) - ['name', 'kind', 'address', 'group', 'team', 'owner', 'environment', 'updated'].indexOf(b.key))
     : assetColumns.filter(item =>
         item.key !== 'kind'
+        && item.key !== 'owner'
         && item.key !== 'environment'
         && (page === 'host'
-          ? item.key !== 'meta' && item.key !== 'platform' && item.key !== 'owner'
+          ? item.key !== 'meta' && item.key !== 'platform'
           : item.key !== 'brand' && item.key !== 'model'),
       )
         .sort((a, b) => assetColumnKeys.indexOf(a.key) - assetColumnKeys.indexOf(b.key))
@@ -1508,9 +1530,9 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       { key: 'model', label: '型号', children: selected.model || '—' },
     ] : []),
     ...(!isNetworkKind(selected.kind) ? [{ key: 'platform', label: '平台', children: platformLabel(selected) }] : []),
-    { key: 'group', label: '所属项目', children: groupName(selected.groupId) },
-    { key: 'team', label: selected.kind === 'host' ? '团队' : '运维团队', children: teamName(selected.teamId) },
-    ...(selected.kind === 'host' ? [] : [{ key: 'owner', label: '负责人', children: selected.owner || '—' }]),
+    { key: 'group', label: isNetworkKind(selected.kind) ? '所属项目' : '项目', children: groupName(selected.groupId) },
+    { key: 'team', label: isNetworkKind(selected.kind) ? '运维团队' : '团队', children: teamName(selected.teamId) },
+    ...(isNetworkKind(selected.kind) ? [{ key: 'owner', label: '负责人', children: selected.owner || '—' }] : []),
     { key: 'environment', label: '环境', children: selected.environment || '—' },
     { key: 'address', label: '管理地址 / IP', children: <span className="mono">{selected.address || '—'}</span> },
     ...(selected.kind === 'host' || selected.kind === 'vm' ? [{
@@ -2135,7 +2157,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
           <Form.Item label="平台" name="platform" extra="留空表示不修改">
             <Select
               allowClear placeholder="不修改"
-              options={[{ value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM / libvirt' }]}
+              options={[{ value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM' }, { value: 'esxi', label: 'VMware ESXi' }]}
             />
           </Form.Item>
           <Form.Item label="生命周期" name="lifecycle" extra="留空表示不修改">
@@ -2144,7 +2166,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
               options={[{ value: 'active', label: '在册' }, { value: 'retired', label: '已退役' }]}
             />
           </Form.Item>
-          {page === 'host' ? (
+          {page === 'host' || page === 'vm' ? (
             <>
               <Form.Item label="团队" name="teamId" extra="留空表示不修改">
                 <Select
@@ -2155,12 +2177,16 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
                   ]}
                 />
               </Form.Item>
-              <Form.Item label="品牌" name="brand" extra="留空表示不修改">
-                <Input maxLength={80} placeholder="例如：Dell、华为、浪潮" />
-              </Form.Item>
-              <Form.Item label="型号" name="model" extra="留空表示不修改">
-                <Input maxLength={120} placeholder="例如：PowerEdge R750" />
-              </Form.Item>
+              {page === 'host' && (
+                <>
+                  <Form.Item label="品牌" name="brand" extra="留空表示不修改">
+                    <Input maxLength={80} placeholder="例如：Dell、华为、浪潮" />
+                  </Form.Item>
+                  <Form.Item label="型号" name="model" extra="留空表示不修改">
+                    <Input maxLength={120} placeholder="例如：PowerEdge R750" />
+                  </Form.Item>
+                </>
+              )}
             </>
           ) : (
             <Form.Item label="负责人" name="owner" extra="留空表示不修改">

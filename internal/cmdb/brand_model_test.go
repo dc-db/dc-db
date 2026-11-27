@@ -224,3 +224,90 @@ func TestBrandModelPersistenceAndBulkUpdate(t *testing.T) {
 		t.Fatalf("import brand/model = %+v, %v", res, err)
 	}
 }
+
+func TestPlatformValidationAndImportNormalization(t *testing.T) {
+	for _, platform := range []string{"", "pve", "kvm", "esxi"} {
+		fields := baseFields("host", "demo-plat-"+platform)
+		fields.Platform = platform
+		if err := validateFields(&fields); err != nil {
+			t.Fatalf("validateFields(platform=%q): %v", platform, err)
+		}
+	}
+
+	invalid := baseFields("host", "demo-plat-bad")
+	invalid.Platform = "xen"
+	if err := validateFields(&invalid); err == nil {
+		t.Fatal("validateFields should reject unsupported platform")
+	}
+
+	csvText := strings.Join([]string{
+		"资源名称,类型,平台,状态",
+		"demo-esxi-1,服务器,VMware ESXi,在线",
+		"demo-esxi-2,服务器,VMware,在线",
+		"demo-esxi-3,虚拟机,ESXi,运行中",
+		"demo-esxi-4,虚拟机,vSphere,运行中",
+		"demo-kvm-1,服务器,KVM,在线",
+		"demo-pve-1,服务器,Proxmox VE,在线",
+		"demo-empty-1,服务器,—,在线",
+	}, "\n") + "\n"
+	rows, err := parseImportFile(strings.NewReader(csvText))
+	if err != nil {
+		t.Fatalf("parseImportFile platforms: %v", err)
+	}
+	want := []string{"esxi", "esxi", "esxi", "esxi", "kvm", "pve", ""}
+	if len(rows) != len(want) {
+		t.Fatalf("parsed %d rows, want %d", len(rows), len(want))
+	}
+	for i, w := range want {
+		if rows[i].fields.Platform != w {
+			t.Fatalf("row %d (%s) platform = %q, want %q", i, rows[i].fields.Name, rows[i].fields.Platform, w)
+		}
+	}
+
+	badCSV := "资源名称,类型,平台\ndemo-bad-plat,服务器,Hyper-V\n"
+	_, err = parseImportFile(strings.NewReader(badCSV))
+	if !errors.Is(err, ErrInvalid) {
+		t.Fatalf("invalid platform CSV error = %v, want ErrInvalid", err)
+	}
+	if !strings.Contains(err.Error(), "VMware ESXi") {
+		t.Fatalf("invalid platform CSV error %q should mention VMware ESXi", err.Error())
+	}
+}
+
+func TestPlatformESXiPersistenceAndBulkUpdate(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+
+	fields := baseFields("host", "demo-esxi-host-01")
+	fields.Platform = "esxi"
+	asset, err := SaveAsset(ctx, db, 0, 0, fields, "tester")
+	if err != nil {
+		t.Fatalf("create esxi host: %v", err)
+	}
+	if asset.Platform != "esxi" {
+		t.Fatalf("created platform = %q, want esxi", asset.Platform)
+	}
+
+	vmFields := baseFields("vm", "demo-esxi-vm-01")
+	vm, err := SaveAsset(ctx, db, 0, 0, vmFields, "tester")
+	if err != nil {
+		t.Fatalf("create vm: %v", err)
+	}
+	esxi := "esxi"
+	updated, err := BulkUpdateAssets(ctx, db, []int64{vm.ID}, BulkAssetPatch{Platform: &esxi}, "tester")
+	if err != nil || updated != 1 {
+		t.Fatalf("bulk update platform to esxi = %d, %v", updated, err)
+	}
+
+	csvText := strings.Join([]string{
+		"资源名称,类型,平台,状态",
+		"demo-csv-esxi-1,服务器,VMware ESXi,在线",
+		"demo-csv-esxi-2,虚拟机,VMware,运行中",
+		"demo-csv-esxi-3,虚拟机,ESXi,运行中",
+		"demo-csv-kvm-1,服务器,KVM,在线",
+	}, "\n") + "\n"
+	res, err := ImportAssets(ctx, db, strings.NewReader(csvText), "tester")
+	if err != nil || res.Imported != 4 {
+		t.Fatalf("import esxi/kvm CSV = %+v, %v", res, err)
+	}
+}
