@@ -721,7 +721,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                                 data-state={isSelected ? 'selected' : undefined}
                                 onClick={() => openRack(item.id)}
                               >
-                                <td className="col-select" onClick={event => event.stopPropagation()}>
+                                <td className="col-select group/select-cell" onClick={event => event.stopPropagation()}>
                                   <RowIndexSelectCell
                                     rowNumber={index + 1}
                                     selected={isSelected}

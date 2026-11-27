@@ -50,7 +50,7 @@ export function RowIndexSelectCell({
 }: RowIndexSelectCellProps): JSX.Element {
   return (
     <div
-      className="relative mx-auto flex h-6 w-8 items-center justify-center"
+      className="group/select-cell relative mx-auto flex h-8 w-full min-w-8 items-center justify-center"
       onClick={event => event.stopPropagation()}
     >
       <span
@@ -61,7 +61,7 @@ export function RowIndexSelectCell({
             ? 'opacity-0 pointer-events-none'
             : disabled
               ? 'opacity-100'
-              : 'opacity-100 group-hover/row:opacity-0 group-focus-within/row:opacity-0',
+              : 'opacity-100 group-hover/select-cell:opacity-0 group-focus-within/select-cell:opacity-0',
         )}
       >
         {rowNumber}
@@ -72,7 +72,7 @@ export function RowIndexSelectCell({
             'absolute inset-0 flex items-center justify-center transition-opacity',
             selected
               ? 'opacity-100'
-              : 'opacity-0 pointer-events-none group-hover/row:opacity-100 group-hover/row:pointer-events-auto group-focus-within/row:opacity-100 group-focus-within/row:pointer-events-auto',
+              : 'opacity-0 pointer-events-none group-hover/select-cell:opacity-100 group-hover/select-cell:pointer-events-auto group-focus-within/select-cell:opacity-100 group-focus-within/select-cell:pointer-events-auto',
           )}
         >
           <Checkbox
@@ -189,7 +189,7 @@ export function createRowSelectionColumn<TData>(
       headerClassName:
         'sticky top-0 left-0 z-30 w-12 min-w-12 px-2 text-center bg-background [box-shadow:inset_-1px_0_0_var(--border),inset_0_-1px_0_var(--border)]',
       cellClassName:
-        'sticky left-0 z-10 w-12 min-w-12 px-2 text-center bg-background transition-colors group-hover/row:bg-[var(--table-header-hover-opaque)] group-data-[state=selected]/row:bg-[var(--table-row-selected)]',
+        'group/select-cell sticky left-0 z-10 w-12 min-w-12 px-2 text-center bg-background transition-colors group-hover/row:bg-[var(--table-header-hover-opaque)] group-data-[state=selected]/row:bg-[var(--table-row-selected)]',
     },
     header: ({ table }) => {
       const pageRows = table.getRowModel().rows

@@ -680,7 +680,7 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
                     onSelectSubnet(item.id)
                   } : undefined}
                 >
-                  <td className="col-select" onClick={event => event.stopPropagation()}>
+                  <td className="col-select group/select-cell" onClick={event => event.stopPropagation()}>
                     <RowIndexSelectCell
                       rowNumber={index + 1}
                       selected={isSelected}

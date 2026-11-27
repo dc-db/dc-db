@@ -295,7 +295,7 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, r
                 style={onRowClick ? { cursor: 'pointer' } : undefined}
               >
                 {rowSelection && (
-                  <td className="col-select">
+                  <td className="col-select group/select-cell">
                     <RowIndexSelectCell
                       rowNumber={rowNumber}
                       selected={isSelected}
