@@ -20,40 +20,40 @@ SELECT CASE WHEN
     EXISTS (SELECT 1 FROM changes)
     THEN 0 ELSE 1 END;
 
-INSERT INTO assets (id, kind, name, platform, status, lifecycle, owner, environment, address, cpu, memory_mib, notes)
+INSERT INTO assets (id, kind, name, platform, status, lifecycle, owner, environment, address, probe_enabled, probe_status, probe_checked_at, cpu, memory_mib, notes)
 SELECT v.* FROM (
-    SELECT 1::bigint, 'host'::text, 'demo-host-01'::text, 'pve'::text, 'online'::text, 'active'::text, '示例运维组'::text, '演示'::text, '192.0.2.11'::text, 32::int, 131072::bigint, '虚构宿主机'::text
-    UNION ALL SELECT 2, 'host', 'demo-host-02', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.12', 24, 98304, '虚构宿主机'
-    UNION ALL SELECT 3, 'vm', 'demo-web-01', 'pve', 'running', 'active', '示例应用组', '演示', '198.51.100.21', 4, 8192, '虚构 Web 虚拟机'
-    UNION ALL SELECT 4, 'vm', 'demo-db-01', 'pve', 'running', 'active', '示例应用组', '演示', '198.51.100.22', 8, 16384, '虚构数据库虚拟机'
-    UNION ALL SELECT 5, 'vm', 'demo-worker-01', 'kvm', 'stopped', 'active', '示例应用组', '演示', '198.51.100.23', 4, 8192, '虚构工作节点'
-    UNION ALL SELECT 6, 'switch', 'demo-switch-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.2', 0, 0, '虚构核心交换机'
-    UNION ALL SELECT 7, 'switch', 'demo-switch-02', '', 'offline', 'active', '示例网络组', '演示', '192.0.2.3', 0, 0, '虚构接入交换机'
-    UNION ALL SELECT 8, 'firewall', 'demo-fw-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.1', 0, 0, '虚构边界防火墙'
-    UNION ALL SELECT 9, 'host', 'demo-host-03', 'pve', 'online', 'active', '示例运维组', '演示', '192.0.2.13', 16, 65536, '虚构宿主机'
-    UNION ALL SELECT 10, 'host', 'demo-host-04', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.14', 16, 65536, '虚构宿主机'
-    UNION ALL SELECT 11, 'switch', 'demo-switch-03', '', 'online', 'active', '示例网络组', '演示', '192.0.2.4', 0, 0, '虚构汇聚交换机'
-    UNION ALL SELECT 12, 'host', 'demo-host-05', 'pve', 'offline', 'active', '示例运维组', '演示', '192.0.2.15', 8, 32768, '虚构宿主机'
-    UNION ALL SELECT 13, 'switch', 'demo-switch-04', '', 'online', 'active', '示例网络组', '演示', '192.0.2.5', 0, 0, '虚构接入交换机'
-    UNION ALL SELECT 14, 'host', 'demo-host-06', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.16', 12, 49152, '虚构宿主机'
-    UNION ALL SELECT 15, 'host', 'demo-host-07', 'pve', 'online', 'active', '示例运维组', '演示', '192.0.2.17', 8, 32768, '虚构宿主机'
-    UNION ALL SELECT 16, 'switch', 'demo-switch-05', '', 'online', 'active', '示例网络组', '演示', '192.0.2.6', 0, 0, '虚构接入交换机'
-    UNION ALL SELECT 17, 'host', 'demo-sz-host-01', 'pve', 'online', 'active', '示例运维组', '演示', '203.0.113.11', 24, 98304, '虚构深圳宿主机'
-    UNION ALL SELECT 18, 'host', 'demo-sz-host-02', 'kvm', 'online', 'active', '示例运维组', '演示', '203.0.113.12', 16, 65536, '虚构深圳宿主机'
-    UNION ALL SELECT 19, 'vm', 'demo-sz-app-01', 'pve', 'running', 'active', '示例应用组', '演示', '203.0.113.21', 4, 8192, '虚构深圳应用虚拟机'
-    UNION ALL SELECT 20, 'host', 'demo-gz-store-01', 'kvm', 'online', 'active', '示例运维组', '演示', '203.0.113.13', 16, 65536, '虚构广州存储节点'
-    UNION ALL SELECT 21, 'vm', 'demo-gz-app-01', 'kvm', 'running', 'active', '示例应用组', '演示', '203.0.113.22', 4, 8192, '虚构广州应用虚拟机'
-    UNION ALL SELECT 22, 'switch', 'demo-hz-switch-01', '', 'online', 'active', '示例网络组', '演示', '203.0.113.2', 0, 0, '虚构杭州接入交换机'
-    UNION ALL SELECT 23, 'host', 'demo-hz-host-01', 'pve', 'online', 'active', '示例运维组', '演示', '203.0.113.14', 32, 131072, '虚构杭州宿主机'
-    UNION ALL SELECT 24, 'vm', 'demo-hz-app-01', 'pve', 'running', 'active', '示例应用组', '演示', '203.0.113.23', 8, 16384, '虚构杭州应用虚拟机'
-    UNION ALL SELECT 25, 'host', 'demo-cd-host-01', 'kvm', 'online', 'active', '示例运维组', '演示', '203.0.113.15', 12, 49152, '虚构成都宿主机'
-    UNION ALL SELECT 26, 'switch', 'demo-cd-switch-01', '', 'online', 'active', '示例网络组', '演示', '203.0.113.3', 0, 0, '虚构成都汇聚交换机'
-    UNION ALL SELECT 27, 'host', 'demo-test-host-03', 'pve', 'offline', 'active', '示例运维组', '演示', '203.0.113.16', 8, 32768, '虚构测试宿主机'
-    UNION ALL SELECT 28, 'vm', 'demo-test-app-01', 'kvm', 'stopped', 'active', '示例应用组', '演示', '203.0.113.24', 2, 4096, '虚构测试虚拟机'
-    UNION ALL SELECT 29, 'router', 'demo-router-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.7', 0, 0, '虚构核心出口路由器'
-    UNION ALL SELECT 30, 'firewall', 'demo-sz-fw-01', '', 'online', 'active', '示例网络组', '演示', '203.0.113.1', 0, 0, '虚构深圳边界防火墙'
-    UNION ALL SELECT 31, 'load_balancer', 'demo-lb-01', '', 'online', 'active', '示例网络组', '演示', '198.51.100.2', 0, 0, '虚构北京硬件负载均衡'
-    UNION ALL SELECT 32, 'load_balancer', 'demo-sh-lb-01', '', 'online', 'active', '示例网络组', '演示', '198.51.100.3', 0, 0, '虚构上海硬件负载均衡') AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+    SELECT 1::bigint, 'host'::text, 'demo-host-01'::text, 'pve'::text, 'online'::text, 'active'::text, '示例运维组'::text, '演示'::text, '10.0.1.1'::text, true::boolean, 'reachable'::text, now() - interval '3 minutes', 32::int, 131072::bigint, '虚构宿主机'::text
+    UNION ALL SELECT 2, 'host', 'demo-host-02', 'kvm', 'online', 'active', '示例运维组', '演示', '192.168.123.123', true, 'reachable', now() - interval '5 minutes', 24, 98304, '虚构宿主机'
+    UNION ALL SELECT 3, 'vm', 'demo-web-01', 'pve', 'running', 'active', '示例应用组', '演示', '198.51.100.21', true, 'reachable', now() - interval '2 minutes', 4, 8192, '虚构 Web 虚拟机'
+    UNION ALL SELECT 4, 'vm', 'demo-db-01', 'pve', 'running', 'active', '示例应用组', '演示', '192.168.108.204', true, 'reachable', now() - interval '4 minutes', 8, 16384, '虚构数据库虚拟机'
+    UNION ALL SELECT 5, 'vm', 'demo-worker-01', 'kvm', 'stopped', 'active', '示例应用组', '演示', '10.0.2.5', true, 'unreachable', now() - interval '6 minutes', 4, 8192, '虚构工作节点'
+    UNION ALL SELECT 6, 'switch', 'demo-switch-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.2', true, 'reachable', now() - interval '2 minutes', 0, 0, '虚构核心交换机'
+    UNION ALL SELECT 7, 'switch', 'demo-switch-02', '', 'offline', 'active', '示例网络组', '演示', '192.168.123.250', true, 'unreachable', now() - interval '5 minutes', 0, 0, '虚构接入交换机'
+    UNION ALL SELECT 8, 'firewall', 'demo-fw-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.1', true, 'reachable', now() - interval '3 minutes', 0, 0, '虚构边界防火墙'
+    UNION ALL SELECT 9, 'host', 'demo-host-03', 'pve', 'online', 'active', '示例运维组', '演示', '192.0.2.13', true, 'unreachable', now() - interval '7 minutes', 16, 65536, '虚构宿主机'
+    UNION ALL SELECT 10, 'host', 'demo-host-04', 'kvm', 'online', 'active', '示例运维组', '演示', '192.168.123.108', false, 'unknown', NULL, 16, 65536, '虚构宿主机'
+    UNION ALL SELECT 11, 'switch', 'demo-switch-03', '', 'online', 'active', '示例网络组', '演示', '10.0.1.3', true, 'reachable', now() - interval '4 minutes', 0, 0, '虚构汇聚交换机'
+    UNION ALL SELECT 12, 'host', 'demo-host-05', 'pve', 'offline', 'active', '示例运维组', '演示', '10.0.1.9', true, 'unreachable', now() - interval '9 minutes', 8, 32768, '虚构宿主机'
+    UNION ALL SELECT 13, 'switch', 'demo-switch-04', '', 'online', 'active', '示例网络组', '演示', '192.0.2.5', false, 'unknown', NULL, 0, 0, '虚构接入交换机'
+    UNION ALL SELECT 14, 'host', 'demo-host-06', 'kvm', 'online', 'active', '示例运维组', '演示', '192.0.2.16', true, 'reachable', now() - interval '11 minutes', 12, 49152, '虚构宿主机'
+    UNION ALL SELECT 15, 'host', 'demo-host-07', 'pve', 'online', 'active', '示例运维组', '演示', '192.168.123.215', false, 'unknown', NULL, 8, 32768, '虚构宿主机'
+    UNION ALL SELECT 16, 'switch', 'demo-switch-05', '', 'online', 'active', '示例网络组', '演示', '192.168.123.251', true, 'reachable', now() - interval '7 minutes', 0, 0, '虚构接入交换机'
+    UNION ALL SELECT 17, 'host', 'demo-sz-host-01', 'pve', 'online', 'active', '示例运维组', '演示', '203.0.113.11', true, 'reachable', now() - interval '4 minutes', 24, 98304, '虚构深圳宿主机'
+    UNION ALL SELECT 18, 'host', 'demo-sz-host-02', 'kvm', 'online', 'active', '示例运维组', '演示', '10.0.1.2', true, 'reachable', now() - interval '6 minutes', 16, 65536, '虚构深圳宿主机'
+    UNION ALL SELECT 19, 'vm', 'demo-sz-app-01', 'pve', 'running', 'active', '示例应用组', '演示', '203.0.113.21', false, 'unknown', NULL, 4, 8192, '虚构深圳应用虚拟机'
+    UNION ALL SELECT 20, 'host', 'demo-gz-store-01', 'kvm', 'online', 'active', '示例运维组', '演示', '203.0.113.13', false, 'unknown', NULL, 16, 65536, '虚构广州存储节点'
+    UNION ALL SELECT 21, 'vm', 'demo-gz-app-01', 'kvm', 'running', 'active', '示例应用组', '演示', '10.0.2.9', true, 'reachable', now() - interval '8 minutes', 4, 8192, '虚构广州应用虚拟机'
+    UNION ALL SELECT 22, 'switch', 'demo-hz-switch-01', '', 'online', 'active', '示例网络组', '演示', '203.0.113.2', true, 'reachable', now() - interval '9 minutes', 0, 0, '虚构杭州接入交换机'
+    UNION ALL SELECT 23, 'host', 'demo-hz-host-01', 'pve', 'online', 'active', '示例运维组', '演示', '192.168.108.123', true, 'reachable', now() - interval '8 minutes', 32, 131072, '虚构杭州宿主机'
+    UNION ALL SELECT 24, 'vm', 'demo-hz-app-01', 'pve', 'running', 'active', '示例应用组', '演示', '192.168.108.156', true, 'reachable', now() - interval '10 minutes', 8, 16384, '虚构杭州应用虚拟机'
+    UNION ALL SELECT 25, 'host', 'demo-cd-host-01', 'kvm', 'online', 'active', '示例运维组', '演示', '10.0.1.8', true, 'reachable', now() - interval '10 minutes', 12, 49152, '虚构成都宿主机'
+    UNION ALL SELECT 26, 'switch', 'demo-cd-switch-01', '', 'online', 'active', '示例网络组', '演示', '10.0.1.4', true, 'reachable', now() - interval '11 minutes', 0, 0, '虚构成都汇聚交换机'
+    UNION ALL SELECT 27, 'host', 'demo-test-host-03', 'pve', 'offline', 'active', '示例运维组', '演示', '203.0.113.16', true, 'unreachable', now() - interval '12 minutes', 8, 32768, '虚构测试宿主机'
+    UNION ALL SELECT 28, 'vm', 'demo-test-app-01', 'kvm', 'stopped', 'active', '示例应用组', '演示', '203.0.113.24', false, 'unknown', NULL, 2, 4096, '虚构测试虚拟机'
+    UNION ALL SELECT 29, 'router', 'demo-router-01', '', 'online', 'active', '示例网络组', '演示', '192.0.2.7', true, 'reachable', now() - interval '3 minutes', 0, 0, '虚构核心出口路由器'
+    UNION ALL SELECT 30, 'firewall', 'demo-sz-fw-01', '', 'online', 'active', '示例网络组', '演示', '203.0.113.1', true, 'reachable', now() - interval '5 minutes', 0, 0, '虚构深圳边界防火墙'
+    UNION ALL SELECT 31, 'load_balancer', 'demo-lb-01', '', 'online', 'active', '示例网络组', '演示', '198.51.100.2', true, 'reachable', now() - interval '6 minutes', 0, 0, '虚构北京硬件负载均衡'
+    UNION ALL SELECT 32, 'load_balancer', 'demo-sh-lb-01', '', 'online', 'active', '示例网络组', '演示', '192.168.108.250', false, 'unknown', NULL, 0, 0, '虚构上海硬件负载均衡') AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
 INSERT INTO asset_links (from_id, to_id, kind)
 SELECT v.* FROM (
@@ -169,6 +169,11 @@ INSERT INTO subnets (id, name, cidr, gateway, vlan, notes, status, role, room_id
 SELECT v.* FROM (
     SELECT 1::bigint, '示例管理网'::text, '192.0.2.0/24'::text, '192.0.2.1'::text, '100'::text, '文档专用地址'::text, 'active'::text, '管理'::text, 1::bigint
     UNION ALL SELECT 2, '示例业务网', '198.51.100.0/24', '198.51.100.1', '200', '文档专用地址', 'active', '业务', 1
+    UNION ALL SELECT 3, '示例测试网', '203.0.113.0/24', '203.0.113.1', '200', '文档专用地址', 'active', '测试', 4
+    UNION ALL SELECT 4, '示例短址管理网', '10.0.1.0/24', '10.0.1.254', '100', '虚构私有演示网段', 'active', '管理', 1
+    UNION ALL SELECT 5, '示例短址业务网', '10.0.2.0/24', '10.0.2.254', '200', '虚构私有演示网段', 'active', '业务', 1
+    UNION ALL SELECT 6, '示例扩展管理网', '192.168.123.0/24', '192.168.123.1', '100', '虚构私有演示网段', 'active', '管理', 1
+    UNION ALL SELECT 7, '示例扩展业务网', '192.168.108.0/24', '192.168.108.1', '200', '虚构私有演示网段', 'active', '业务', 1
 ) AS v WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 INSERT INTO ip_allocations (subnet_id, ip, asset_id, label, notes, status, dns_name, role)
 SELECT v.* FROM (
@@ -307,16 +312,35 @@ SELECT 1000 + i,
        (ARRAY['示例运维组', '示例基础架构组', '示例平台组', '示例存储组'])[1 + (i % 4)],
        (ARRAY['生产', '生产', '预发', '测试'])[1 + (i % 4)],
        CASE
+           WHEN i = 1 THEN '10.0.1.5'
+           WHEN i = 2 THEN '192.168.123.101'
+           WHEN i = 3 THEN '192.0.2.21'
+           WHEN i = 4 THEN '192.168.123.102'
+           WHEN i = 5 THEN '10.0.1.6'
+           WHEN i = 6 THEN '10.101.0.15'
+           WHEN i = 7 THEN '192.168.123.103'
+           WHEN i = 8 THEN '10.0.1.7'
+           WHEN i = 9 THEN '192.168.123.104'
+           WHEN i = 10 THEN '10.101.0.19'
+           WHEN i = 11 THEN '192.0.2.29'
+           WHEN i = 12 THEN '192.168.123.105'
+           WHEN i = 13 THEN '10.0.1.10'
+           WHEN i = 14 THEN '192.168.123.106'
+           WHEN i = 15 THEN '10.101.0.24'
+           WHEN i = 16 THEN '10.0.1.11'
+           WHEN i = 17 THEN '192.168.123.107'
            WHEN i <= 126 THEN '10.' || (101 + ((i - 1) / 18) * 4)::text || '.0.' || (10 + ((i - 1) % 18))::text
+           WHEN i % 3 = 1 THEN '10.0.1.' || (40 + (i - 126))::text
+           WHEN i % 3 = 2 THEN '192.168.123.' || (130 + (i - 126))::text
            ELSE '10.130.0.' || (10 + (i - 126))::text
        END,
-       (i % 3 <> 0),
+       (i % 4 <> 0),
        CASE
-           WHEN i % 3 = 0 THEN 'unknown'
-           WHEN i % 9 = 0 THEN 'unreachable'
+           WHEN i % 4 = 0 THEN 'unknown'
+           WHEN i % 9 = 0 OR i % 5 = 0 THEN 'unreachable'
            ELSE 'reachable'
        END,
-       CASE WHEN i % 3 = 0 THEN NULL ELSE now() - ((i % 30) || ' minutes')::interval END,
+       CASE WHEN i % 4 = 0 THEN NULL ELSE now() - ((i % 30) || ' minutes')::interval END,
        (ARRAY[16, 32, 48, 64, 96, 128])[1 + (i % 6)],
        (ARRAY[65536, 131072, 196608, 262144, 524288])[1 + (i % 5)],
        1 + (i % 3),
@@ -356,16 +380,22 @@ SELECT 2000 + i,
        (ARRAY['示例应用组', '示例数据组', '示例中间件组', '示例研发组'])[1 + (i % 4)],
        (ARRAY['生产', '生产', '预发', '测试'])[1 + (i % 4)],
        CASE
+           WHEN i <= 36 AND i % 5 = 1 THEN '10.0.2.' || (ARRAY[1, 2, 3, 4, 6, 7, 8, 10])[1 + ((i - 1) / 5)]::text
+           WHEN i <= 36 AND i % 5 = 2 THEN '192.168.108.' || (100 + i)::text
+           WHEN i <= 36 AND i % 5 = 0 THEN '192.168.108.' || (160 + i)::text
+           WHEN i <= 36 AND i % 5 = 4 THEN '198.51.100.' || (30 + i)::text
            WHEN i <= 252 THEN '10.' || (102 + ((i - 1) / 36) * 4)::text || '.0.' || (20 + ((i - 1) % 36))::text
+           WHEN i % 3 = 1 THEN '10.0.2.' || (20 + (i - 252))::text
+           WHEN i % 3 = 2 THEN '192.168.108.' || (205 + (i - 252))::text
            ELSE '10.131.0.' || (20 + (i - 252))::text
        END,
-       (i % 2 = 0),
+       (i % 3 <> 0),
        CASE
-           WHEN i % 2 <> 0 THEN 'unknown'
-           WHEN i % 10 = 0 THEN 'unreachable'
+           WHEN i % 3 = 0 THEN 'unknown'
+           WHEN i % 5 = 0 THEN 'unreachable'
            ELSE 'reachable'
        END,
-       CASE WHEN i % 2 <> 0 THEN NULL ELSE now() - ((i % 45) || ' minutes')::interval END,
+       CASE WHEN i % 3 = 0 THEN NULL ELSE now() - ((i % 45) || ' minutes')::interval END,
        (ARRAY[2, 4, 8, 16, 32])[1 + (i % 5)],
        (ARRAY[4096, 8192, 16384, 32768, 65536])[1 + (i % 5)],
        1 + (i % 3),
@@ -398,12 +428,24 @@ SELECT 3000 + i,
        '示例网络组',
        (ARRAY['生产', '生产', '预发', '测试'])[1 + (i % 4)],
        CASE
+           WHEN i = 1 THEN '10.0.1.33'
+           WHEN i = 2 THEN '192.168.123.223'
+           WHEN i = 4 THEN '192.168.123.224'
+           WHEN i = 5 THEN '10.0.1.32'
+           WHEN i = 7 THEN '10.0.1.31'
+           WHEN i = 8 THEN '192.168.123.221'
+           WHEN i = 9 THEN '192.0.2.41'
+           WHEN i = 10 THEN '192.168.123.222'
            WHEN i <= 70 THEN '10.' || (101 + ((i - 1) / 10) * 4)::text || '.0.' || (200 + ((i - 1) % 10))::text
            ELSE '10.132.0.' || (200 + (i - 70))::text
        END,
-       true,
-       CASE WHEN i % 12 = 0 THEN 'unreachable' ELSE 'reachable' END,
-       now() - ((i % 20) || ' minutes')::interval,
+       (i % 6 <> 0),
+       CASE
+           WHEN i % 6 = 0 THEN 'unknown'
+           WHEN i % 9 = 0 OR i % 12 = 0 THEN 'unreachable'
+           ELSE 'reachable'
+       END,
+       CASE WHEN i % 6 = 0 THEN NULL ELSE now() - ((i % 20) || ' minutes')::interval END,
        0,
        0,
        NULL,

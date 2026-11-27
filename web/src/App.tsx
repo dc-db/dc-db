@@ -1337,9 +1337,9 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       },
     },
     {
-      key: 'address', label: 'IP / 状态',
+      key: 'address', label: 'IP',
       column: {
-        title: 'IP / 状态', dataIndex: 'address', key: 'address', width: 170,
+        title: 'IP', dataIndex: 'address', key: 'address', width: 170,
         filter: {
           options: assetColumnFilterOptions.address,
           selectedValues: columnFilters.address ?? [],
@@ -1347,12 +1347,38 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
           searchPlaceholder: '搜索探测状态',
         },
         render: (_, asset) => {
-          const address = asset.address || '—'
-          if (!asset.probeEnabled || !asset.address) return <span className="mono">{address}</span>
-          const status = probeOf(asset).label
-          const message = status === '可达' ? 'Ping 可达' : status === '不可达' ? 'Ping 不可达，可能是网络或 ICMP 被阻止' : status === '探测异常' ? 'Ping 探测异常' : status === '已停用' ? '资产已退役，探测已暂停' : '等待首次 Ping 探测'
-          const dot = asset.lifecycle === 'active' && (asset.probeStatus === 'reachable' || asset.probeStatus === 'unreachable') ? asset.probeStatus : null
-          return <Tooltip title={message}><span className="asset-probe-address" role="img" tabIndex={0} aria-label={`${address}，${message}`}><span className="mono">{address}</span>{dot && <span aria-hidden="true" className={`asset-probe-dot ${dot}`} />}</span></Tooltip>
+          if (!asset.address) return <span className="mono text-muted-foreground">—</span>
+          const dot: 'reachable' | 'unreachable' | 'unprobed' = asset.probeEnabled && asset.lifecycle === 'active'
+            && (asset.probeStatus === 'reachable' || asset.probeStatus === 'unreachable')
+            ? asset.probeStatus
+            : 'unprobed'
+          const message = dot === 'reachable'
+            ? 'Ping 可达'
+            : dot === 'unreachable'
+              ? 'Ping 不可达，可能是网络或 ICMP 被阻止'
+              : !asset.probeEnabled
+                ? '未开启探测'
+                : asset.lifecycle !== 'active'
+                  ? '资产已退役，探测已暂停'
+                  : asset.probeStatus === 'error'
+                    ? 'Ping 探测异常'
+                    : '等待首次 Ping 探测'
+          return (
+            <span className="asset-probe-address">
+              <Tooltip title={message}>
+                <span
+                  className="asset-probe-dot-trigger"
+                  role="img"
+                  tabIndex={0}
+                  aria-label={message}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <span aria-hidden="true" className={`asset-probe-dot ${dot}`} />
+                </span>
+              </Tooltip>
+              <span className="mono">{asset.address}</span>
+            </span>
+          )
         },
       },
     },
