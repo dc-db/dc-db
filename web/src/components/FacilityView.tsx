@@ -16,8 +16,9 @@ import { rackElevationSvg } from '../rackExport'
 import { formatDateTime } from '../lib/date'
 import { downloadCSV } from '../csv'
 import { PageHeader } from './PageHeader'
+import { OptionSelect } from './OptionSelect'
 import { RackDetailDrawer } from './RackDetailDrawer'
-import { RoomTreeLayout } from './RoomTreeLayout'
+import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
 import { RowActionsMenu } from './RowActionsMenu'
 import {
   buildFacetedOptions,
@@ -31,7 +32,7 @@ import { BulkActionBar, RowIndexSelectCell, RowIndexSelectHeader } from './Table
 
 interface Props {
   roomId: number | null
-  onRoomChange: (id: number) => void
+  onRoomChange: (id: number | null) => void
   openRackId: number | null
   onRackChange: (id: number | null) => void
   layout: Facilities
@@ -48,6 +49,7 @@ interface Props {
 
 const rackColumns = [
   { key: 'name', label: '机柜' },
+  { key: 'room', label: '数据中心' },
   { key: 'devices', label: '设备数' },
   { key: 'zone', label: '区域 / 排' },
   { key: 'height', label: '高度' },
@@ -59,21 +61,28 @@ const rackColumns = [
 ] as const
 
 type RackColumn = typeof rackColumns[number]['key']
-type RackSortColumn = Exclude<RackColumn, 'zone' | 'height'>
+type RackSortColumn = Exclude<RackColumn, 'room' | 'zone' | 'height'>
 
 function isRackSortColumn(key: RackColumn): key is RackSortColumn {
-  return key !== 'zone' && key !== 'height'
+  return key !== 'room' && key !== 'zone' && key !== 'height'
 }
 const defaultRackColumns: RackColumn[] = rackColumns.map(column => column.key)
-const rackColumnsStorageKey = 'dc-db-columns:racks-v2'
+const rackColumnsStorageKey = 'dc-db-columns:racks-v3'
+const prevRackColumnsStorageKey = 'dc-db-columns:racks-v2'
 const legacyRackColumnsStorageKey = 'dc-db-columns:racks'
 
 function loadRackColumns(): RackColumn[] {
   try {
     const current = localStorage.getItem(rackColumnsStorageKey)
-    const stored: unknown = JSON.parse(current ?? localStorage.getItem(legacyRackColumnsStorageKey) ?? 'null')
+    const prev = current === null ? localStorage.getItem(prevRackColumnsStorageKey) : null
+    const legacy = current === null && prev === null ? localStorage.getItem(legacyRackColumnsStorageKey) : null
+    const stored: unknown = JSON.parse(current ?? prev ?? legacy ?? 'null')
     if (Array.isArray(stored)) {
-      const selected = defaultRackColumns.filter(key => stored.includes(key) || (current === null && (key === 'createdAt' || key === 'updatedAt')))
+      const selected = defaultRackColumns.filter(key =>
+        stored.includes(key)
+        || (current === null && key === 'room')
+        || (current === null && prev === null && (key === 'createdAt' || key === 'updatedAt')),
+      )
       if (selected.length) return selected
     }
   } catch {
@@ -82,7 +91,7 @@ function loadRackColumns(): RackColumn[] {
   return defaultRackColumns
 }
 
-type RackDraft = RackFields & { id?: number; version: number }
+type RackDraft = RackFields & { id?: number; roomId: number; version: number }
 interface MountDraft {
   assetId: number
   version: number
@@ -113,8 +122,9 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
   const [rackKeyword, setRackKeyword] = useState('')
-  const [rackFilters, setRackFilters] = useState<{ zone: string[]; height: string[] }>({ zone: [], height: [] })
+  const [rackFilters, setRackFilters] = useState<{ room: string[]; zone: string[]; height: string[] }>({ room: [], zone: [], height: [] })
   const [importOpen, setImportOpen] = useState(false)
+  const [importRoomId, setImportRoomId] = useState<number>(0)
   const [importFile, setImportFile] = useState<File | null>(null)
   const [importError, setImportError] = useState('')
   const [importBusy, setImportBusy] = useState(false)
@@ -137,27 +147,69 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   }
 
   const rooms = layout.rooms
-  const activeRoomId = roomId ?? rooms[0]?.id ?? null
-  const room = rooms.find(item => item.id === activeRoomId)
+  const roomById = useMemo(() => new Map(rooms.map(item => [item.id, item])), [rooms])
+  const sortedRooms = useMemo(
+    () => rooms.slice().sort((left, right) => left.name.localeCompare(right.name, 'zh-CN')),
+    [rooms],
+  )
+  const roomOptions = useMemo(
+    () => sortedRooms.map(item => ({ value: String(item.id), label: item.name })),
+    [sortedRooms],
+  )
+  const roomFilter: RoomFilter = roomId ?? 'all'
+  const activeRoomId = typeof roomFilter === 'number' ? roomFilter : null
+  const room = activeRoomId !== null ? (roomById.get(activeRoomId) ?? null) : null
+  const singleRoom = activeRoomId !== null
+  const defaultTargetRoomId = room?.id ?? sortedRooms[0]?.id ?? 0
   const rackRoomCounts = useMemo(() => buildRoomCounts(layout.racks, item => item.roomId), [layout.racks])
-  const racks = useMemo(() => layout.racks.filter(item => item.roomId === activeRoomId), [layout.racks, activeRoomId])
-  const rack = racks.find(item => item.id === rackId)
+  const racks = useMemo(
+    () => activeRoomId === null ? layout.racks : layout.racks.filter(item => item.roomId === activeRoomId),
+    [layout.racks, activeRoomId],
+  )
+  const rack = racks.find(item => item.id === rackId) ?? null
+  const rackRoom = rack ? (roomById.get(rack.roomId) ?? null) : null
+  const rackRoomRacks = useMemo(
+    () => rack ? layout.racks.filter(item => item.roomId === rack.roomId) : racks,
+    [layout.racks, rack, racks],
+  )
   const rackIds = useMemo(() => new Set(racks.map(item => item.id)), [racks])
   const roomPlacements = useMemo(() => layout.placements.filter(item => rackIds.has(item.rackId)), [layout.placements, rackIds])
   const keywordRackRows = useMemo(() => {
     const needle = rackKeyword.trim().toLowerCase()
-    return needle ? racks.filter(item => item.name.toLowerCase().includes(needle) || item.zone.toLowerCase().includes(needle)) : racks
-  }, [racks, rackKeyword])
+    if (!needle) return racks
+    return racks.filter(item => {
+      const roomName = roomById.get(item.roomId)?.name ?? ''
+      return item.name.toLowerCase().includes(needle)
+        || item.zone.toLowerCase().includes(needle)
+        || roomName.toLowerCase().includes(needle)
+    })
+  }, [racks, rackKeyword, roomById])
   const heightCatalog = useMemo(
     () => Array.from(new Set(racks.map(item => item.heightU)))
       .sort((a, b) => a - b)
       .map(heightU => ({ value: String(heightU), label: `${heightU}U` })),
     [racks],
   )
+  const roomFilterOptions = useMemo(() => {
+    const items = keywordRackRows.filter(item =>
+      matchesMultiFilter(rackFilters.zone, item.zone)
+      && matchesMultiFilter(rackFilters.height, String(item.heightU)),
+    )
+    return buildFacetedOptions({
+      items,
+      getEntries: item => {
+        const label = roomById.get(item.roomId)?.name
+        return label ? { value: String(item.roomId), label } : []
+      },
+      catalog: roomOptions,
+      selectedValues: rackFilters.room,
+    })
+  }, [keywordRackRows, roomById, roomOptions, rackFilters.zone, rackFilters.height, rackFilters.room])
   const zoneFilterOptions = useMemo(() => {
-    const items = rackFilters.height.length
-      ? keywordRackRows.filter(item => matchesMultiFilter(rackFilters.height, String(item.heightU)))
-      : keywordRackRows
+    const items = keywordRackRows.filter(item =>
+      matchesMultiFilter(rackFilters.room, String(item.roomId))
+      && matchesMultiFilter(rackFilters.height, String(item.heightU)),
+    )
     return buildFacetedOptions({
       items,
       getEntries: item => item.zone,
@@ -165,25 +217,27 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
       emptyLabel: '未分区',
       selectedValues: rackFilters.zone,
     })
-  }, [keywordRackRows, rackFilters.height, rackFilters.zone])
+  }, [keywordRackRows, rackFilters.room, rackFilters.height, rackFilters.zone])
   const heightFilterOptions = useMemo(() => {
-    const items = rackFilters.zone.length
-      ? keywordRackRows.filter(item => matchesMultiFilter(rackFilters.zone, item.zone))
-      : keywordRackRows
+    const items = keywordRackRows.filter(item =>
+      matchesMultiFilter(rackFilters.room, String(item.roomId))
+      && matchesMultiFilter(rackFilters.zone, item.zone),
+    )
     return buildFacetedOptions({
       items,
       getEntries: item => ({ value: String(item.heightU), label: `${item.heightU}U` }),
       catalog: heightCatalog,
       selectedValues: rackFilters.height,
     })
-  }, [keywordRackRows, heightCatalog, rackFilters.zone, rackFilters.height])
-  const activeRackFilterCount = rackFilters.zone.length + rackFilters.height.length
+  }, [keywordRackRows, heightCatalog, rackFilters.room, rackFilters.zone, rackFilters.height])
+  const activeRackFilterCount = rackFilters.room.length + rackFilters.zone.length + rackFilters.height.length
   const hasRackFilter = Boolean(rackKeyword.trim()) || activeRackFilterCount > 0
-  const clearRackFilters = () => setRackFilters({ zone: [], height: [] })
+  const clearRackFilters = () => setRackFilters({ room: [], zone: [], height: [] })
   const rackRows = useMemo(() => {
     if (!activeRackFilterCount) return keywordRackRows
     return keywordRackRows.filter(item =>
-      matchesMultiFilter(rackFilters.zone, item.zone)
+      matchesMultiFilter(rackFilters.room, String(item.roomId))
+      && matchesMultiFilter(rackFilters.zone, item.zone)
       && matchesMultiFilter(rackFilters.height, String(item.heightU)),
     )
   }, [keywordRackRows, activeRackFilterCount, rackFilters])
@@ -249,11 +303,10 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   const mountLocation = mountDraft?.assetId ? locations.get(mountDraft.assetId) : undefined
 
   useEffect(() => {
-    if (roomId && !rooms.some(item => item.id === roomId)) {
-      const next = rooms[0]?.id
-      if (next !== undefined) onRoomChange(next)
+    if (roomId !== null && rooms.length > 0 && !roomById.has(roomId)) {
+      onRoomChange(null)
     }
-  }, [roomId, rooms, onRoomChange])
+  }, [roomId, rooms.length, roomById, onRoomChange])
 
   useEffect(() => {
     if (!racks.some(item => item.id === rackId)) setRackId(racks[0]?.id ?? null)
@@ -262,7 +315,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   useEffect(() => {
     setSelectedRackIds([])
     setBulkDeleteOpen(false)
-    setRackFilters({ zone: [], height: [] })
+    setRackFilters({ room: [], zone: [], height: [] })
   }, [activeRoomId])
 
   useEffect(() => {
@@ -274,14 +327,14 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
 
   useEffect(() => {
     if (!openRackId) return
-    const target = layout.racks.find(item => item.id === openRackId && item.roomId === activeRoomId)
+    const target = racks.find(item => item.id === openRackId)
     if (!target) {
-      if (rooms.some(item => item.id === activeRoomId)) onRackChange(null)
+      if (rooms.length > 0 && (activeRoomId === null || roomById.has(activeRoomId))) onRackChange(null)
       return
     }
     setRackId(target.id)
     setRackDrawerOpen(true)
-  }, [openRackId, activeRoomId, layout.racks, rooms, onRackChange])
+  }, [openRackId, activeRoomId, racks, rooms.length, roomById, onRackChange])
 
   useEffect(() => {
     if (focus) showLocation(focus)
@@ -294,13 +347,15 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
     setFeedback('')
   }
 
-  function selectRoom(id: number) {
-    if (id === activeRoomId && roomId !== null) return
+  function selectRoomFilter(next: RoomFilter) {
+    const nextRoomId = typeof next === 'number' ? next : null
+    if (nextRoomId === activeRoomId) return
     resetForms()
     setRackDrawerOpen(false)
     onRackChange(null)
-    onRoomChange(id)
-    setRackId(layout.racks.find(item => item.roomId === id)?.id ?? null)
+    onRoomChange(nextRoomId)
+    const nextRacks = nextRoomId === null ? layout.racks : layout.racks.filter(item => item.roomId === nextRoomId)
+    setRackId(nextRacks[0]?.id ?? null)
     setFocused(null)
   }
 
@@ -354,13 +409,14 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   function editRack(value?: Rack) {
     resetForms()
     if (value) setRackDraft({ ...value })
-    else setRackDraft({ name: '', zone: '', heightU: 42, version: 0 })
+    else setRackDraft({ name: '', zone: '', heightU: 42, roomId: defaultTargetRoomId, version: 0 })
   }
 
   function saveRack() {
-    if (!rackDraft || !room) return
-    const { id, name, zone, heightU, version } = rackDraft
-    const path = id ? '/racks/' + id : '/rooms/' + room.id + '/racks'
+    if (!rackDraft) return
+    const { id, roomId: targetRoomId, name, zone, heightU, version } = rackDraft
+    if (!id && !targetRoomId) return
+    const path = id ? '/racks/' + id : '/rooms/' + targetRoomId + '/racks'
     void mutate(() => api<Rack>(path, id ? 'PUT' : 'POST', { name, zone, heightU, version }), saved => {
       setRackId(saved.id)
       setRackDraft(null)
@@ -368,8 +424,8 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   }
 
   function exportSelectedRacksCSV() {
-    if (!room || !selectedRacks.length) return
-    const rows: (string | number)[][] = [['机柜', '区域', '设备数', '高度(U)', '已用(U)', '空闲(U)', '利用率(%)', '创建时间', '更新时间']]
+    if (!selectedRacks.length) return
+    const rows: (string | number)[][] = [['机柜', '数据中心', '区域', '设备数', '高度(U)', '已用(U)', '空闲(U)', '利用率(%)', '创建时间', '更新时间']]
     for (const item of selectedRacks) {
       const metrics = rackMetrics.get(item.id)
       const used = metrics?.used ?? 0
@@ -378,6 +434,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
       const deviceCount = metrics?.devices ?? 0
       rows.push([
         item.name,
+        roomById.get(item.roomId)?.name ?? '',
         item.zone,
         deviceCount,
         item.heightU,
@@ -388,7 +445,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
         formatDateTime(item.updatedAt),
       ])
     }
-    downloadCSV(`${room.name}-已选机柜.csv`, rows)
+    downloadCSV(`${room ? room.name : '全部数据中心'}-已选机柜.csv`, rows)
   }
 
   async function confirmBulkDeleteRacks() {
@@ -436,12 +493,13 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   }
 
   async function submitImport() {
-    if (!room || !importFile || importBusy) return
+    const targetRoomId = singleRoom ? activeRoomId : importRoomId
+    if (!targetRoomId || !importFile || importBusy) return
     setImportBusy(true)
     setImportError('')
     try {
       const text = await importFile.text()
-      const response = await fetch(`/api/rooms/${room.id}/racks/import`, {
+      const response = await fetch(`/api/rooms/${targetRoomId}/racks/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'text/csv; charset=utf-8' },
         body: text,
@@ -583,17 +641,21 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
     </form>
   ) : null
 
+  const editingRack = rackDraft?.id ? racks.find(item => item.id === rackDraft.id) ?? null : null
+  const editingRackDevices = editingRack ? (rackMetrics.get(editingRack.id)?.devices ?? 0) : 0
+  const effectiveImportRoomId = singleRoom ? activeRoomId : importRoomId
+
   return (
     <div className="facilities">
       {rackDrawerOpen && rack ? (
-      <RackDetailDrawer rack={rack ?? null} racks={racks} onSelectRack={openRack} room={room ?? null} regionName={layout.regions.find(item => item.id === room?.regionId)?.name} devices={devices} assets={byId} editable={editable} busy={busy} bookmarked={!!rack && bookmarkedRacks.includes(rack.id)} onToggleBookmark={() => { if (rack) onToggleRackBookmark(rack.id) }} focused={focused} feedback={feedback} error={error} mountForm={mountForm} onClose={closeRackDrawer} onOpenAsset={onOpenAsset} onEditRack={value => editRack(value)} onCancelMount={() => setMountDraft(null)} onEditPlacement={value => editMount(value)} onUnmount={unmountDevice} onMove={moveDevice} onMountAt={editMountAt} />
+      <RackDetailDrawer rack={rack} racks={rackRoomRacks} onSelectRack={openRack} room={rackRoom} regionName={layout.regions.find(item => item.id === rackRoom?.regionId)?.name} devices={devices} assets={byId} editable={editable} busy={busy} bookmarked={bookmarkedRacks.includes(rack.id)} onToggleBookmark={() => onToggleRackBookmark(rack.id)} focused={focused} feedback={feedback} error={error} mountForm={mountForm} onClose={closeRackDrawer} onOpenAsset={onOpenAsset} onEditRack={value => editRack(value)} onCancelMount={() => setMountDraft(null)} onEditPlacement={value => editMount(value)} onUnmount={unmountDevice} onMove={moveDevice} onMountAt={editMountAt} />
       ) : (
       <RoomTreeLayout
         facilities={layout}
-        value={activeRoomId ?? 'all'}
-        onChange={next => { if (typeof next === 'number') selectRoom(next) }}
+        value={roomFilter}
+        onChange={selectRoomFilter}
         editable={editable}
-        showAll={false}
+        showAll={true}
         showUnassigned={false}
         counts={rackRoomCounts}
         onReload={reload}
@@ -601,12 +663,12 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
       >
           {error && <div role="alert" className="mb-3 rounded-md border border-destructive p-3 text-destructive">{error}</div>}
           {feedback && <div role="status" className="mb-3 rounded-md border border-border p-3">{feedback}</div>}
-          {!room ? <Card><CardContent className="p-6 text-center text-muted-foreground"><p>暂无数据中心，请在左侧数据中心操作中新增</p></CardContent></Card> : (
+          {!rooms.length ? <Card><CardContent className="p-6 text-center text-muted-foreground"><p>暂无数据中心，请在左侧数据中心操作中新增</p></CardContent></Card> : (
             <div className="facility-workspace">
               <PageHeader
                 title="机柜"
                 filters={<>
-                  <Input type="search" className="h-8 w-[200px]" aria-label="搜索机柜" placeholder="搜索机柜…" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />
+                  <Input type="search" className="h-8 w-[200px]" aria-label="搜索机柜" placeholder={singleRoom ? '搜索机柜…' : '搜索机柜、数据中心…'} value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />
                   <div className="view-toggle view-switch" role="tablist" aria-label="机柜视图">
                     <button
                       type="button" role="tab" aria-selected={view === 'table'}
@@ -655,7 +717,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                   )}
                 </>}
                 actions={<>
-                  {editable && <Button size="sm" variant="outline" onClick={() => { setImportOpen(true); setImportFile(null); setImportError('') }}><Download />导入</Button>}
+                  {editable && <Button size="sm" variant="outline" onClick={() => { setImportRoomId(defaultTargetRoomId); setImportOpen(true); setImportFile(null); setImportError('') }}><Download />导入</Button>}
                   {editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}
                 </>}
               />
@@ -680,21 +742,28 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                           {rackColumns.filter(column => visibleRackColumns.includes(column.key)).map(column => {
                           const sortKey = isRackSortColumn(column.key) ? column.key : null
                           const sortDirection: SortDirection = sortKey && rackSort?.key === sortKey ? rackSort.direction : false
-                          const filter: ColumnFilterConfig | undefined = column.key === 'zone'
-                            ? {
-                                options: zoneFilterOptions,
-                                selectedValues: rackFilters.zone,
-                                onChange: next => setRackFilters(current => ({ ...current, zone: next })),
-                                searchPlaceholder: '搜索区域…',
-                              }
-                            : column.key === 'height'
+                          const filter: ColumnFilterConfig | undefined = column.key === 'room'
+                            ? (!singleRoom ? {
+                                options: roomFilterOptions,
+                                selectedValues: rackFilters.room,
+                                onChange: next => setRackFilters(current => ({ ...current, room: next })),
+                                searchPlaceholder: '搜索数据中心…',
+                              } : undefined)
+                            : column.key === 'zone'
                               ? {
-                                  options: heightFilterOptions,
-                                  selectedValues: rackFilters.height,
-                                  onChange: next => setRackFilters(current => ({ ...current, height: next })),
-                                  searchPlaceholder: '搜索高度…',
+                                  options: zoneFilterOptions,
+                                  selectedValues: rackFilters.zone,
+                                  onChange: next => setRackFilters(current => ({ ...current, zone: next })),
+                                  searchPlaceholder: '搜索区域…',
                                 }
-                              : undefined
+                              : column.key === 'height'
+                                ? {
+                                    options: heightFilterOptions,
+                                    selectedValues: rackFilters.height,
+                                    onChange: next => setRackFilters(current => ({ ...current, height: next })),
+                                    searchPlaceholder: '搜索高度…',
+                                  }
+                                : undefined
                           return <th key={column.key} aria-sort={sortKey ? (sortDirection === 'asc' ? 'ascending' : sortDirection === 'desc' ? 'descending' : 'none') : undefined}>
                             <ColumnHeaderMenu
                               title={column.label}
@@ -734,6 +803,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                                   />
                                 </td>
                                 {visibleRackColumns.includes('name') && <td><strong>{item.name}</strong></td>}
+                                {visibleRackColumns.includes('room') && <td>{roomById.get(item.roomId)?.name ?? '—'}</td>}
                                 {visibleRackColumns.includes('devices') && <td>{deviceCount}</td>}
                                 {visibleRackColumns.includes('zone') && <td>{item.zone || '—'}</td>}
                                 {visibleRackColumns.includes('height') && <td>{item.heightU}U</td>}
@@ -767,11 +837,17 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                       {rackRows.map(item => {
                         const placements = roomPlacements.filter(entry => entry.rackId === item.id)
                         const preview = rackElevationSvg(item, placements, byId, face, { interactive: true, allowMount: editable && !busy })
+                        const itemRoomName = roomById.get(item.roomId)?.name
                         return (
                           <div key={item.id} className="rack-board-item">
                             <div className="rack-board-head">
                               <strong>{item.name}</strong>
-                              {item.zone && <span className="rack-board-role">{item.zone}</span>}
+                              {((!singleRoom && itemRoomName) || item.zone) && (
+                                <div className="flex flex-wrap items-center justify-center gap-1">
+                                  {!singleRoom && itemRoomName && <span className="rack-board-role">{itemRoomName}</span>}
+                                  {item.zone && <span className="rack-board-role">{item.zone}</span>}
+                                </div>
+                              )}
                             </div>
                             <div
                               className="rack-board-figure" role="button" tabIndex={0}
@@ -815,7 +891,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                           </div>
                         )
                       })}
-                      {!rackRows.length && <p className="muted">{hasRackFilter ? '没有匹配的机柜' : '当前数据中心还没有机柜'}</p>}
+                      {!rackRows.length && <p className="muted">{hasRackFilter ? '没有匹配的机柜' : singleRoom ? '当前数据中心还没有机柜' : '还没有机柜，点右上角「新增机柜」开始'}</p>}
                     </div>
                   )}
                 </CardContent>
@@ -841,16 +917,34 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
             <DialogTitle className="text-center">导入机柜</DialogTitle>
           </DialogHeader>
           <form className="space-y-4" onSubmit={event => { event.preventDefault(); void submitImport() }}>
-            <p className="text-sm text-muted-foreground">
-              CSV 需包含「机柜编号」列，可选「区域/排」「高度（U）」；高度留空按 42U。导入到当前数据中心：{room?.name ?? '—'}
-            </p>
+            {singleRoom ? (
+              <p className="text-sm text-muted-foreground">
+                CSV 需包含「机柜编号」列，可选「区域/排」「高度（U）」；高度留空按 42U。导入到当前数据中心：{room?.name ?? '—'}
+              </p>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  CSV 需包含「机柜编号」列，可选「区域/排」「高度（U）」；高度留空按 42U。
+                </p>
+                <Field label="目标数据中心">
+                  <OptionSelect
+                    id="rack-import-room"
+                    className="w-full"
+                    label="目标数据中心"
+                    value={importRoomId ? String(importRoomId) : ''}
+                    onChange={value => setImportRoomId(Number(value) || 0)}
+                    options={roomOptions}
+                  />
+                </Field>
+              </>
+            )}
             <Input
               type="file" accept=".csv,text/csv"
               onChange={event => setImportFile(event.target.files?.[0] ?? null)}
             />
             {importError && <div role="alert" className="text-sm text-destructive">{importError}</div>}
             <div className="room-modal-actions flex flex-wrap gap-2">
-              <Button type="submit" disabled={importBusy || !importFile}>{importBusy ? '导入中…' : '导入'}</Button>
+              <Button type="submit" disabled={importBusy || !importFile || !effectiveImportRoomId}>{importBusy ? '导入中…' : '导入'}</Button>
               <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>取消</Button>
             </div>
           </form>
@@ -863,13 +957,25 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
           </DialogHeader>
           {rackDraft && (
             <form className="space-y-4" onSubmit={event => { event.preventDefault(); saveRack() }}>
+              {!rackDraft.id && !singleRoom && (
+                <Field label="数据中心">
+                  <OptionSelect
+                    id="rack-room"
+                    className="w-full"
+                    label="数据中心"
+                    value={rackDraft.roomId ? String(rackDraft.roomId) : ''}
+                    onChange={value => setRackDraft({ ...rackDraft, roomId: Number(value) || 0 })}
+                    options={roomOptions}
+                  />
+                </Field>
+              )}
               <Field label="机柜编号"><Input required value={rackDraft.name} placeholder="例如：A-01" maxLength={80} onChange={event => setRackDraft({ ...rackDraft, name: event.target.value })} /></Field>
               <Field label="高度（U）"><Input type="number" className="w-28" min={1} max={60} value={rackDraft.heightU} onChange={event => setRackDraft({ ...rackDraft, heightU: Number(event.target.value) || 1 })} /></Field>
               <Field label="区域 / 排"><Input value={rackDraft.zone} placeholder="例如：A 区" maxLength={40} onChange={event => setRackDraft({ ...rackDraft, zone: event.target.value })} /></Field>
               <div className="room-modal-actions flex flex-wrap gap-2">
-                <Button type="submit" disabled={busy}>{rackDraft.id ? '保存机柜' : '新增机柜'}</Button>
+                <Button type="submit" disabled={busy || (!rackDraft.id && !rackDraft.roomId)}>{rackDraft.id ? '保存机柜' : '新增机柜'}</Button>
                 <Button type="button" variant="outline" onClick={() => setRackDraft(null)}>取消</Button>
-                {rackDraft.id && rack?.id === rackDraft.id && !devices.length && <ConfirmDelete title="删除该空机柜？" disabled={busy} onConfirm={() => removeRack(rack)}>删除空机柜</ConfirmDelete>}
+                {editingRack && editingRackDevices === 0 && <ConfirmDelete title="删除该空机柜？" disabled={busy} onConfirm={() => removeRack(editingRack)}>删除空机柜</ConfirmDelete>}
               </div>
             </form>
           )}

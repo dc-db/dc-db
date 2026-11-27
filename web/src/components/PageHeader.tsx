@@ -23,7 +23,7 @@ export function PageHeader({ title, filters, actions }: Props) {
               <span className="page-scope-slash font-normal text-muted-foreground/60" aria-hidden="true">
                 /
               </span>
-              <span className="text-sm font-normal text-muted-foreground">{scope.label}</span>
+              <span>{scope.label}</span>
             </>
           )}
         </h2>
