@@ -16,7 +16,7 @@ export function RowIndexSelectHeader({
   checked,
   disabled = false,
   onCheckedChange,
-  ariaLabel = '全选当前页',
+  ariaLabel = '全选当前列表',
 }: RowIndexSelectHeaderProps): JSX.Element {
   return (
     <div
@@ -165,7 +165,7 @@ export function BulkActionBar({
 }
 
 export interface RowSelectionColumnOptions<TData> {
-  /** Base offset for row numbers (e.g. (page - 1) * pageSize for server/external pagination; if omitted, uses TanStack table pagination state). */
+  /** Custom row-number calculation; if omitted, uses the visible row index + 1. */
   getRowNumber?: (row: Row<TData>, index: number, table: TanStackTable<TData>) => number
   isRowSelectable?: (row: TData) => boolean
   selectAllLabel?: string
@@ -177,7 +177,7 @@ export function createRowSelectionColumn<TData>(
 ): ColumnDef<TData, unknown> {
   const getRowNumber = options?.getRowNumber
   const isRowSelectable = options?.isRowSelectable
-  const selectAllLabel = options?.selectAllLabel
+  const selectAllLabel = options?.selectAllLabel ?? '全选当前列表'
   const getRowLabel = options?.getRowLabel
 
   return {
@@ -192,30 +192,27 @@ export function createRowSelectionColumn<TData>(
         'group/select-cell sticky left-0 z-10 w-12 min-w-12 px-2 text-center bg-background transition-colors group-hover/row:bg-[var(--table-header-hover-opaque)] group-data-[state=selected]/row:bg-[var(--table-row-selected)]',
     },
     header: ({ table }) => {
-      const pageRows = table.getRowModel().rows
-      const selectableRows = pageRows.filter(
-        row => row.getCanSelect() && (isRowSelectable ? isRowSelectable(row.original) : true),
-      )
+      const filteredRows = table.getFilteredRowModel().rows
 
-      let checked: boolean | 'indeterminate'
       if (isRowSelectable) {
+        const selectableRows = filteredRows.filter(
+          row => row.getCanSelect() && isRowSelectable(row.original),
+        )
         const allSelected =
           selectableRows.length > 0 && selectableRows.every(row => row.getIsSelected())
         const someSelected = selectableRows.some(row => row.getIsSelected())
-        checked = allSelected ? true : someSelected ? 'indeterminate' : false
-      } else {
-        checked =
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && 'indeterminate')
-      }
+        const checked: boolean | 'indeterminate' = allSelected
+          ? true
+          : someSelected
+            ? 'indeterminate'
+            : false
 
-      return (
-        <RowIndexSelectHeader
-          checked={checked}
-          disabled={selectableRows.length === 0}
-          ariaLabel={selectAllLabel}
-          onCheckedChange={next => {
-            if (isRowSelectable) {
+        return (
+          <RowIndexSelectHeader
+            checked={checked}
+            disabled={selectableRows.length === 0}
+            ariaLabel={selectAllLabel}
+            onCheckedChange={next => {
               table.setRowSelection(prev => {
                 const updated = { ...prev }
                 for (const row of selectableRows) {
@@ -224,28 +221,32 @@ export function createRowSelectionColumn<TData>(
                 }
                 return updated
               })
-            } else {
-              table.toggleAllPageRowsSelected(next)
-            }
-          }}
+            }}
+          />
+        )
+      }
+
+      const checked: boolean | 'indeterminate' = table.getIsAllRowsSelected()
+        ? true
+        : table.getIsSomeRowsSelected()
+          ? 'indeterminate'
+          : false
+
+      return (
+        <RowIndexSelectHeader
+          checked={checked}
+          disabled={filteredRows.length === 0}
+          ariaLabel={selectAllLabel}
+          onCheckedChange={next => table.toggleAllRowsSelected(next)}
         />
       )
     },
     cell: ({ row, table }) => {
-      const visibleRows = table.getRowModel().rows
-      const foundIndex = visibleRows.findIndex(r => r.id === row.id)
-      const displayIndex = foundIndex >= 0 ? foundIndex : row.index
-
-      let rowNumber: number
-      if (getRowNumber) {
-        rowNumber = getRowNumber(row, displayIndex, table)
-      } else {
-        const pagination = table.getState().pagination
-        const pageIndex = pagination?.pageIndex ?? 0
-        const pageSize = pagination?.pageSize ?? 0
-        const offset = pageIndex > 0 && pageSize > 0 ? pageIndex * pageSize : 0
-        rowNumber = offset + displayIndex + 1
-      }
+      const rowIndexMap = (
+        table.options.meta as { rowIndexMap?: Map<string, number> } | undefined
+      )?.rowIndexMap
+      const displayIndex = rowIndexMap ? (rowIndexMap.get(row.id) ?? row.index) : row.index
+      const rowNumber = getRowNumber ? getRowNumber(row, displayIndex, table) : displayIndex + 1
 
       const canSelect =
         row.getCanSelect() && (isRowSelectable ? isRowSelectable(row.original) : true)

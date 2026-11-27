@@ -1,7 +1,7 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
 import {
-  getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
+  getCoreRowModel, getSortedRowModel, useReactTable,
   type ColumnDef, type RowSelectionState, type SortingState, type VisibilityState,
 } from '@tanstack/react-table'
 import { Plus, Trash2 } from 'lucide-react'
@@ -315,10 +315,8 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
     onRowSelectionChange: setRowSelection,
     enableRowSelection: true,
     getRowId: row => String(row.id),
-    initialState: { pagination: { pageIndex: 0, pageSize: 20 } },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
   })
 
   const content = (

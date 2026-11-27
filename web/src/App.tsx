@@ -85,7 +85,6 @@ const statuses: Record<string, { label: string; color: string }> = {
 const relations: { kind: LinkKind; from: Kind; to: Kind[]; outgoing: string; incoming: string }[] = [
   { kind: 'hosts', from: 'host', to: ['vm'], outgoing: '承载虚拟机', incoming: '所在宿主机' },
 ]
-const defaultPageSize = 10
 const defaultAssetColumns = ['name', 'address', 'capacity', 'platform', 'meta', 'services', 'group', 'team', 'notes']
 const defaultHostColumns = ['name', 'address', 'capacity', 'brand', 'model', 'services', 'group', 'team', 'notes']
 const defaultNetworkDeviceColumns = ['name', 'kind', 'address', 'owner']
@@ -339,11 +338,6 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
   const [roomFilter, setRoomFilter] = useState<RoomFilter>('all')
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({})
   const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultAssetColumns)
-  const [pagination, setPagination] = useState(1)
-  const [pageSize, setPageSize] = useState(() => {
-    const stored = Number(localStorage.getItem('dc-db-page-size'))
-    return [10, 20, 50].includes(stored) ? stored : defaultPageSize
-  })
   const [importing, setImporting] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [assetImportOpen, setAssetImportOpen] = useState(false)
@@ -710,10 +704,6 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
   }, [page])
 
   useEffect(() => {
-    setPagination(1)
-  }, [keyword, roomFilter, columnFilters, page])
-
-  useEffect(() => {
     try {
       localStorage.setItem('dc-db-bookmarks', JSON.stringify(bookmarks))
     } catch {
@@ -729,14 +719,6 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       // Favorites still work for this session when storage is unavailable.
     }
   }, [rackBookmarks, subnetBookmarks])
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('dc-db-page-size', String(pageSize))
-    } catch {
-      // Page size still applies for this session when storage is unavailable.
-    }
-  }, [pageSize])
 
   useEffect(() => {
     setSelectedAssetIds([])
@@ -992,7 +974,6 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     if (next !== 'vlans') setSelectedVLAN(null)
     setKeyword('')
     setColumnFilters({})
-    setPagination(1)
     setFacilityFocus(null)
   }
 
@@ -1007,7 +988,6 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
   function clearFilters() {
     setKeyword('')
     setColumnFilters({})
-    setPagination(1)
   }
 
   // Keeping the open asset in the URL makes a detail view shareable and lets a
@@ -1157,13 +1137,17 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
         setBulkError('请至少选择一项要修改的字段')
         return
       }
-      const result = await api<{ updated: number }>('/assets/bulk', 'POST', {
-        ids: selectedAssetIds, ...fields,
-      })
+      let updated = 0
+      for (let i = 0; i < selectedAssetIds.length; i += 1000) {
+        const result = await api<{ updated: number }>('/assets/bulk', 'POST', {
+          ids: selectedAssetIds.slice(i, i + 1000), ...fields,
+        })
+        updated += result.updated
+      }
       await loadAll()
       setSelectedAssetIds([])
       setBulkOpen(false)
-      void message.success(`已更新 ${result.updated} 条资产`)
+      void message.success(`已更新 ${updated} 条资产`)
     } catch (e) {
       setBulkError(messageText(e))
     } finally {
@@ -1561,7 +1545,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     },
     {
       key: 'notes', label: '备注',
-      column: { title: '备注', dataIndex: 'notes', key: 'notes', width: 200, render: value => value ? <span className="whitespace-pre-wrap break-words">{value}</span> : '—' },
+      column: { title: '备注', dataIndex: 'notes', key: 'notes', width: 200, render: value => value ? <span className="inline-block max-w-[260px] truncate align-bottom" title={String(value)}>{value}</span> : '—' },
     },
     {
       key: 'created', label: '创建时间',
@@ -2153,18 +2137,9 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
                   onChange: keys => setSelectedAssetIds(keys.map(Number)),
                   getRowLabel: asset => `选择资产 ${asset.name}`,
                 }}
-                pagination={{
-                  current: pagination, pageSize, total: filtered.length, showSizeChanger: true, pageSizeOptions: ['10', '20', '50'],
-                  showTotal: total => `共 ${total} 条`,
-                  onChange: (page, size) => {
-                    if (size !== pageSize) {
-                      setPageSize(size)
-                      setPagination(1)
-                    } else {
-                      setPagination(page)
-                    }
-                  },
-                }}
+                frame="fixed"
+                scrollToRowKey={highlightId}
+                scrollResetKey={`${page}:${roomFilter}:${keyword}:${JSON.stringify(columnFilters)}`}
               />
             </Card>
             </RoomTreeLayout>
@@ -2260,7 +2235,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
             {importPreview.sample.length > 0 && (
               <div style={{ '--table-max-height': 'min(360px, 42vh)' } as CSSProperties}>
                 <Table
-                  rowKey="row" size="small" pagination={false} dataSource={importPreview.sample}
+                  rowKey="row" size="small" frame="compact" showFooter={false} dataSource={importPreview.sample}
                   scroll={{ x: 'max-content' }}
                   columns={[
                     { title: '行', dataIndex: 'row', width: 56 },

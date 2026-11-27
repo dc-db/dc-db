@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react'
 import {
-  getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
+  getCoreRowModel, getSortedRowModel, useReactTable,
   type ColumnDef, type RowSelectionState, type SortingState, type VisibilityState,
 } from '@tanstack/react-table'
 import { ExternalLink, Pencil, Plus } from 'lucide-react'
@@ -150,7 +150,7 @@ export function ServiceManager({ editable, assets, groups, onOpenAsset, onSessio
 
   const columns = useMemo<ColumnDef<ServiceEntry>[]>(() => [
     createRowSelectionColumn<ServiceEntry>({
-      selectAllLabel: '全选当前页服务',
+      selectAllLabel: '全选当前列表服务',
       getRowLabel: row => `选择服务 ${row.name}`,
     }),
     {
@@ -266,10 +266,8 @@ export function ServiceManager({ editable, assets, groups, onOpenAsset, onSessio
     onRowSelectionChange: setRowSelection,
     enableRowSelection: true,
     getRowId: row => String(row.id),
-    initialState: { pagination: { pageIndex: 0, pageSize: 20 } },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
   })
 
   const selectedServices = useMemo(

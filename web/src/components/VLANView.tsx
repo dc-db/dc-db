@@ -1,6 +1,6 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
-import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type RowSelectionState, type SortingState, type VisibilityState } from '@tanstack/react-table'
+import { getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef, type RowSelectionState, type SortingState, type VisibilityState } from '@tanstack/react-table'
 import { Plus, RefreshCw } from 'lucide-react'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
@@ -158,7 +158,7 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
 
   const columns: ColumnDef<VLAN>[] = [
     createRowSelectionColumn<VLAN>({
-      selectAllLabel: '全选当前页 VLAN',
+      selectAllLabel: '全选当前列表 VLAN',
       getRowLabel: vlan => `选择 VLAN ${vlan.vid} ${vlan.name}`,
     }),
     { accessorKey: 'vid', header: 'VLAN ID', meta: { cellClassName: 'whitespace-nowrap' }, cell: ({ row }) => <span className="font-mono text-xs font-medium tabular-nums">{row.original.vid}</span> },
@@ -230,10 +230,8 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    initialState: { pagination: { pageIndex: 0, pageSize: 20 } },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
   })
   const selectedVLANs = table.getSelectedRowModel().rows.map(row => row.original)
   const referencedSelectedCount = selectedVLANs.filter(vlan => vlan.prefixCount > 0).length
@@ -334,7 +332,7 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
     <DataTable
       table={table}
       loading={loading}
-      pagerUnit="个"
+      footerUnit="个"
       onRowClick={onSelectVLAN ? (vlan, event) => {
         if ((event.target as HTMLElement).closest('button, a, [role="checkbox"], [role="menuitem"], [data-slot="dropdown-menu-content"]')) return
         onSelectVLAN(vlan)

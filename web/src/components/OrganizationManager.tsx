@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type RowSelectionState, type SortingState, type VisibilityState } from '@tanstack/react-table'
+import { getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef, type RowSelectionState, type SortingState, type VisibilityState } from '@tanstack/react-table'
 import { Plus, Trash2 } from 'lucide-react'
 import { APIError, api, type DirectoryEntry, type Person, type Team, type User } from '../api'
 import { downloadCSV } from '../csv'
@@ -430,10 +430,8 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
     onRowSelectionChange: setRowSelection,
     enableRowSelection: true,
     getRowId: row => String(row.id),
-    initialState: { pagination: { pageIndex: 0, pageSize: 20 } },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
   })
 
   const usedAccounts = new Set(people.filter(person => person.id !== editing?.id).map(person => person.username))

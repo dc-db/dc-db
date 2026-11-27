@@ -73,6 +73,8 @@ html[data-theme="dark"] .control-alert.error { color: var(--danger); border-colo
 .control-nav button.selected svg, .control-nav button.selected:hover svg { color: var(--primary); }
 .control-nav details button { padding-left: 28px; }
 .control-table-wrap { max-height: var(--table-max-height); overflow: auto; isolation: isolate; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); box-shadow: none; }
+.control-table-wrap.table-frame-scroll,
+.table-frame-scroll > .control-table-wrap { max-height: none; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .control-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
 .control-table thead { background: var(--bg); }
 .control-table thead tr { background: var(--bg); border-bottom: 0; }
@@ -93,21 +95,16 @@ html[data-theme="dark"] .control-alert.error { color: var(--danger); border-colo
 .control-table tbody tr { transition: background-color .15s ease; }
 .control-table tbody tr:hover { background: var(--table-row-hover); }
 .control-table tbody tr:hover td.col-select { background: var(--table-header-hover-opaque); }
-.control-table tbody tr:last-child td { box-shadow: none; }
-.control-table tbody tr:last-child td.col-select { box-shadow: inset -1px 0 0 var(--border); }
+.control-table-wrap:not(.table-frame-scroll) .control-table tbody tr:last-child td { box-shadow: none; }
+.control-table-wrap:not(.table-frame-scroll) .control-table tbody tr:last-child td.col-select { box-shadow: inset -1px 0 0 var(--border); }
+.table-frame-compact .control-table tbody tr[data-last-row="true"] td { box-shadow: none; }
+.table-frame-compact .control-table tbody tr[data-last-row="true"] td.col-select { box-shadow: inset -1px 0 0 var(--border); }
 .control-table tbody tr[data-state="selected"],
 .control-table tbody tr:has([data-slot="checkbox"][data-state="checked"]) { background: var(--table-row-selected); }
 .control-table tbody tr[data-state="selected"] td.col-select,
 .control-table tbody tr[data-state="selected"]:hover td.col-select,
 .control-table tbody tr:has([data-slot="checkbox"][data-state="checked"]) td.col-select,
 .control-table tbody tr:has([data-slot="checkbox"][data-state="checked"]):hover td.col-select { background: var(--table-row-selected); }
-.control-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; color: var(--muted); font-size: 13px; user-select: none; }
-.control-pagination-selected { min-width: 80px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.control-pagination-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-left: auto; }
-.control-page-size { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
-.control-page-size select { height: 32px; min-width: 58px; padding: 0 8px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; font-size: 12px; }
-.control-page-count { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.control-page-buttons { display: flex; align-items: center; gap: 4px; }
 .control-table-area { position: relative; isolation: isolate; }
 .control-table-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; z-index: 40; background: color-mix(in srgb, var(--surface) 82%, transparent); color: var(--text); }
 .app-layout { display: flex; }

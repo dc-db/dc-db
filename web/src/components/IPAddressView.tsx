@@ -1,6 +1,6 @@
 import { OptionSelect } from './OptionSelect'
 import { useEffect, useMemo, useState } from 'react'
-import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type RowSelectionState, type SortingState, type VisibilityState } from '@tanstack/react-table'
+import { getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef, type RowSelectionState, type SortingState, type VisibilityState } from '@tanstack/react-table'
 import { Plus, RefreshCw } from 'lucide-react'
 import { api, APIError } from '../api'
 import { downloadCSV } from '../csv'
@@ -275,7 +275,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
   )
   const columns: ColumnDef<IPAddress>[] = [
     createRowSelectionColumn<IPAddress>({
-      selectAllLabel: '全选当前页 IP 地址',
+      selectAllLabel: '全选当前列表 IP 地址',
       getRowLabel: row => `选择 IP ${row.ip}`,
     }),
     {
@@ -399,10 +399,8 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    initialState: { pagination: { pageIndex: 0, pageSize: 20 } },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
   })
   const selectedRows = table.getSelectedRowModel().rows.map(row => row.original)
   const releasableSelected = selectedRows.filter(item => Boolean(item.allocationId))

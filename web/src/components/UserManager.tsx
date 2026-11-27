@@ -406,7 +406,7 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
     />
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
     {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
-    <DataTable table={table} loading={loading} showPager={false} emptyMessage={effectiveRoleFilter.length > 0 ? '没有匹配的账号' : '暂无账号'} />
+    <DataTable table={table} loading={loading} emptyMessage={effectiveRoleFilter.length > 0 ? '没有匹配的账号' : '暂无账号'} />
     <BulkActionBar
       count={selectedUsers.length}
       unit="个账号"

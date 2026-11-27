@@ -20,6 +20,7 @@ import { OptionSelect } from './OptionSelect'
 import { RackDetailDrawer } from './RackDetailDrawer'
 import { RoomTreeLayout, type RoomFilter } from './RoomTreeLayout'
 import { RowActionsMenu } from './RowActionsMenu'
+import { TableFooterBar } from './TableFooterBar'
 import {
   buildFacetedOptions,
   ClearFiltersButton,
@@ -724,7 +725,8 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
               <Card className="floor-panel">
                 <CardContent>
                   {view === 'table' ? (
-                    <div className="shared-table-wrap">
+                    <div className="table-frame table-frame-fixed">
+                    <div className="table-frame-scroll shared-table-wrap">
                       <table className="shared-table facility-table-clickable">
                         <thead><tr>
                           <th className="col-select">
@@ -831,6 +833,8 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                           {!rackRows.length && <tr><td colSpan={visibleRackColumns.length + 1 + (editable ? 1 : 0)} className="facility-table-empty">{hasRackFilter ? '没有匹配的机柜' : '还没有机柜，点右上角「新增机柜」开始'}</td></tr>}
                         </tbody>
                       </table>
+                    </div>
+                    <TableFooterBar total={sortedRackRows.length} selectedCount={selectedRackIds.length} />
                     </div>
                   ) : (
                     <div className="rack-board">

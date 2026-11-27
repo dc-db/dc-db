@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   getCoreRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
@@ -257,7 +256,7 @@ export function SubnetDetailView({
 
   const usedColumns = useMemo<ColumnDef<IPUsage>[]>(() => [
     createRowSelectionColumn<IPUsage>({
-      selectAllLabel: '全选当前页已用 IP',
+      selectAllLabel: '全选当前列表已用 IP',
       getRowLabel: row => `选择 IP ${row.ip}`,
     }),
     {
@@ -363,10 +362,8 @@ export function SubnetDetailView({
     onSortingChange: setUsedSorting,
     onColumnVisibilityChange: setUsedColumnVisibility,
     onRowSelectionChange: setUsedRowSelection,
-    initialState: { pagination: { pageIndex: 0, pageSize: 10 } },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
   })
   const selectedUsedIps = usedTable.getSelectedRowModel().rows.map(row => row.original)
 
@@ -566,6 +563,7 @@ export function SubnetDetailView({
             <DataTable
               table={usedTable}
               loading={loading}
+              frame="compact"
               emptyMessage={usedActiveFilterCount > 0 ? '没有匹配的已用 IP 地址' : '该网段暂无已用 IP 地址'}
             />
           </section>
@@ -924,7 +922,7 @@ export function VLANDetailView({
             </div>
             <DataTable
               table={subnetTable}
-              showPager={false}
+              frame="compact"
               onRowClick={(item, event) => {
                 if ((event.target as HTMLElement).closest('button, a, [role="checkbox"], [role="menuitem"], [data-slot="dropdown-menu-content"]')) return
                 onOpenSubnetDetail(item)

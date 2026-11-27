@@ -6,13 +6,23 @@ import { cn } from "@/lib/utils"
 function Table({
   className,
   containerClassName,
+  containerRef,
+  bare = false,
   ...props
-}: React.ComponentProps<"table"> & { containerClassName?: string }) {
+}: React.ComponentProps<"table"> & {
+  containerClassName?: string
+  containerRef?: React.Ref<HTMLDivElement>
+  bare?: boolean
+}) {
   return (
     <div
+      ref={containerRef}
       data-slot="table-container"
+      data-bare={bare ? "true" : undefined}
       className={cn(
-        "relative isolate w-full max-h-[var(--table-max-height)] overflow-auto rounded-md border border-border bg-background",
+        bare
+          ? "table-frame-scroll w-full"
+          : "relative isolate w-full max-h-[var(--table-max-height)] overflow-auto rounded-md border border-border bg-background",
         containerClassName
       )}
     >
@@ -43,7 +53,7 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
     <tbody
       data-slot="table-body"
       className={cn(
-        "[&_td:not([data-pinned])]:[box-shadow:inset_0_-1px_0_var(--table-divider)] [&_td[data-pinned=left]]:[box-shadow:inset_-1px_0_0_var(--border),inset_0_-1px_0_var(--table-divider)] [&_tr:last-child_td:not([data-pinned])]:[box-shadow:none] [&_tr:last-child_td[data-pinned=left]]:[box-shadow:inset_-1px_0_0_var(--border)]",
+        "[&_td:not([data-pinned])]:[box-shadow:inset_0_-1px_0_var(--table-divider)] [&_td[data-pinned=left]]:[box-shadow:inset_-1px_0_0_var(--border),inset_0_-1px_0_var(--table-divider)]",
         className
       )}
       {...props}

@@ -1,5 +1,7 @@
 /* Shared visual baseline for asset and facility tables (1:1 tablecn). */
 div.shared-table-wrap { max-height: var(--table-max-height); overflow: auto; isolation: isolate; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); box-shadow: none; }
+div.shared-table-wrap.table-frame-scroll,
+.table-frame-scroll > div.shared-table-wrap { max-height: none; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 table.shared-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
 table.shared-table thead { background: var(--bg); }
 table.shared-table thead tr { background: var(--bg); border-bottom: 0; }
@@ -20,9 +22,12 @@ table.shared-table th.shared-table-select-col { position: sticky; top: 0; left: 
 table.shared-table td.col-select,
 table.shared-table td.shared-table-select-col { position: sticky; left: 0; z-index: 10; background: var(--bg); box-shadow: inset -1px 0 0 var(--border), inset 0 -1px 0 var(--table-divider); transition: background-color .15s ease; }
 table.shared-table tbody tr { transition: background-color .15s ease; }
-table.shared-table tbody tr:last-child td { box-shadow: none; }
-table.shared-table tbody tr:last-child td.col-select,
-table.shared-table tbody tr:last-child td.shared-table-select-col { box-shadow: inset -1px 0 0 var(--border); }
+div.shared-table-wrap:not(.table-frame-scroll) table.shared-table tbody tr:last-child td { box-shadow: none; }
+div.shared-table-wrap:not(.table-frame-scroll) table.shared-table tbody tr:last-child td.col-select,
+div.shared-table-wrap:not(.table-frame-scroll) table.shared-table tbody tr:last-child td.shared-table-select-col { box-shadow: inset -1px 0 0 var(--border); }
+.table-frame-compact table.shared-table tbody tr[data-last-row="true"] td { box-shadow: none; }
+.table-frame-compact table.shared-table tbody tr[data-last-row="true"] td.col-select,
+.table-frame-compact table.shared-table tbody tr[data-last-row="true"] td.shared-table-select-col { box-shadow: inset -1px 0 0 var(--border); }
 table.shared-table tbody tr:hover { background: var(--table-row-hover); }
 table.shared-table tbody tr:hover td.col-select,
 table.shared-table tbody tr:hover td.shared-table-select-col { background: var(--table-header-hover-opaque); }

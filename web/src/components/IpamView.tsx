@@ -16,6 +16,7 @@ import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { PageHeader } from './PageHeader'
 import { RowActionsMenu } from './RowActionsMenu'
+import { TableFooterBar } from './TableFooterBar'
 import {
   buildFacetedOptions,
   ClearFiltersButton,
@@ -626,7 +627,8 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
     {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}
     {!subnets.length ? <div className="py-12 text-center text-muted-foreground">{loading ? '正在加载 IPAM 数据…' : '暂无网段，新增一个网段开始管理 IP 地址'}</div> : <>
 
-      <div className="shared-table-wrap">
+      <div className="table-frame table-frame-fixed">
+      <div className="table-frame-scroll shared-table-wrap">
         <table className="shared-table ipam-subnet-table">
           <thead>
             <tr>
@@ -634,7 +636,7 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
                 <RowIndexSelectHeader
                   checked={headerChecked}
                   disabled={visibleSubnetIds.length === 0}
-                  ariaLabel="全选当前网段"
+                  ariaLabel="全选当前列表网段"
                   onCheckedChange={checked => {
                     setSelectedSubnetIds(prev => checked
                       ? Array.from(new Set([...prev, ...visibleSubnetIds]))
@@ -748,6 +750,8 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
             }) : <tr><td colSpan={visibleColumns.length + 2} className="facility-table-empty">没有匹配的网段</td></tr>}
           </tbody>
         </table>
+      </div>
+      <TableFooterBar total={visibleSubnetRows.length} selectedCount={selectedSubnetIds.length} />
       </div>
     </>}
     <Dialog open={draft !== null} onOpenChange={open => { if (!open && !busy) setDraft(null) }}>

@@ -510,7 +510,7 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
           onChange: keys => setSelectedIds(keys.map(Number)),
           getRowLabel: item => `选择接口 ${item.name}`,
         }}
-        pagination={false}
+        frame="compact"
         locale={{ emptyText: activeFilterCount > 0 ? '没有匹配的接口' : '暂无接口，点击「添加接口」开始记录' }}
       />
       <BulkActionBar

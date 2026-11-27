@@ -1,9 +1,9 @@
-import { OptionSelect } from './OptionSelect'
-import React, { createContext, useContext, useRef, useState } from 'react'
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode, CSSProperties } from 'react'
 import { flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table'
 import type { ColumnDef, SortingState } from '@tanstack/react-table'
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CircleAlert, CircleCheck, Eye, EyeOff, LoaderCircle, X } from 'lucide-react'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { ChevronDown, CircleAlert, CircleCheck, Eye, EyeOff, LoaderCircle, X } from 'lucide-react'
 import { Button as UiButton } from '@/components/ui/button'
 import { Input as UiInput } from '@/components/ui/input'
 import { Checkbox as UiCheckbox } from '@/components/ui/checkbox'
@@ -14,6 +14,7 @@ import { Tabs as UiTabs, TabsList, TabsTrigger, TabsContent } from '@/components
 import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ColumnHeaderMenu, type ColumnFilterConfig } from './TableColumnControls'
+import { TableFooterBar } from './TableFooterBar'
 import { RowIndexSelectCell, RowIndexSelectHeader } from './TableSelectionControls'
 import './app-controls.css'
 
@@ -158,6 +159,13 @@ type TableProps<T> = {
   dataSource: T[]
   rowKey: keyof T
   loading?: boolean
+  frame?: 'fixed' | 'compact'
+  showFooter?: boolean
+  footerUnit?: string
+  footerExtra?: ReactNode
+  estimateRowHeight?: number
+  scrollResetKey?: string | number
+  scrollToRowKey?: string | number | null
   rowSelection?: {
     selectedRowKeys: (string | number)[]
     preserveSelectedRowKeys?: boolean
@@ -167,15 +175,39 @@ type TableProps<T> = {
     getRowLabel?: (record: T, rowNumber: number) => string
   }
   rowNumberOffset?: number
-  pagination?: false | { current: number; pageSize: number; total: number; showSizeChanger?: boolean; pageSizeOptions?: string[]; showTotal?: (n: number) => ReactNode; onChange: (page: number, size: number) => void }
+  /** @deprecated Pagination controls have been replaced by virtual scrolling and TableFooterBar. */
+  pagination?: false | { current?: number; pageSize?: number; total?: number; showSizeChanger?: boolean; pageSizeOptions?: string[]; showTotal?: (n: number) => ReactNode; onChange?: (page: number, size: number) => void }
   locale?: { emptyText?: ReactNode }
   onRowClick?: (record: T, event: React.MouseEvent<HTMLTableRowElement>) => void
   rowClassName?: (record: T) => string
   onHideColumn?: (key: string) => void
   [key: string]: any
 }
-export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, rowNumberOffset, pagination, locale, onRowClick, rowClassName, sharedStyle, onHideColumn }: TableProps<T>) {
+export function Table<T>({
+  columns,
+  dataSource,
+  rowKey,
+  loading,
+  frame = 'fixed',
+  showFooter,
+  footerUnit = '条',
+  footerExtra,
+  estimateRowHeight = 45,
+  scrollResetKey,
+  scrollToRowKey,
+  rowSelection,
+  rowNumberOffset,
+  pagination,
+  locale,
+  onRowClick,
+  rowClassName,
+  sharedStyle,
+  onHideColumn,
+}: TableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([])
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const lastScrolledKeyRef = useRef<string | number | null | undefined>(undefined)
+
   const columnMap = new Map<string, TableColumn<T>>()
   const defs: ColumnDef<T, any>[] = columns.map((c, i) => {
     const id = c.key ?? String(c.dataIndex ?? i)
@@ -191,23 +223,85 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, r
       cell: info => c.render ? c.render(info.getValue(), info.row.original) : info.getValue() as ReactNode,
     }
   })
-  React.useEffect(() => { setSorting(current => current.filter(item => defs.some(col => col.id === item.id))) }, [columns.map(c => c.key ?? String(c.dataIndex)).join('|')])
-  const table = useReactTable({ data: dataSource, columns: defs, state: { sorting }, onSortingChange: setSorting, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel() })
-  const sorted = table.getRowModel().rows
-  const pageSize = pagination ? pagination.pageSize : sorted.length
-  const totalPages = pagination ? Math.max(1, Math.ceil(pagination.total / Math.max(1, pageSize))) : 1
-  const current = pagination ? Math.min(Math.max(1, pagination.current), totalPages) : 1
-  const pageStart = rowNumberOffset ?? (pagination ? (current - 1) * pageSize : 0)
-  const rows = pagination ? sorted.slice((current - 1) * pageSize, current * pageSize) : sorted
+  const columnKeySignature = columns.map(c => c.key ?? String(c.dataIndex)).join('|')
+  useEffect(() => {
+    setSorting(current => current.filter(item => defs.some(col => col.id === item.id)))
+  }, [columnKeySignature])
+
+  const table = useReactTable({
+    data: dataSource,
+    columns: defs,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  })
+  const sortedRows = table.getRowModel().rows
+
   const selected = rowSelection?.selectedRowKeys ?? []
-  const selectableRows = rowSelection?.isRowSelectable
-    ? rows.filter(row => rowSelection.isRowSelectable!(row.original))
-    : rows
-  const selectableKeys = selectableRows.map(row => row.original[rowKey] as string | number)
-  const allSelected = selectableKeys.length > 0 && selectableKeys.every(key => selected.includes(key))
-  const someSelected = selectableKeys.some(key => selected.includes(key))
+  const selectedSet = useMemo(() => new Set<string | number>(selected), [selected])
+  const allSelectableKeys = useMemo(() => {
+    if (!rowSelection) return [] as (string | number)[]
+    const keys: (string | number)[] = []
+    for (const row of sortedRows) {
+      if (!rowSelection.isRowSelectable || rowSelection.isRowSelectable(row.original)) {
+        keys.push(row.original[rowKey] as string | number)
+      }
+    }
+    return keys
+  }, [rowSelection, sortedRows, rowKey])
+  const allSelectableKeySet = useMemo(() => new Set<string | number>(allSelectableKeys), [allSelectableKeys])
+  const selectedInViewCount = useMemo(() => {
+    if (!rowSelection || allSelectableKeys.length === 0 || selectedSet.size === 0) return 0
+    let count = 0
+    for (const key of allSelectableKeys) {
+      if (selectedSet.has(key)) count += 1
+    }
+    return count
+  }, [rowSelection, allSelectableKeys, selectedSet])
+  const allSelected = allSelectableKeys.length > 0 && selectedInViewCount === allSelectableKeys.length
+  const someSelected = selectedInViewCount > 0 && !allSelected
   const headerChecked: boolean | 'indeterminate' = allSelected ? true : someSelected ? 'indeterminate' : false
+
+  const rowVirtualizer = useVirtualizer({
+    count: sortedRows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => estimateRowHeight,
+    overscan: 12,
+  })
+
+  useEffect(() => {
+    if (scrollToRowKey !== undefined && scrollToRowKey !== null) return
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0
+    }
+  }, [scrollResetKey, sortedRows.length])
+
+  useEffect(() => {
+    if (scrollToRowKey === undefined || scrollToRowKey === null) {
+      lastScrolledKeyRef.current = undefined
+      return
+    }
+    if (lastScrolledKeyRef.current === scrollToRowKey) return
+    const targetIndex = sortedRows.findIndex(row => {
+      const key = row.original[rowKey] as string | number
+      return key === scrollToRowKey || String(key) === String(scrollToRowKey)
+    })
+    if (targetIndex >= 0) {
+      lastScrolledKeyRef.current = scrollToRowKey
+      rowVirtualizer.scrollToIndex(targetIndex, { align: 'center' })
+    }
+  }, [scrollToRowKey, sortedRows, rowKey, rowVirtualizer])
+
+  const virtualItems = rowVirtualizer.getVirtualItems()
+  const totalSize = rowVirtualizer.getTotalSize()
+  const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0
+  const paddingBottom =
+    virtualItems.length > 0 ? Math.max(0, totalSize - virtualItems[virtualItems.length - 1].end) : 0
+  const colSpan = table.getVisibleLeafColumns().length + (rowSelection ? 1 : 0)
   const visibleDataColumnCount = defs.filter(col => col.id !== 'select' && col.id !== 'actions').length
+  const resolvedShowFooter = showFooter ?? (pagination === false ? false : true)
+
   const headContent = (header: any) => {
     const colId = header.column.id as string
     const isSystem = colId === 'select' || colId === 'actions'
@@ -250,109 +344,121 @@ export function Table<T>({ columns, dataSource, rowKey, loading, rowSelection, r
     )
   }
 
-  React.useEffect(() => { if (pagination && pagination.current !== current) pagination.onChange(current, pageSize) }, [pagination && pagination.current, current, pageSize])
-  return <div className="control-table-area" aria-busy={loading}>
-    {loading && <div className="control-table-loading" role="status"><LoaderCircle className="animate-spin" size={18} />加载中</div>}
-    <div className={`control-table-wrap${sharedStyle ? ' shared-table-wrap' : ''}`} inert={loading || undefined}>
-      <table className={`control-table${sharedStyle ? ' shared-table' : ''}`}>
-        <thead>
-          {table.getHeaderGroups().map(group => (
-            <tr key={group.id}>
-              {rowSelection && (
-                <th className="col-select">
-                  <RowIndexSelectHeader
-                    checked={headerChecked}
-                    disabled={selectableKeys.length === 0}
-                    ariaLabel={rowSelection.selectAllLabel}
-                    onCheckedChange={checked => {
-                      rowSelection.onChange(
-                        checked
-                          ? Array.from(new Set([...selected, ...selectableKeys]))
-                          : selected.filter(k => !selectableKeys.includes(k)),
-                      )
-                    }}
-                  />
-                </th>
-              )}
-              {group.headers.map(headCell)}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {rows.map((row, rowIndex) => {
-            const recordKey = row.original[rowKey] as string | number
-            const isSelected = Boolean(rowSelection && selected.includes(recordKey))
-            const canSelect = !rowSelection?.isRowSelectable || rowSelection.isRowSelectable(row.original)
-            const rowNumber = pageStart + rowIndex + 1
-            const extraRowClass = rowClassName?.(row.original)
-            const trClassName = ['group/row', extraRowClass].filter(Boolean).join(' ')
-            return (
-              <tr
-                key={String(recordKey)}
-                data-state={isSelected ? 'selected' : undefined}
-                className={trClassName}
-                onClick={onRowClick ? event => onRowClick(row.original, event) : undefined}
-                style={onRowClick ? { cursor: 'pointer' } : undefined}
-              >
+  return (
+    <div
+      className={`control-table-area table-frame ${frame === 'compact' ? 'table-frame-compact' : 'table-frame-fixed'}`}
+      aria-busy={loading}
+    >
+      {loading && <div className="control-table-loading" role="status"><LoaderCircle className="animate-spin" size={18} />加载中</div>}
+      <div
+        ref={scrollRef}
+        className={`table-frame-scroll control-table-wrap${sharedStyle ? ' shared-table-wrap' : ''}`}
+        inert={loading || undefined}
+      >
+        <table
+          className={`control-table${sharedStyle ? ' shared-table' : ''}`}
+          aria-rowcount={sortedRows.length > 0 ? sortedRows.length + 1 : undefined}
+        >
+          <thead>
+            {table.getHeaderGroups().map(group => (
+              <tr key={group.id}>
                 {rowSelection && (
-                  <td className="col-select group/select-cell">
-                    <RowIndexSelectCell
-                      rowNumber={rowNumber}
-                      selected={isSelected}
-                      disabled={!canSelect}
-                      ariaLabel={rowSelection.getRowLabel?.(row.original, rowNumber)}
-                      onToggle={checked => {
+                  <th className="col-select">
+                    <RowIndexSelectHeader
+                      checked={headerChecked}
+                      disabled={allSelectableKeys.length === 0}
+                      ariaLabel={rowSelection.selectAllLabel ?? '全选当前列表'}
+                      onCheckedChange={checked => {
                         rowSelection.onChange(
                           checked
-                            ? Array.from(new Set([...selected, recordKey]))
-                            : selected.filter(k => k !== recordKey),
+                            ? Array.from(new Set([...selected, ...allSelectableKeys]))
+                            : selected.filter(k => !allSelectableKeySet.has(k)),
                         )
                       }}
                     />
-                  </td>
+                  </th>
                 )}
-                {row.getVisibleCells().map(cell => (
-                  <td key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
+                {group.headers.map(headCell)}
               </tr>
-            )
-          })}
-          {!rows.length && (
-            <tr>
-              <td colSpan={table.getVisibleLeafColumns().length + (rowSelection ? 1 : 0)}>
-                {locale?.emptyText ?? <Empty />}
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-    {pagination && (
-      <div className="control-pagination">
-        <span className="control-pagination-selected">
-          {rowSelection && selected.length > 0
-            ? <>已选 <strong className="font-medium text-foreground">{selected.length}</strong> / 共 {pagination.total} 条</>
-            : (pagination.showTotal?.(pagination.total) ?? <>共 <strong className="font-medium text-foreground">{pagination.total}</strong> 条</>)}
-        </span>
-        <div className="control-pagination-controls">
-          {pagination.showSizeChanger !== false && (
-            <label className="control-page-size">
-              每页
-              <OptionSelect label="每页条数" size="sm" value={String(pageSize)} onChange={value => pagination.onChange(1, Number(value))} options={(pagination.pageSizeOptions ?? ['10', '20', '50']).map(size => ({ value: String(size), label: String(size) }))} />
-              条
-            </label>
-          )}
-          <span className="control-page-count">第 {current} / {totalPages} 页</span>
-          <div className="control-page-buttons">
-            <UiButton variant="outline" size="icon-sm" aria-label="第一页" disabled={current <= 1} onClick={() => pagination.onChange(1, pageSize)}><ChevronsLeft /></UiButton>
-            <UiButton variant="outline" size="icon-sm" aria-label="上一页" disabled={current <= 1} onClick={() => pagination.onChange(current - 1, pageSize)}><ChevronLeft /></UiButton>
-            <UiButton variant="outline" size="icon-sm" aria-label="下一页" disabled={current >= totalPages} onClick={() => pagination.onChange(current + 1, pageSize)}><ChevronRight /></UiButton>
-            <UiButton variant="outline" size="icon-sm" aria-label="最后一页" disabled={current >= totalPages} onClick={() => pagination.onChange(totalPages, pageSize)}><ChevronsRight /></UiButton>
-          </div>
-        </div>
+            ))}
+          </thead>
+          <tbody>
+            {sortedRows.length > 0 ? (
+              <>
+                {paddingTop > 0 && (
+                  <tr aria-hidden="true" className="table-virtual-spacer">
+                    <td colSpan={colSpan} style={{ height: paddingTop }} />
+                  </tr>
+                )}
+                {virtualItems.map(virtualItem => {
+                  const row = sortedRows[virtualItem.index]
+                  const recordKey = row.original[rowKey] as string | number
+                  const isSelected = Boolean(rowSelection && selectedSet.has(recordKey))
+                  const canSelect = !rowSelection?.isRowSelectable || rowSelection.isRowSelectable(row.original)
+                  const rowNumber = (rowNumberOffset ?? 0) + virtualItem.index + 1
+                  const extraRowClass = rowClassName?.(row.original)
+                  const trClassName = ['group/row', extraRowClass].filter(Boolean).join(' ')
+                  return (
+                    <tr
+                      key={String(recordKey)}
+                      data-index={virtualItem.index}
+                      data-last-row={virtualItem.index === sortedRows.length - 1 ? 'true' : undefined}
+                      ref={rowVirtualizer.measureElement}
+                      aria-rowindex={virtualItem.index + 2}
+                      data-state={isSelected ? 'selected' : undefined}
+                      className={trClassName}
+                      onClick={onRowClick ? event => onRowClick(row.original, event) : undefined}
+                      style={onRowClick ? { cursor: 'pointer' } : undefined}
+                    >
+                      {rowSelection && (
+                        <td className="col-select group/select-cell">
+                          <RowIndexSelectCell
+                            rowNumber={rowNumber}
+                            selected={isSelected}
+                            disabled={!canSelect}
+                            ariaLabel={rowSelection.getRowLabel?.(row.original, rowNumber)}
+                            onToggle={checked => {
+                              rowSelection.onChange(
+                                checked
+                                  ? Array.from(new Set([...selected, recordKey]))
+                                  : selected.filter(k => k !== recordKey),
+                              )
+                            }}
+                          />
+                        </td>
+                      )}
+                      {row.getVisibleCells().map(cell => (
+                        <td key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  )
+                })}
+                {paddingBottom > 0 && (
+                  <tr aria-hidden="true" className="table-virtual-spacer">
+                    <td colSpan={colSpan} style={{ height: paddingBottom }} />
+                  </tr>
+                )}
+              </>
+            ) : (
+              <tr data-state-row="true" className="table-state-row">
+                <td colSpan={colSpan} className="table-state-cell">
+                  {locale?.emptyText ?? <Empty />}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
-    )}
-  </div>
+      {resolvedShowFooter && (
+        <TableFooterBar
+          total={sortedRows.length}
+          selectedCount={rowSelection ? selected.length : 0}
+          unit={footerUnit}
+          extra={footerExtra}
+        />
+      )}
+    </div>
+  )
 }
