@@ -12,7 +12,7 @@ import {
   Trash2 as DeleteOutlined, Monitor as DesktopOutlined, Download as DownloadOutlined, Pencil as EditOutlined, Globe as GlobalOutlined, History as HistoryOutlined,
   House as HomeOutlined, ArrowLeft as ArrowLeftOutlined, LogOut as LogoutOutlined, Plus as PlusOutlined, RefreshCw as ReloadOutlined,
   Settings as SettingOutlined, Star as StarFilled, Star as StarOutlined, Users as TeamOutlined, User as UserOutlined,
-  Network as NetworkOutlined, Split as SplitOutlined, LocateFixed as LocateFixedOutlined, Layers3,
+  Network as NetworkOutlined, Split as SplitOutlined, LocateFixed as LocateFixedOutlined, Layers3, Blocks,
 } from 'lucide-react'
 import { api, apiCSV, APIError } from './api'
 import { formatDateTime } from './lib/date'
@@ -53,6 +53,7 @@ import {
 } from './components/TableColumnControls'
 import { BulkActionBar } from './components/TableSelectionControls'
 import { ServiceIcon } from './components/ServiceIcon'
+import { ServiceManager } from './components/ServiceManager'
 import { serviceCategory } from './serviceCatalog'
 import { UserManager } from './components/UserManager'
 import { VLANView } from './components/VLANView'
@@ -149,7 +150,7 @@ function messageText(error: unknown) {
   return error instanceof Error ? error.message : '操作失败'
 }
 
-const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'network_devices', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'groups', 'teams', 'owners', 'users']
+const PAGE_KEYS: Page[] = ['home', 'host', 'vm', 'services', 'network_devices', 'facilities', 'subnets', 'vlans', 'ips', 'operators', 'changes', 'groups', 'teams', 'owners', 'users']
 
 function readPageParam(): Page {
   const params = new URLSearchParams(window.location.search)
@@ -351,6 +352,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     { key: 'facilities', label: '机柜', icon: <BuildingOutlined /> },
     { key: 'host', label: '服务器', icon: <CloudServerOutlined /> },
     { key: 'vm', label: '虚拟机', icon: <DesktopOutlined /> },
+    { key: 'services', label: '服务', icon: <Blocks /> },
     {
       key: 'network_group', label: '网络', icon: <GlobalOutlined />,
       children: [
@@ -1717,6 +1719,17 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
 
           {page === 'changes' && (
             <Card variant="borderless" title="变更记录"><ChangeList changes={changes} filterable onOpen={id => void openAsset(id)} /></Card>
+          )}
+
+          {page === 'services' && (
+            <ServiceManager
+              editable={editable}
+              assets={assets}
+              groups={groups}
+              onOpenAsset={id => void openAsset(id)}
+              onSessionError={e => handleError(e)}
+              onChanged={() => void loadAll()}
+            />
           )}
 
           {page === 'groups' && (

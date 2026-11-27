@@ -45,6 +45,37 @@ export interface AssetFields {
 
 export interface ServiceInstance { name: string }
 
+export interface ServiceRef {
+  id: number
+  name: string
+  kind?: string
+}
+
+export interface ServiceEntry {
+  id: number
+  name: string
+  category: string
+  builtin: boolean
+  port?: number
+  description: string
+  assets: ServiceRef[]
+  assetCount: number
+  projects: ServiceRef[]
+  projectCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ServiceInput {
+  name: string
+  category: string
+  builtin: boolean
+  port: number | null
+  description: string
+  assetIds?: number[] | null
+  projectIds?: number[] | null
+}
+
 export interface Asset extends AssetFields {
   services?: ServiceInstance[]
   probeStatus: 'unknown' | 'reachable' | 'unreachable' | 'error'

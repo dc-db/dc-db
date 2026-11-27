@@ -53,6 +53,10 @@ func NewServer(db *sql.DB, secureCookie bool, frontend http.Handler) http.Handle
 	mux.HandleFunc("POST /api/groups", s.requireUser(true, s.saveGroup))
 	mux.HandleFunc("PUT /api/groups/{id}", s.requireUser(true, s.saveGroup))
 	mux.HandleFunc("DELETE /api/groups/{id}", s.requireUser(true, s.deleteGroup))
+	mux.HandleFunc("GET /api/services", s.requireUser(false, s.listServices))
+	mux.HandleFunc("POST /api/services", s.requireUser(true, s.saveService))
+	mux.HandleFunc("PUT /api/services/{id}", s.requireUser(true, s.saveService))
+	mux.HandleFunc("DELETE /api/services/{id}", s.requireUser(true, s.deleteService))
 	mux.HandleFunc("GET /api/teams", s.requireUser(false, s.listTeams))
 	mux.HandleFunc("POST /api/teams", s.requireUser(true, s.saveTeam))
 	mux.HandleFunc("PUT /api/teams/{id}", s.requireUser(true, s.saveTeam))
@@ -334,12 +338,59 @@ func fail(w http.ResponseWriter, status int, message string) {
 	respond(w, status, map[string]string{"error": message})
 }
 
+func (s *Server) listServices(w http.ResponseWriter, r *http.Request) {
+	items, err := ListServices(r.Context(), s.db)
+	if err != nil {
+		s.databaseError(w, err)
+		return
+	}
+	respond(w, http.StatusOK, items)
+}
+
+func (s *Server) saveService(w http.ResponseWriter, r *http.Request) {
+	var id int64
+	if r.Method == http.MethodPut {
+		var ok bool
+		id, ok = pathID(w, r)
+		if !ok {
+			return
+		}
+	}
+	var input ServiceInput
+	if err := decode(w, r, &input); err != nil {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	entry, err := SaveService(r.Context(), s.db, id, input, currentUser(r).Username)
+	if err != nil {
+		s.databaseError(w, err)
+		return
+	}
+	status := http.StatusOK
+	if id == 0 {
+		status = http.StatusCreated
+	}
+	respond(w, status, entry)
+}
+
+func (s *Server) deleteService(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	if err := DeleteService(r.Context(), s.db, id, currentUser(r).Username); err != nil {
+		s.databaseError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) databaseError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		fail(w, http.StatusNotFound, "记录不存在")
 	case errors.Is(err, ErrConflict):
-		fail(w, http.StatusConflict, err.Error())
+		fail(w, http.StatusConflict, strings.TrimPrefix(err.Error(), ErrConflict.Error()+": "))
 	case errors.Is(err, ErrInvalid):
 		fail(w, http.StatusBadRequest, strings.TrimPrefix(err.Error(), ErrInvalid.Error()+": "))
 	default:

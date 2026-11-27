@@ -17,6 +17,7 @@ interface Props {
 const actionLabels: Record<string, string> = {
   create: '创建', update: '编辑', discover: '自动发现', sync: '配置同步', move: '宿主机变更',
   service_assets: '服务关联变更', asset_services: '运行服务变更', 'probe.settings': '探测间隔变更',
+  'service.create': '新增服务', 'service.update': '更新服务', 'service.delete': '删除服务',
   missing: '连续未发现', link: '关联资源', unlink: '解除关系',
   room_create: '新增数据中心', room_update: '编辑数据中心', room_delete: '删除数据中心',
   rack_create: '新增机柜', rack_update: '编辑机柜', rack_delete: '删除机柜',
