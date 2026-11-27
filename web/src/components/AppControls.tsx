@@ -81,7 +81,7 @@ export function Select({ value, onChange, options = [], mode, placeholder, allow
       <PopoverContent className="control-select-menu" align="start">
         {searchable && (
           <UiInput
-            aria-label="搜索选项" placeholder="搜索…" value={query}
+            aria-label="搜索选项" placeholder="搜索选项" value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => {
               if (e.key === 'ArrowDown') {

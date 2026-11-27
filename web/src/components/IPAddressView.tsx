@@ -296,7 +296,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
           options: stateFilterOptions,
           selectedValues: stateFilter,
           onChange: setStateFilter,
-          searchPlaceholder: '搜索状态…',
+          searchPlaceholder: '搜索状态',
         },
       },
       cell: ({ row }) => <Badge variant="outline" className={stateBadgeClass[row.original.state]}>{stateMeta[row.original.state] ?? row.original.state}</Badge>,
@@ -312,7 +312,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
           options: sourceFilterOptions,
           selectedValues: sourceFilter,
           onChange: setSourceFilter,
-          searchPlaceholder: '搜索来源…',
+          searchPlaceholder: '搜索来源',
         },
       },
       cell: ({ row }) => <Badge variant="secondary">{sourceMeta[row.original.source] ?? row.original.source}</Badge>,
@@ -336,7 +336,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
           options: roleFilterOptions,
           selectedValues: roleFilter,
           onChange: setRoleFilter,
-          searchPlaceholder: '搜索角色…',
+          searchPlaceholder: '搜索角色',
         },
       },
       cell: ({ row }) => roleLabels[row.original.role ?? ''] ?? (row.original.role || <span className="text-muted-foreground">—</span>),
@@ -360,7 +360,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
           options: subnetFilterOptions,
           selectedValues: subnetFilter,
           onChange: setSubnetFilter,
-          searchPlaceholder: '搜索网段…',
+          searchPlaceholder: '搜索网段',
         },
       },
       cell: ({ row }) => <Button variant="link" className="h-auto p-0" onClick={() => onOpenSubnet(row.original.subnetId)}>{row.original.subnetName}</Button>,
@@ -493,7 +493,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
     <PageHeader
       title={hideTitle ? undefined : 'IP 地址'}
       filters={<>
-        <Input className="h-8 w-[240px]" placeholder="搜索 IP、DNS、资产、用途或网段" value={keyword} onChange={event => setKeyword(event.target.value)} />
+        <Input className="h-8 w-[240px]" placeholder="搜索 IP" value={keyword} onChange={event => setKeyword(event.target.value)} />
         <DataTableViewOptions align="start" table={table} />
         <ClearFiltersButton
           count={activeFilterCount}

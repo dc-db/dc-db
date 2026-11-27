@@ -668,7 +668,7 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
               <PageHeader
                 title="机柜"
                 filters={<>
-                  <Input type="search" className="h-8 w-[200px]" aria-label="搜索机柜" placeholder={singleRoom ? '搜索机柜…' : '搜索机柜、数据中心…'} value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />
+                  <Input type="search" className="h-8 w-[200px]" aria-label="搜索机柜" placeholder="搜索机柜" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />
                   <div className="view-toggle view-switch" role="tablist" aria-label="机柜视图">
                     <button
                       type="button" role="tab" aria-selected={view === 'table'}
@@ -747,21 +747,21 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                                 options: roomFilterOptions,
                                 selectedValues: rackFilters.room,
                                 onChange: next => setRackFilters(current => ({ ...current, room: next })),
-                                searchPlaceholder: '搜索数据中心…',
+                                searchPlaceholder: '搜索数据中心',
                               } : undefined)
                             : column.key === 'zone'
                               ? {
                                   options: zoneFilterOptions,
                                   selectedValues: rackFilters.zone,
                                   onChange: next => setRackFilters(current => ({ ...current, zone: next })),
-                                  searchPlaceholder: '搜索区域…',
+                                  searchPlaceholder: '搜索区域',
                                 }
                               : column.key === 'height'
                                 ? {
                                     options: heightFilterOptions,
                                     selectedValues: rackFilters.height,
                                     onChange: next => setRackFilters(current => ({ ...current, height: next })),
-                                    searchPlaceholder: '搜索高度…',
+                                    searchPlaceholder: '搜索高度',
                                   }
                                 : undefined
                           return <th key={column.key} aria-sort={sortKey ? (sortDirection === 'asc' ? 'ascending' : sortDirection === 'desc' ? 'descending' : 'none') : undefined}>

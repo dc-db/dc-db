@@ -340,7 +340,7 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
           options: memberFilterOptions,
           selectedValues: memberFilter,
           onChange: setMemberFilter,
-          searchPlaceholder: '搜索成员…',
+          searchPlaceholder: '搜索成员',
         },
       },
       cell: ({ row }) => {
@@ -376,7 +376,7 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
           options: teamFilterOptions,
           selectedValues: teamFilter,
           onChange: setTeamFilter,
-          searchPlaceholder: '搜索团队…',
+          searchPlaceholder: '搜索团队',
         },
       },
       cell: ({ row }) => {
@@ -443,7 +443,7 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
       title={title}
       filters={
         <>
-          <Input type="search" aria-label={`搜索${title}`} placeholder={`搜索${title}名称或备注`} className="h-8 w-[240px]" value={keyword} onChange={event => setKeyword(event.target.value)} />
+          <Input type="search" aria-label={`搜索${title}`} placeholder={`搜索${title}`} className="h-8 w-[240px]" value={keyword} onChange={event => setKeyword(event.target.value)} />
           <DataTableViewOptions table={table} align="start" />
           <ClearFiltersButton count={activeFilterCount} onReset={resetColumnFilters} />
         </>

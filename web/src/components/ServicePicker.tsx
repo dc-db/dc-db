@@ -27,7 +27,7 @@ export function ServicePicker({ value, onChange }: { value: string; onChange: (v
           <label className="grid gap-1 text-sm">服务分类
             <OptionSelect className="w-full" label="服务分类" value={category} onChange={setCategory} options={['全部分类', ...serviceCatalog.map(group => group.category)].map(value => ({ value, label: value }))} />
           </label>
-          <Input aria-label="搜索内置服务" placeholder="搜索服务名称" value={query} onChange={event => setQuery(event.target.value)} />
+          <Input aria-label="搜索内置服务" placeholder="搜索服务" value={query} onChange={event => setQuery(event.target.value)} />
           <div className="max-h-64 overflow-y-auto">
             {shown.map(group => <div key={group.category} className="mb-2">
               <div className="px-2 py-1 text-sm text-muted-foreground">{group.category}</div>

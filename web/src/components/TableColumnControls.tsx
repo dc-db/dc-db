@@ -516,7 +516,7 @@ export function ColumnHeaderMenu({
                 aria-label={filter.searchPlaceholder ?? '搜索选项'}
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder={filter.searchPlaceholder ?? '搜索选项…'}
+                placeholder={filter.searchPlaceholder ?? '搜索选项'}
                 className="h-7 w-full rounded-md border border-input bg-background pr-2 pl-7 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-ring"
               />
             </div>
@@ -676,7 +676,7 @@ export function DataTableViewOptions<TData = unknown>(props: DataTableViewOption
       </PopoverTrigger>
       <PopoverContent align={align} className="w-44 p-0">
         <Command className="p-0.5">
-          <CommandInput aria-label="搜索列" placeholder="搜索列…" className="h-8 text-sm" />
+          <CommandInput aria-label="搜索列" placeholder="搜索列" className="h-8 text-sm" />
           <CommandList className="max-h-72">
             <CommandEmpty className="py-4 text-center text-xs text-muted-foreground">未找到匹配的列</CommandEmpty>
             <CommandGroup className="p-1">

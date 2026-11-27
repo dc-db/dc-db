@@ -217,7 +217,7 @@ export function ServiceFormDialog({
                   </PopoverTrigger>
                   <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
                     <Command>
-                      <CommandInput placeholder="搜索内置服务名称或分类…" className="h-8 text-sm" />
+                      <CommandInput placeholder="搜索内置服务" className="h-8 text-sm" />
                       <CommandList className="max-h-64 overflow-y-auto" onWheel={e => e.stopPropagation()}>
                         <CommandEmpty>未找到匹配的内置服务</CommandEmpty>
                         {serviceCatalog.map(group => (
@@ -311,7 +311,7 @@ export function ServiceFormDialog({
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
                   <Command>
-                    <CommandInput placeholder="搜索主机名或 IP…" className="h-8 text-sm" />
+                    <CommandInput placeholder="搜索部署节点" className="h-8 text-sm" />
                     <CommandList className="max-h-56 overflow-y-auto" onWheel={e => e.stopPropagation()}>
                       <CommandEmpty>未找到匹配的部署节点</CommandEmpty>
                       <CommandGroup>
@@ -396,7 +396,7 @@ export function ServiceFormDialog({
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
                   <Command>
-                    <CommandInput placeholder="搜索项目名称…" className="h-8 text-sm" />
+                    <CommandInput placeholder="搜索项目" className="h-8 text-sm" />
                     <CommandList className="max-h-52 overflow-y-auto" onWheel={e => e.stopPropagation()}>
                       <CommandEmpty>未找到匹配的项目</CommandEmpty>
                       <CommandGroup>

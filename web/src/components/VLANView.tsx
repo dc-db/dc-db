@@ -174,7 +174,7 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
           options: statusFilterOptions,
           selectedValues: statusFilter,
           onChange: setStatusFilter,
-          searchPlaceholder: '搜索状态…',
+          searchPlaceholder: '搜索状态',
         },
       },
       cell: ({ row }) => { const meta = statusMeta[row.original.status] ?? { label: row.original.status, className: '' }; return <Badge variant="outline" className={meta.className}>{meta.label}</Badge> },
@@ -190,7 +190,7 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
           options: roomNameFilterOptions,
           selectedValues: roomNameFilter,
           onChange: setRoomNameFilter,
-          searchPlaceholder: '搜索数据中心…',
+          searchPlaceholder: '搜索数据中心',
         },
       },
       cell: ({ row }) => row.original.roomName || <span className="text-muted-foreground">—</span>,
@@ -314,7 +314,7 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
     <PageHeader
       title={hideTitle ? undefined : 'VLAN'}
       filters={<>
-        <Input className="h-8 w-[240px]" placeholder="搜索 VLAN ID、名称、描述或数据中心" value={keyword} onChange={event => setKeyword(event.target.value)} />
+        <Input className="h-8 w-[240px]" placeholder="搜索 VLAN" value={keyword} onChange={event => setKeyword(event.target.value)} />
         <DataTableViewOptions align="start" table={table} />
         <ClearFiltersButton
           count={activeFilterCount}

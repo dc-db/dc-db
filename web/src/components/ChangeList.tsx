@@ -149,7 +149,7 @@ export function ChangeList({ changes, hideAsset, filterable, onOpen }: Props) {
       {filterable && (
         <div className="change-toolbar flex flex-wrap items-center gap-2">
           <Input
-            type="search" className="h-8 w-[240px]" placeholder="搜索资产、操作人或动作" aria-label="搜索资产、操作人或动作"
+            type="search" className="h-8 w-[240px]" placeholder="搜索变更记录" aria-label="搜索变更记录"
             value={keyword} onChange={event => setKeyword(event.target.value)}
           />
           <Select value={action ?? '__all__'} onValueChange={value => setAction(value === '__all__' ? undefined : value)}>

@@ -237,7 +237,7 @@ export function GroupManager({ editable, hideTitle, onSessionError, onChanged }:
       title={hideTitle ? undefined : '项目'}
       filters={
         <>
-          <Input className="h-8 w-[240px]" placeholder="搜索项目名称或备注" value={keyword} onChange={event => setKeyword(event.target.value)} />
+          <Input className="h-8 w-[240px]" placeholder="搜索项目" value={keyword} onChange={event => setKeyword(event.target.value)} />
           <DataTableViewOptions table={table} align="start" />
         </>
       }

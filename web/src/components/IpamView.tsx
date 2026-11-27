@@ -336,13 +336,13 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       options: statusFilterOptions,
       selectedValues: statusFilter,
       onChange: setStatusFilter,
-      searchPlaceholder: '搜索状态…',
+      searchPlaceholder: '搜索状态',
     },
     vlan: {
       options: vlanFilterOptions,
       selectedValues: vlanFilter,
       onChange: setVlanFilter,
-      searchPlaceholder: '搜索 VLAN…',
+      searchPlaceholder: '搜索 VLAN',
     },
   }), [statusFilter, statusFilterOptions, vlanFilter, vlanFilterOptions])
 
@@ -607,7 +607,7 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
     <PageHeader
       title={hideTitle ? undefined : '网段'}
       filters={<>
-        <Input className="h-8 w-[240px]" placeholder="搜索名称、CIDR、VLAN、用途" value={subnetSearch} onChange={event => setSubnetSearch(event.target.value)} />
+        <Input className="h-8 w-[240px]" placeholder="搜索网段" value={subnetSearch} onChange={event => setSubnetSearch(event.target.value)} />
         <DataTableViewOptions align="start" columns={viewColumns} onToggle={toggleColumnVisibility} />
         <ClearFiltersButton
           count={activeFilterCount}

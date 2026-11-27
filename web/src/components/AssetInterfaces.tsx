@@ -385,7 +385,7 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
           options: mediaFilterOptions,
           selectedValues: ifaceFilters.media,
           onChange: next => setIfaceFilters(current => ({ ...current, media: next })),
-          searchPlaceholder: '搜索介质…',
+          searchPlaceholder: '搜索介质',
         },
         render: (_: unknown, item: NetworkInterface) => <Tag>{mediumLabel(item.medium)}</Tag>,
       },
@@ -400,7 +400,7 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
           options: speedFilterOptions,
           selectedValues: ifaceFilters.speed,
           onChange: next => setIfaceFilters(current => ({ ...current, speed: next })),
-          searchPlaceholder: '搜索速率…',
+          searchPlaceholder: '搜索速率',
         },
         render: (_: unknown, item: NetworkInterface) => speedLabel(item.speedMbps),
       },
@@ -424,7 +424,7 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
           options: statusFilterOptions,
           selectedValues: ifaceFilters.status,
           onChange: next => setIfaceFilters(current => ({ ...current, status: next })),
-          searchPlaceholder: '搜索状态…',
+          searchPlaceholder: '搜索状态',
         },
         render: (_: unknown, item: NetworkInterface) => (
           <Tag color={statusColor(item.status)}>{statusLabel(item.status)}</Tag>

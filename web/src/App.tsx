@@ -1194,7 +1194,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
           options: assetColumnFilterOptions.kind,
           selectedValues: columnFilters.kind ?? [],
           onChange: next => setColumnFilter('kind', next),
-          searchPlaceholder: '搜索设备类型…',
+          searchPlaceholder: '搜索设备类型',
         },
         render: (_, asset) => (
           <span className="device-kind-cell">
@@ -1211,7 +1211,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
           options: assetColumnFilterOptions.platform,
           selectedValues: columnFilters.platform ?? [],
           onChange: next => setColumnFilter('platform', next),
-          searchPlaceholder: '搜索平台…',
+          searchPlaceholder: '搜索平台',
         },
         render: (_, asset) => platformLabel(asset),
       },
@@ -1224,7 +1224,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
           options: assetColumnFilterOptions.meta,
           selectedValues: columnFilters.meta ?? [],
           onChange: next => setColumnFilter('meta', next),
-          searchPlaceholder: '搜索宿主机…',
+          searchPlaceholder: '搜索宿主机',
         } : undefined,
         render: (_, asset) => metaValue(asset),
       },
@@ -1237,7 +1237,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
           options: assetColumnFilterOptions.address,
           selectedValues: columnFilters.address ?? [],
           onChange: next => setColumnFilter('address', next),
-          searchPlaceholder: '搜索探测状态…',
+          searchPlaceholder: '搜索探测状态',
         },
         render: (_, asset) => {
           const address = asset.address || '—'
@@ -1257,7 +1257,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
           options: assetColumnFilterOptions.services,
           selectedValues: columnFilters.services ?? [],
           onChange: next => setColumnFilter('services', next),
-          searchPlaceholder: '搜索服务…',
+          searchPlaceholder: '搜索服务',
         },
         render: (_, asset) => {
           const bound = asset.services ?? []
@@ -1281,7 +1281,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
           options: assetColumnFilterOptions.team,
           selectedValues: columnFilters.team ?? [],
           onChange: next => setColumnFilter('team', next),
-          searchPlaceholder: '搜索运维团队…',
+          searchPlaceholder: '搜索运维团队',
         },
         render: (_, asset) => teamName(asset.teamId),
       },
@@ -1294,7 +1294,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
           options: assetColumnFilterOptions.owner,
           selectedValues: columnFilters.owner ?? [],
           onChange: next => setColumnFilter('owner', next),
-          searchPlaceholder: '搜索负责人…',
+          searchPlaceholder: '搜索负责人',
         },
         render: value => value || '—',
       },
@@ -1307,7 +1307,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
           options: assetColumnFilterOptions.group,
           selectedValues: columnFilters.group ?? [],
           onChange: next => setColumnFilter('group', next),
-          searchPlaceholder: '搜索项目…',
+          searchPlaceholder: '搜索项目',
         },
         render: (_, asset) => groupName(asset.groupId),
       },
@@ -1320,7 +1320,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
           options: assetColumnFilterOptions.environment,
           selectedValues: columnFilters.environment ?? [],
           onChange: next => setColumnFilter('environment', next),
-          searchPlaceholder: '搜索环境…',
+          searchPlaceholder: '搜索环境',
         },
         render: value => value || '—',
       },
@@ -1333,7 +1333,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
           options: assetColumnFilterOptions.capacity,
           selectedValues: columnFilters.capacity ?? [],
           onChange: next => setColumnFilter('capacity', next),
-          searchPlaceholder: '搜索 CPU 或内存…',
+          searchPlaceholder: '搜索 CPU 或内存',
         },
         render: (_, asset) => isNetworkKind(asset.kind) ? '—' : capacityLabel(asset.cpu, asset.memoryMiB),
       },
@@ -1858,7 +1858,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
                   <Input
                     size="small" type="search" className="w-[200px]"
                     aria-label={`搜索${pageLabel}`}
-                    placeholder={`搜索${pageLabel}…`}
+                    placeholder={`搜索${pageLabel}`}
                     value={keyword} onChange={(event: React.ChangeEvent<HTMLInputElement>) => setKeyword(event.target.value)}
                   />
                   <DataTableViewOptions

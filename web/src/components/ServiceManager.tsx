@@ -172,7 +172,7 @@ export function ServiceManager({ editable, assets, groups, onOpenAsset, onSessio
       enableSorting: false,
       meta: {
         cellClassName: 'whitespace-nowrap',
-        filter: { options: categoryOptions, selectedValues: categoryFilter, onChange: setCategoryFilter, searchPlaceholder: '搜索分类…' },
+        filter: { options: categoryOptions, selectedValues: categoryFilter, onChange: setCategoryFilter, searchPlaceholder: '搜索分类' },
       },
       cell: ({ row }) => resolvedCategory(row.original) || <span className="text-muted-foreground">—</span>,
     },
@@ -183,7 +183,7 @@ export function ServiceManager({ editable, assets, groups, onOpenAsset, onSessio
       enableSorting: false,
       meta: {
         cellClassName: 'whitespace-nowrap',
-        filter: { options: builtinOptions, selectedValues: builtinFilter, onChange: setBuiltinFilter, searchPlaceholder: '搜索来源…' },
+        filter: { options: builtinOptions, selectedValues: builtinFilter, onChange: setBuiltinFilter, searchPlaceholder: '搜索来源' },
       },
       cell: ({ row }) => <Badge variant="outline">{sourceLabel(row.original)}</Badge>,
     },
@@ -209,7 +209,7 @@ export function ServiceManager({ editable, assets, groups, onOpenAsset, onSessio
       header: '依赖项目',
       enableSorting: false,
       meta: {
-        filter: { options: projectOptions, selectedValues: projectFilter, onChange: setProjectFilter, searchPlaceholder: '搜索项目…' },
+        filter: { options: projectOptions, selectedValues: projectFilter, onChange: setProjectFilter, searchPlaceholder: '搜索项目' },
       },
       cell: ({ row }) => {
         const list = row.original.projects
@@ -349,7 +349,7 @@ export function ServiceManager({ editable, assets, groups, onOpenAsset, onSessio
         <>
           <Input
             className="h-8 w-[240px]"
-            placeholder="搜索服务名称、分类、节点或项目"
+            placeholder="搜索服务"
             value={keyword}
             onChange={e => setKeyword(e.target.value)}
           />

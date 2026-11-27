@@ -262,7 +262,7 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
           options: roomColumnFilterOptions,
           selectedValues: roomColumnFilter,
           onChange: setRoomColumnFilter,
-          searchPlaceholder: '搜索数据中心…',
+          searchPlaceholder: '搜索数据中心',
         },
       },
       cell: ({ row }) => row.original.roomName || <span className="text-muted-foreground">—</span>,
@@ -327,7 +327,7 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
         title={hideTitle ? undefined : title}
         filters={
           <>
-            <Input className="h-8 w-[240px]" placeholder={`搜索${title}名称或备注`} value={keyword} onChange={event => setKeyword(event.target.value)} />
+            <Input className="h-8 w-[240px]" placeholder={`搜索${title}`} value={keyword} onChange={event => setKeyword(event.target.value)} />
             <DataTableViewOptions table={table} align="start" />
             <ClearFiltersButton count={activeColumnFilterCount} onReset={() => setRoomColumnFilter([])} />
           </>
