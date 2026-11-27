@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Switch } from './ui/switch'
@@ -27,20 +27,12 @@ interface Props {
   onCancel: () => void
 }
 
-function Choice({ value, options, onChange, disabled, className }: {
-  value: string; options: { value: string; label: string }[]; onChange: (value: string) => void
-  disabled?: boolean; className?: string
-}) {
-  return <Select value={value || '__empty__'} disabled={disabled} onValueChange={next => onChange(next === '__empty__' ? '' : next)}>
-    <SelectTrigger className={className}><SelectValue /></SelectTrigger>
-    <SelectContent>{options.map(option => <SelectItem key={option.value || '__empty__'} value={option.value || '__empty__'}>{option.label}</SelectItem>)}</SelectContent>
-  </Select>
-}
-
-export function AssetEditor({ asset, defaultKind, busy, error, groups, people, teams, rooms, defaultRoomId, mountedRoomId, createFromList = false, onSave, onCancel }: Props) {
-  const [fields, setFields] = useState<AssetFields>({
+function buildInitialFields(asset: Asset | null, defaultKind: Kind): AssetFields {
+  return {
     kind: asset?.kind ?? defaultKind,
     name: asset?.name ?? '',
+    brand: asset?.brand ?? '',
+    model: asset?.model ?? '',
     platform: asset?.platform ?? '',
     status: asset?.status ?? 'unknown',
     lifecycle: asset?.lifecycle ?? 'active',
@@ -55,7 +47,21 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, people, t
     personId: asset?.personId ?? 0,
     notes: asset?.notes ?? '',
     roomId: asset?.roomId ?? 0,
-  })
+  }
+}
+
+function Choice({ value, options, onChange, disabled, className }: {
+  value: string; options: { value: string; label: string }[]; onChange: (value: string) => void
+  disabled?: boolean; className?: string
+}) {
+  return <Select value={value || '__empty__'} disabled={disabled} onValueChange={next => onChange(next === '__empty__' ? '' : next)}>
+    <SelectTrigger className={className}><SelectValue /></SelectTrigger>
+    <SelectContent>{options.map(option => <SelectItem key={option.value || '__empty__'} value={option.value || '__empty__'}>{option.label}</SelectItem>)}</SelectContent>
+  </Select>
+}
+
+export function AssetEditor({ asset, defaultKind, busy, error, groups, people, teams, rooms, defaultRoomId, mountedRoomId, createFromList = false, onSave, onCancel }: Props) {
+  const [fields, setFields] = useState<AssetFields>(() => buildInitialFields(asset, defaultKind))
   const [serviceRows, setServiceRows] = useState<ServiceInstance[]>(() => (asset?.services ?? []).map(item => ({ ...item })))
   const [memory, setMemory] = useState(() => formatMemory(asset?.memoryMiB ?? 0))
   const [roomId, setRoomId] = useState<number>(() =>
@@ -63,6 +69,15 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, people, t
   )
   const [validation, setValidation] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    setFields(buildInitialFields(asset, defaultKind))
+    setServiceRows((asset?.services ?? []).map(item => ({ ...item })))
+    setMemory(formatMemory(asset?.memoryMiB ?? 0))
+    setRoomId(mountedRoomId ?? (Number(asset?.roomId) || (asset ? 0 : (defaultRoomId ?? 0))))
+    setValidation('')
+    setErrors({})
+  }, [asset?.id, asset?.version, defaultKind, defaultRoomId, mountedRoomId])
 
   function update<K extends keyof AssetFields>(key: K, value: AssetFields[K]) {
     setFields(current => ({ ...current, [key]: value }))
@@ -78,8 +93,13 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, people, t
   function save() {
     const next: Record<string, string> = {}
     const name = fields.name.trim()
+    const brand = fields.brand.trim()
+    const model = fields.model.trim()
+    const host = fields.kind === 'host'
     if (!name) next.name = '请填写资源名称'
     else if (name.length > 160) next.name = '资源名称不能超过 160 个字符'
+    if (host && brand.length > 80) next.brand = '品牌不能超过 80 个字符'
+    if (host && model.length > 120) next.model = '型号不能超过 120 个字符'
     if (!Number.isFinite(fields.cpu) || fields.cpu < 0) next.cpu = 'CPU 核数须为 0 或正整数'
     const memoryMiB = parseMemory(memory)
     if (!isNetworkKind(fields.kind) && memoryMiB === null) next.memoryMiB = '请输入以 G 或 M 结尾的有效容量'
@@ -93,17 +113,22 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, people, t
     onSave({
       ...fields,
       name,
+      brand,
+      model,
       platform: networkDevice ? '' : fields.platform,
       roomId: mountedRoomId ? (asset?.roomId ?? 0) : roomId,
       cpu: networkDevice ? 0 : Number(fields.cpu || 0),
       memoryMiB: networkDevice ? 0 : (memoryMiB ?? 0),
       groupId: Number(fields.groupId || 0),
+      ...(host ? { personId: 0, owner: '' } : {}),
       services: networkDevice ? undefined : serviceRows,
       version: asset?.version ?? 0,
     })
   }
 
   const networkDevice = isNetworkKind(fields.kind)
+  const isHost = fields.kind === 'host'
+  const teamLabel = isHost ? '团队' : '运维团队'
 
   return (
     <form onSubmit={event => { event.preventDefault(); save() }} className={`grid grid-cols-2 gap-4${createFromList ? ' asset-create-form' : ''}`}>
@@ -111,6 +136,8 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, people, t
       <label className={errors.name ? 'grid gap-2 asset-field-name field-invalid' : 'grid gap-2 asset-field-name'}><span>{createFromList ? (networkDevice ? '设备名称' : fields.kind === 'vm' ? '虚拟机名称' : '服务器名称') : '资源名称'} <span className="text-destructive" aria-hidden="true">*</span></span><Input required value={fields.name} maxLength={160} aria-invalid={!!errors.name} onChange={event => update('name', event.target.value)} />{errors.name && <span className="field-error" role="alert">{errors.name}</span>}</label>
 
       {(!createFromList || networkDevice) && <label className="grid gap-2 asset-field-kind"><span>{createFromList ? '设备类型' : '资源类型'} <span className="text-destructive" aria-hidden="true">*</span></span><Choice value={fields.kind} disabled={!!asset} onChange={value => update('kind', value as Kind)} options={(createFromList ? NETWORK_KINDS : ALL_KINDS).map(value => ({ value, label: KIND_LABELS[value] }))} /></label>}
+      {isHost && <label className={errors.brand ? 'grid gap-2 asset-field-brand field-invalid' : 'grid gap-2 asset-field-brand'}><span>品牌</span><Input value={fields.brand} maxLength={80} placeholder="例如：Dell、华为、浪潮" aria-invalid={!!errors.brand} onChange={event => update('brand', event.target.value)} />{errors.brand && <span className="field-error" role="alert">{errors.brand}</span>}</label>}
+      {isHost && <label className={errors.model ? 'grid gap-2 asset-field-model field-invalid' : 'grid gap-2 asset-field-model'}><span>型号</span><Input value={fields.model} maxLength={120} placeholder="例如：PowerEdge R750" aria-invalid={!!errors.model} onChange={event => update('model', event.target.value)} />{errors.model && <span className="field-error" role="alert">{errors.model}</span>}</label>}
       {!networkDevice && <label className="grid gap-2 asset-field-platform">平台<Choice value={fields.platform} onChange={value => update('platform', value as AssetFields['platform'])} options={[{ value: '', label: '未分配' }, { value: 'pve', label: 'Proxmox VE' }, { value: 'kvm', label: 'KVM / libvirt' }]} /></label>}
       <label className="grid gap-2 asset-field-environment">环境<Input value={fields.environment} maxLength={40} placeholder="例如：生产" onChange={event => update('environment', event.target.value)} /></label>
       {createFromList && <hr className="asset-create-divider" />}
@@ -133,8 +160,8 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, people, t
         </label>
       )}
       <label className="grid gap-2 asset-field-group">所属项目<Choice value={fields.groupId ? String(fields.groupId) : ''} onChange={value => update('groupId', Number(value || 0))} options={[{ value: '', label: '未分配' }, ...groups.map(group => ({ value: String(group.id), label: group.name }))]} /></label>
-      <div className="grid gap-2"><span>运维团队</span><SearchableSelect label="运维团队" placeholder="未分配" value={fields.teamId ? String(fields.teamId) : ''} onChange={value => update('teamId', Number(value))} options={teams.map(team => ({ value: String(team.id), label: team.name }))} indicator="down" triggerClassName="max-w-64" /></div>
-      <div className="grid gap-2 asset-field-owner"><span>负责人</span><SearchableSelect
+      <div className="grid gap-2"><span>{teamLabel}</span><SearchableSelect label={teamLabel} placeholder="未分配" value={fields.teamId ? String(fields.teamId) : ''} onChange={value => update('teamId', Number(value))} options={teams.map(team => ({ value: String(team.id), label: team.name }))} indicator="down" triggerClassName="max-w-64" /></div>
+      {!isHost && <div className="grid gap-2 asset-field-owner"><span>负责人</span><SearchableSelect
         label="负责人" placeholder="未分配"
         value={fields.personId ? String(fields.personId) : fields.owner ? 'legacy' : ''}
         onChange={value => {
@@ -146,7 +173,7 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, people, t
           ...people.map(person => ({ value: String(person.id), label: person.name })),
         ]}
         indicator="down" triggerClassName="max-w-64"
-      /></div>
+      /></div>}
       {!networkDevice && <div className="col-span-2 grid gap-3 asset-create-services">
         <div>运行服务</div>
         {serviceRows.map((service, index) => <div key={index} className="flex items-end gap-2">

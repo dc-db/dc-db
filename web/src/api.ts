@@ -27,6 +27,8 @@ export interface NetworkInterface extends InterfaceFields {
 export interface AssetFields {
   kind: Kind
   name: string
+  brand: string
+  model: string
   platform: '' | 'pve' | 'kvm'
   status: string
   lifecycle: 'active' | 'retired'
@@ -210,6 +212,8 @@ export interface ImportPreviewRow {
   row: number
   name: string
   kind: string
+  brand?: string
+  model?: string
   platform: string
   status: string
   lifecycle: string

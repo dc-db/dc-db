@@ -154,7 +154,7 @@ func (s *Server) savePlacement(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := validateFields(input.NewAsset); err != nil {
-			fail(w, http.StatusBadRequest, err.Error())
+			fail(w, http.StatusBadRequest, strings.TrimPrefix(err.Error(), ErrInvalid.Error()+": "))
 			return
 		}
 		if !mountable(input.NewAsset.Kind) || input.NewAsset.Lifecycle != "active" {

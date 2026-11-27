@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var ErrConflict = errors.New("记录已被更新，请刷新后重试")
@@ -16,6 +17,8 @@ type Fields struct {
 	Services     *[]ServiceInstance `json:"services,omitempty"`
 	Kind         string             `json:"kind"`
 	Name         string             `json:"name"`
+	Brand        string             `json:"brand"`
+	Model        string             `json:"model"`
 	Platform     string             `json:"platform"`
 	Status       string             `json:"status"`
 	Lifecycle    string             `json:"lifecycle"`
@@ -71,7 +74,7 @@ type Change struct {
 // The text owner is retained for CSV imports and older entries that have no directory record.
 const assetOwnerSQL = "COALESCE((SELECT p.name FROM people p WHERE p.id=assets.person_id), assets.owner)"
 
-const assetColumns = `id, kind, name, platform, status, lifecycle, ` + assetOwnerSQL + `, environment, address, cpu,
+const assetColumns = `id, kind, name, brand, model, platform, status, lifecycle, ` + assetOwnerSQL + `, environment, address, cpu,
 	memory_mib, notes, COALESCE(room_id, 0), version, created_at, updated_at, COALESCE(source_key, ''),
 	COALESCE(external_key, ''), last_seen_at, missing_count, observed, COALESCE(group_id, 0),
 	probe_enabled, probe_status, probe_checked_at, COALESCE(team_id,0), COALESCE(person_id,0)`
@@ -81,7 +84,7 @@ type scanner interface{ Scan(...any) error }
 func readAsset(row scanner) (Asset, error) {
 	var a Asset
 	var observed string
-	err := row.Scan(&a.ID, &a.Kind, &a.Name, &a.Platform, &a.Status, &a.Lifecycle, &a.Owner,
+	err := row.Scan(&a.ID, &a.Kind, &a.Name, &a.Brand, &a.Model, &a.Platform, &a.Status, &a.Lifecycle, &a.Owner,
 		&a.Environment, &a.Address, &a.CPU, &a.MemoryMiB, &a.Notes, &a.RoomID,
 		&a.Version, &a.CreatedAt, &a.UpdatedAt, &a.SourceKey, &a.ExternalKey, &a.LastSeenAt, &a.MissingCount, &observed,
 		&a.GroupID, &a.ProbeEnabled, &a.ProbeStatus, &a.ProbeCheckedAt, &a.TeamID, &a.PersonID)
@@ -176,7 +179,22 @@ func ListChanges(ctx context.Context, db *sql.DB, assetID int64) ([]Change, erro
 	return changes, rows.Err()
 }
 
+func normalizeAndValidateBrandModel(fields *Fields) error {
+	fields.Brand = strings.TrimSpace(fields.Brand)
+	fields.Model = strings.TrimSpace(fields.Model)
+	if utf8.RuneCountInString(fields.Brand) > 80 {
+		return fmt.Errorf("%w: 品牌不能超过 80 个字符", ErrInvalid)
+	}
+	if utf8.RuneCountInString(fields.Model) > 120 {
+		return fmt.Errorf("%w: 型号不能超过 120 个字符", ErrInvalid)
+	}
+	return nil
+}
+
 func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fields, actor string) (Asset, error) {
+	if err := normalizeAndValidateBrandModel(&fields); err != nil {
+		return Asset{}, err
+	}
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return Asset{}, err
@@ -237,7 +255,7 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 	}
 
 	asset, err := readAsset(tx.QueryRowContext(ctx, `
-		UPDATE assets SET name=$2, platform=$3, status=$4, lifecycle=$5, owner=CASE WHEN $17::bigint=0 THEN $6 ELSE '' END, environment=$7,
+		UPDATE assets SET name=$2, brand=$18, model=$19, platform=$3, status=$4, lifecycle=$5, owner=CASE WHEN $17::bigint=0 THEN $6 ELSE '' END, environment=$7,
 			address=$8, cpu=$9, memory_mib=$10, notes=$11, room_id=NULLIF($12,0),
 			group_id=NULLIF($13,0), version=version+1, updated_at=$14,
 			probe_status=CASE WHEN address IS DISTINCT FROM $8 OR probe_enabled IS DISTINCT FROM $15 OR lifecycle IS DISTINCT FROM $5 THEN 'unknown' ELSE probe_status END,
@@ -245,7 +263,8 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 			probe_enabled=$15, team_id=NULLIF($16,0), person_id=NULLIF($17,0)
 		WHERE id=$1 RETURNING `+assetColumns, id, fields.Name, fields.Platform, fields.Status,
 		fields.Lifecycle, fields.Owner, fields.Environment, fields.Address, fields.CPU, fields.MemoryMiB,
-		fields.Notes, fields.RoomID, fields.GroupID, nowText(), fields.ProbeEnabled, fields.TeamID, fields.PersonID))
+		fields.Notes, fields.RoomID, fields.GroupID, nowText(), fields.ProbeEnabled, fields.TeamID, fields.PersonID,
+		fields.Brand, fields.Model))
 	if err != nil {
 		return Asset{}, assetAssignmentError(err)
 	}
@@ -280,16 +299,20 @@ func resolveAssetPerson(ctx context.Context, tx *sql.Tx, fields *Fields) error {
 }
 
 func createAsset(ctx context.Context, tx *sql.Tx, fields Fields, actor string) (Asset, error) {
+	if err := normalizeAndValidateBrandModel(&fields); err != nil {
+		return Asset{}, err
+	}
 	if err := resolveAssetPerson(ctx, tx, &fields); err != nil {
 		return Asset{}, err
 	}
 	asset, err := readAsset(tx.QueryRowContext(ctx, `
 		INSERT INTO assets (kind, name, platform, status, lifecycle, owner, environment, address,
-			cpu, memory_mib, notes, room_id, group_id, updated_at, probe_enabled, team_id, person_id)
-		VALUES ($1,$2,$3,$4,$5,CASE WHEN $17::bigint=0 THEN $6 ELSE '' END,$7,$8,$9,$10,$11,NULLIF($12,0),NULLIF($13,0),$14,$15,NULLIF($16,0),NULLIF($17,0)) RETURNING `+assetColumns,
+			cpu, memory_mib, notes, room_id, group_id, updated_at, probe_enabled, team_id, person_id, brand, model)
+		VALUES ($1,$2,$3,$4,$5,CASE WHEN $17::bigint=0 THEN $6 ELSE '' END,$7,$8,$9,$10,$11,NULLIF($12,0),NULLIF($13,0),$14,$15,NULLIF($16,0),NULLIF($17,0),$18,$19) RETURNING `+assetColumns,
 		fields.Kind, fields.Name, fields.Platform, fields.Status, fields.Lifecycle, fields.Owner,
 		fields.Environment, fields.Address, fields.CPU, fields.MemoryMiB, fields.Notes,
-		fields.RoomID, fields.GroupID, nowText(), fields.ProbeEnabled, fields.TeamID, fields.PersonID))
+		fields.RoomID, fields.GroupID, nowText(), fields.ProbeEnabled, fields.TeamID, fields.PersonID,
+		fields.Brand, fields.Model))
 	if err != nil {
 		return Asset{}, assetAssignmentError(err)
 	}

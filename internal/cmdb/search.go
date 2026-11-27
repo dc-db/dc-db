@@ -93,19 +93,21 @@ func Search(ctx context.Context, db *sql.DB, raw string) ([]SearchResult, error)
 
 func searchAssets(ctx context.Context, db *sql.DB, query, pattern, prefix string) ([]SearchResult, error) {
 	rows, err := db.QueryContext(ctx, `
-		SELECT id, name, kind, status, address, `+assetOwnerSQL+`
+		SELECT id, name, kind, status, address, `+assetOwnerSQL+`, brand, model
 		FROM assets
 		WHERE lower(name) LIKE $1 ESCAPE '\'
 		   OR lower(address) LIKE $2 ESCAPE '\'
 		   OR lower(`+assetOwnerSQL+`) LIKE $3 ESCAPE '\'
 		   OR lower(notes) LIKE $4 ESCAPE '\'
+		   OR lower(brand) LIKE $5 ESCAPE '\'
+		   OR lower(model) LIKE $6 ESCAPE '\'
 		ORDER BY CASE
-			WHEN lower(name) = $5 THEN 0
-			WHEN lower(name) LIKE $6 ESCAPE '\' THEN 1
+			WHEN lower(name) = $7 THEN 0
+			WHEN lower(name) LIKE $8 ESCAPE '\' THEN 1
 			ELSE 2
 		END, lower(name)
-		LIMIT $7`,
-		pattern, pattern, pattern, pattern,
+		LIMIT $9`,
+		pattern, pattern, pattern, pattern, pattern, pattern,
 		strings.ToLower(query), prefix, searchPerType,
 	)
 	if err != nil {
@@ -116,8 +118,8 @@ func searchAssets(ctx context.Context, db *sql.DB, query, pattern, prefix string
 	var out []SearchResult
 	for rows.Next() {
 		var result SearchResult
-		var address, owner string
-		if err := rows.Scan(&result.ID, &result.Label, &result.Kind, &result.Status, &address, &owner); err != nil {
+		var address, owner, brand, model string
+		if err := rows.Scan(&result.ID, &result.Label, &result.Kind, &result.Status, &address, &owner, &brand, &model); err != nil {
 			return nil, err
 		}
 		result.Type = "asset"
@@ -126,6 +128,9 @@ func searchAssets(ctx context.Context, db *sql.DB, query, pattern, prefix string
 		parts := []string{}
 		if address != "" {
 			parts = append(parts, address)
+		}
+		if hw := strings.TrimSpace(brand + " " + model); hw != "" {
+			parts = append(parts, hw)
 		}
 		if owner != "" {
 			parts = append(parts, owner)

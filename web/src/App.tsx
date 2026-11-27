@@ -77,9 +77,9 @@ const relations: { kind: LinkKind; from: Kind; to: Kind[]; outgoing: string; inc
 ]
 const defaultPageSize = 10
 const defaultAssetColumns = ['name', 'capacity', 'address', 'platform', 'meta', 'services', 'notes']
-const defaultHostColumns = ['name', 'capacity', 'address', 'services', 'notes']
+const defaultHostColumns = ['name', 'brand', 'model', 'capacity', 'address', 'services', 'team', 'notes']
 const defaultNetworkDeviceColumns = ['name', 'kind', 'address', 'owner']
-const assetColumnKeys = ['name', 'capacity', 'kind', 'address', 'platform', 'meta', 'services', 'group', 'team', 'owner', 'environment', 'notes', 'created', 'updated']
+const assetColumnKeys = ['name', 'brand', 'model', 'capacity', 'kind', 'address', 'platform', 'meta', 'services', 'group', 'team', 'owner', 'environment', 'notes', 'created', 'updated']
 
 
 const PLATFORM_CATALOG = [
@@ -128,6 +128,8 @@ function assetFilterValues(
   teamNames: Map<number, string>,
 ): string | string[] | null | undefined {
   switch (colKey) {
+    case 'brand': return asset.brand.trim()
+    case 'model': return asset.model.trim()
     case 'kind': return asset.kind
     case 'platform': return asset.platform
     case 'meta': return vmRelations.get(asset.id) ?? []
@@ -443,7 +445,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     const query = keyword.trim().toLowerCase()
     return scoped.filter(asset => {
       if (!matchesRoomFilter(assetRoomId(asset, locations, byId, links), roomFilter)) return false
-      return !query || [asset.name, asset.address, asset.owner, projectNames.get(asset.groupId), teamNames.get(asset.teamId ?? 0), asset.environment, ...(vmRelations.get(asset.id) ?? [])]
+      return !query || [asset.name, asset.brand, asset.model, asset.address, asset.owner, projectNames.get(asset.groupId), teamNames.get(asset.teamId ?? 0), asset.environment, ...(vmRelations.get(asset.id) ?? [])]
         .some(value => value?.toLowerCase().includes(query))
     })
   }, [scoped, byId, links, locations, roomFilter, keyword, vmRelations, projectNames, teamNames])
@@ -474,6 +476,20 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       )
     }
     return {
+      brand: buildFacetedOptions({
+        items: crossItems('brand'),
+        getEntries: asset => asset.brand.trim(),
+        includeEmpty: true,
+        emptyLabel: '未填写',
+        selectedValues: columnFilters.brand,
+      }),
+      model: buildFacetedOptions({
+        items: crossItems('model'),
+        getEntries: asset => asset.model.trim(),
+        includeEmpty: true,
+        emptyLabel: '未填写',
+        selectedValues: columnFilters.model,
+      }),
       kind: buildFacetedOptions({
         items: crossItems('kind'),
         getEntries: asset => ({ value: asset.kind, label: kindLabel(asset.kind) }),
@@ -671,25 +687,40 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     if (!assetPage) return
     const fallback = page === 'host' ? defaultHostColumns : page === 'network_devices' ? defaultNetworkDeviceColumns : defaultAssetColumns
     try {
-      const key = 'dc-db-columns:' + page + (page === 'host' || page === 'vm' ? ':v6' : '')
+      const key = 'dc-db-columns:' + page + (page === 'host' ? ':v8' : page === 'vm' ? ':v6' : '')
       const raw = localStorage.getItem(key)
-      const v5 = (page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page + ':v5') : null
-      const v4 = v5 || ((page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page + ':v4') : null)
+      const v7 = page === 'host' && !raw ? localStorage.getItem('dc-db-columns:host:v7') : null
+      const v6 = page === 'host' && !raw && !v7 ? localStorage.getItem('dc-db-columns:host:v6') : null
+      const v5 = (page === 'host' || page === 'vm') && !raw && !v7 && !v6 ? localStorage.getItem('dc-db-columns:' + page + ':v5') : null
+      const v4 = v7 || v6 || v5 || ((page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page + ':v4') : null)
       const previous = v4 || ((page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page + ':v3') || localStorage.getItem('dc-db-columns:' + page + ':v2') : null)
       const legacy = previous || ((page === 'host' || page === 'vm') && !raw ? localStorage.getItem('dc-db-columns:' + page) : null)
       const parsed: unknown = raw || legacy ? JSON.parse((raw || legacy)!) : null
       const valid = Array.isArray(parsed)
-        ? parsed.filter((key): key is string => typeof key === 'string').map(key => key === 'status' || key === 'probe' ? 'address' : key).filter(key => assetColumnKeys.includes(key) && (page !== 'host' || key !== 'meta') && ((page !== 'host' && page !== 'vm') || (key !== 'environment' && (!!raw || !!v5 || key !== 'owner') && (!!raw || !!v4 || (key !== 'created' && key !== 'updated')))))
+        ? parsed
+            .filter((item): item is string => typeof item === 'string')
+            .map(item => item === 'status' || item === 'probe' ? 'address' : item)
+            .filter(item =>
+              assetColumnKeys.includes(item)
+              && (page === 'host'
+                ? item !== 'meta' && item !== 'platform' && item !== 'owner' && item !== 'environment' && item !== 'kind' && (!!raw || !!v7 || !!v6 || !!v4 || (item !== 'created' && item !== 'updated'))
+                : item !== 'brand' && item !== 'model' && (page !== 'vm' || (item !== 'environment' && (!!raw || !!v5 || item !== 'owner') && (!!raw || !!v4 || (item !== 'created' && item !== 'updated'))))),
+            )
         : []
       if (legacy && valid.length) {
         if (!previous) {
           if (page === 'vm') valid.push('platform')
         }
         if (!v4) valid.push('capacity', 'notes')
-        valid.push('services')
+        if (!v7 && !v6) valid.push('services')
+        if (page === 'host') {
+          if (!valid.includes('brand')) valid.push('brand')
+          if (!valid.includes('model')) valid.push('model')
+          if (!valid.includes('team')) valid.push('team')
+        }
         localStorage.setItem(key, JSON.stringify(assetColumnKeys.filter(item => valid.includes(item))))
       }
-      setVisibleColumns(valid.length ? assetColumnKeys.filter(key => valid.includes(key)) : fallback)
+      setVisibleColumns(valid.length ? assetColumnKeys.filter(item => valid.includes(item)) : fallback)
     } catch {
       setVisibleColumns(fallback)
     }
@@ -1007,15 +1038,29 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     setPage('subnets')
   }
 
-  async function saveBulkEdit(values: { platform?: string; lifecycle?: string; owner?: string; environment?: string }) {
+  async function saveBulkEdit(values: {
+    platform?: string
+    lifecycle?: string
+    owner?: string
+    environment?: string
+    teamId?: number
+    brand?: string
+    model?: string
+  }) {
     if (!selectedAssetIds.length) return
     setBulkSaving(true)
     setBulkError('')
     try {
-      const fields: Record<string, string> = {}
-      for (const key of ['platform', 'lifecycle', 'owner', 'environment'] as const) {
+      const fields: Record<string, string | number> = {}
+      const stringKeys = page === 'host'
+        ? (['platform', 'lifecycle', 'brand', 'model', 'environment'] as const)
+        : (['platform', 'lifecycle', 'owner', 'environment'] as const)
+      for (const key of stringKeys) {
         const value = values[key]?.trim()
         if (value) fields[key] = value
+      }
+      if (page === 'host' && typeof values.teamId === 'number') {
+        fields.teamId = values.teamId
       }
       if (!Object.keys(fields).length) {
         setBulkError('请至少选择一项要修改的字段')
@@ -1040,7 +1085,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     if (!ordered.length) return
     setVisibleColumns(ordered)
     try {
-      localStorage.setItem('dc-db-columns:' + page + (page === 'host' || page === 'vm' ? ':v6' : ''), JSON.stringify(ordered))
+      localStorage.setItem('dc-db-columns:' + page + (page === 'host' ? ':v8' : page === 'vm' ? ':v6' : ''), JSON.stringify(ordered))
     } catch {
       // Keep the current in-memory column selection.
     }
@@ -1091,6 +1136,20 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
   }
 
   function exportAssetsCSV(items: Asset[], filename = 'dc-db-assets.csv') {
+    if (page === 'host') {
+      const rows: (string | number)[][] = [[
+        '资源名称', '类型', '品牌', '型号', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '团队', '环境', '备注',
+      ]]
+      for (const asset of items) {
+        rows.push([
+          asset.name, kindLabel(asset.kind), asset.brand ?? '', asset.model ?? '', platformLabel(asset), statusOf(asset).label,
+          asset.lifecycle === 'retired' ? '已退役' : '在册', asset.address, asset.cpu, asset.memoryMiB,
+          teamNames.get(asset.teamId ?? 0) ?? '', asset.environment, asset.notes,
+        ])
+      }
+      downloadCSV(filename, rows)
+      return
+    }
     const rows: (string | number)[][] = [[
       '资源名称', '类型', '平台', '状态', '生命周期', '地址 / IP', 'CPU', '内存 MiB', '负责人', '环境', '备注',
     ]]
@@ -1173,6 +1232,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
   const metaTitle = page === 'vm' ? '宿主机' : '平台'
   const metaValue = (asset: Asset) => page === 'vm' ? hostName(asset) : platformLabel(asset)
   const assetNameLabel = page === 'host' ? '服务器名称' : page === 'vm' ? '虚拟机名称' : '资源名称'
+  const teamColumnLabel = page === 'host' ? '团队' : '运维团队'
   const assetColumns: { key: string; label: string; column: TableColumnsType<Asset>[number] }[] = [
     {
       key: 'name', label: assetNameLabel,
@@ -1184,6 +1244,32 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
             ? <button type="button" className="asset-name-button" onClick={() => void openAsset(asset.id)}>{asset.name}</button>
             : <Button type="link" className="asset-link" onClick={() => void openAsset(asset.id)}><span>{asset.name}</span></Button>
         ),
+      },
+    },
+    {
+      key: 'brand', label: '品牌',
+      column: {
+        title: '品牌', key: 'brand', width: 110,
+        filter: {
+          options: assetColumnFilterOptions.brand,
+          selectedValues: columnFilters.brand ?? [],
+          onChange: next => setColumnFilter('brand', next),
+          searchPlaceholder: '搜索品牌',
+        },
+        render: (_, asset) => asset.brand || '—',
+      },
+    },
+    {
+      key: 'model', label: '型号',
+      column: {
+        title: '型号', key: 'model', width: 165,
+        filter: {
+          options: assetColumnFilterOptions.model,
+          selectedValues: columnFilters.model ?? [],
+          onChange: next => setColumnFilter('model', next),
+          searchPlaceholder: '搜索型号',
+        },
+        render: (_, asset) => asset.model || '—',
       },
     },
     {
@@ -1274,14 +1360,14 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       },
     },
     {
-      key: 'team', label: '运维团队',
+      key: 'team', label: teamColumnLabel,
       column: {
-        title: '运维团队', key: 'team', width: 120,
+        title: teamColumnLabel, key: 'team', width: 120,
         filter: {
           options: assetColumnFilterOptions.team,
           selectedValues: columnFilters.team ?? [],
           onChange: next => setColumnFilter('team', next),
-          searchPlaceholder: '搜索运维团队',
+          searchPlaceholder: page === 'host' ? '搜索团队' : '搜索运维团队',
         },
         render: (_, asset) => teamName(asset.teamId),
       },
@@ -1360,9 +1446,15 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     },
   ]
   const availableAssetColumns = page === 'network_devices'
-    ? assetColumns.filter(item => !['meta', 'platform', 'capacity', 'services', 'notes', 'created'].includes(item.key))
+    ? assetColumns.filter(item => !['brand', 'model', 'meta', 'platform', 'capacity', 'services', 'notes', 'created'].includes(item.key))
         .sort((a, b) => ['name', 'kind', 'address', 'group', 'team', 'owner', 'environment', 'updated'].indexOf(a.key) - ['name', 'kind', 'address', 'group', 'team', 'owner', 'environment', 'updated'].indexOf(b.key))
-    : assetColumns.filter(item => item.key !== 'kind' && item.key !== 'environment' && (page !== 'host' || (item.key !== 'meta' && item.key !== 'platform')))
+    : assetColumns.filter(item =>
+        item.key !== 'kind'
+        && item.key !== 'environment'
+        && (page === 'host'
+          ? item.key !== 'meta' && item.key !== 'platform' && item.key !== 'owner'
+          : item.key !== 'brand' && item.key !== 'model'),
+      )
         .sort((a, b) => assetColumnKeys.indexOf(a.key) - assetColumnKeys.indexOf(b.key))
   const visibleAssetColumnKeys = availableAssetColumns
     .filter(item => visibleColumns.includes(item.key))
@@ -1411,10 +1503,14 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
   ]
 
   const descriptions = selected ? [
+    ...(selected.kind === 'host' ? [
+      { key: 'brand', label: '品牌', children: selected.brand || '—' },
+      { key: 'model', label: '型号', children: selected.model || '—' },
+    ] : []),
     ...(!isNetworkKind(selected.kind) ? [{ key: 'platform', label: '平台', children: platformLabel(selected) }] : []),
     { key: 'group', label: '所属项目', children: groupName(selected.groupId) },
-    { key: 'team', label: '运维团队', children: teamName(selected.teamId) },
-    { key: 'owner', label: '负责人', children: selected.owner || '—' },
+    { key: 'team', label: selected.kind === 'host' ? '团队' : '运维团队', children: teamName(selected.teamId) },
+    ...(selected.kind === 'host' ? [] : [{ key: 'owner', label: '负责人', children: selected.owner || '—' }]),
     { key: 'environment', label: '环境', children: selected.environment || '—' },
     { key: 'address', label: '管理地址 / IP', children: <span className="mono">{selected.address || '—'}</span> },
     ...(selected.kind === 'host' || selected.kind === 'vm' ? [{
@@ -2048,9 +2144,29 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
               options={[{ value: 'active', label: '在册' }, { value: 'retired', label: '已退役' }]}
             />
           </Form.Item>
-          <Form.Item label="负责人" name="owner" extra="留空表示不修改">
-            <Input maxLength={512} placeholder="例如：平台组" />
-          </Form.Item>
+          {page === 'host' ? (
+            <>
+              <Form.Item label="团队" name="teamId" extra="留空表示不修改">
+                <Select
+                  allowClear placeholder="不修改"
+                  options={[
+                    { value: 0, label: '未分配（清空团队）' },
+                    ...teams.map(team => ({ value: team.id, label: team.name })),
+                  ]}
+                />
+              </Form.Item>
+              <Form.Item label="品牌" name="brand" extra="留空表示不修改">
+                <Input maxLength={80} placeholder="例如：Dell、华为、浪潮" />
+              </Form.Item>
+              <Form.Item label="型号" name="model" extra="留空表示不修改">
+                <Input maxLength={120} placeholder="例如：PowerEdge R750" />
+              </Form.Item>
+            </>
+          ) : (
+            <Form.Item label="负责人" name="owner" extra="留空表示不修改">
+              <Input maxLength={512} placeholder="例如：平台组" />
+            </Form.Item>
+          )}
           <Form.Item label="环境" name="environment" extra="留空表示不修改">
             <Input maxLength={128} placeholder="例如：生产" />
           </Form.Item>

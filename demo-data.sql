@@ -458,23 +458,70 @@ SELECT m.asset_id, m.service_name FROM (VALUES
  (3::bigint,'nginx'), (19,'nginx'), (4,'postgresql'), (3,'redis'), (10,'grafana'), (1,'etcd')
 ) AS m(asset_id, service_name) WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
+-- 10. 为所有服务器（153 台）填充虚构品牌与型号，并清空服务器负责人字段。
+UPDATE assets
+SET brand = CASE (id % 9)
+        WHEN 0 THEN 'Dell'
+        WHEN 1 THEN 'Dell'
+        WHEN 2 THEN 'HPE'
+        WHEN 3 THEN 'HPE'
+        WHEN 4 THEN '华为'
+        WHEN 5 THEN '浪潮'
+        WHEN 6 THEN '新华三'
+        WHEN 7 THEN '超聚变'
+        ELSE 'Lenovo'
+    END,
+    model = CASE (id % 9)
+        WHEN 0 THEN 'PowerEdge R750'
+        WHEN 1 THEN 'PowerEdge R650'
+        WHEN 2 THEN 'ProLiant DL380 Gen10'
+        WHEN 3 THEN 'ProLiant DL360 Gen11'
+        WHEN 4 THEN 'FusionServer 2288H V6'
+        WHEN 5 THEN 'NF5280M6'
+        WHEN 6 THEN 'UniServer R4900 G5'
+        WHEN 7 THEN '2288H V6'
+        ELSE 'ThinkSystem SR650 V2'
+    END,
+    owner = '',
+    person_id = NULL
+WHERE kind = 'host' AND EXISTS (SELECT 1 FROM demo_empty_guard);
+
 INSERT INTO people (name)
-SELECT min(owner) FROM assets WHERE length(owner) BETWEEN 1 AND 80 GROUP BY lower(owner)
+SELECT min(owner) FROM assets
+WHERE kind <> 'host' AND length(owner) BETWEEN 1 AND 80 AND EXISTS (SELECT 1 FROM demo_empty_guard)
+GROUP BY lower(owner)
 ON CONFLICT DO NOTHING;
 
 UPDATE assets a SET person_id=p.id, owner=''
-FROM people p WHERE lower(a.owner)=lower(p.name);
+FROM people p
+WHERE a.kind <> 'host' AND lower(a.owner)=lower(p.name) AND EXISTS (SELECT 1 FROM demo_empty_guard);
 
-INSERT INTO teams (name, description) VALUES
-    ('示例平台运维组', '维护演示服务器和虚拟机'),
-    ('示例网络运维组', '维护演示网络设备');
+INSERT INTO teams (name, description)
+SELECT v.name, v.description FROM (VALUES
+    ('示例平台运维组', '维护演示计算平台服务器和虚拟机'),
+    ('示例基础架构组', '维护演示基础架构与物理服务器'),
+    ('示例数据运维组', '维护演示存储与数据库物理服务器'),
+    ('示例网络运维组', '维护演示网络设备')
+) AS v(name, description)
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
 UPDATE assets a SET team_id=t.id
 FROM teams t
-WHERE t.name=CASE WHEN a.kind IN ('host','vm') THEN '示例平台运维组' ELSE '示例网络运维组' END;
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
+  AND t.name = CASE
+      WHEN a.kind = 'host' THEN CASE (a.id % 3)
+          WHEN 0 THEN '示例平台运维组'
+          WHEN 1 THEN '示例基础架构组'
+          ELSE '示例数据运维组'
+      END
+      WHEN a.kind = 'vm' THEN '示例平台运维组'
+      ELSE '示例网络运维组'
+  END;
 
 INSERT INTO team_members (team_id, person_id)
-SELECT DISTINCT team_id, person_id FROM assets WHERE team_id IS NOT NULL AND person_id IS NOT NULL;
+SELECT DISTINCT team_id, person_id FROM assets
+WHERE team_id IS NOT NULL AND person_id IS NOT NULL AND EXISTS (SELECT 1 FROM demo_empty_guard)
+ON CONFLICT DO NOTHING;
 
 -- 显式写入主键后推进序列，避免后续新增记录主键冲突。
 SELECT setval(pg_get_serial_sequence('assets', 'id'), (SELECT max(id) FROM assets));

@@ -32,6 +32,8 @@ type importRow struct {
 var importHeaderAliases = map[string]string{
 	"资源名称": "name", "名称": "name", "name": "name",
 	"类型": "kind", "资源类型": "kind", "kind": "kind",
+	"品牌": "brand", "厂商": "brand", "brand": "brand",
+	"型号": "model", "设备型号": "model", "model": "model",
 	"平台": "platform", "platform": "platform",
 	"状态": "status", "status": "status",
 	"生命周期": "lifecycle", "lifecycle": "lifecycle",
@@ -119,6 +121,8 @@ type ImportPreviewRow struct {
 	Row         int    `json:"row"`
 	Name        string `json:"name"`
 	Kind        string `json:"kind"`
+	Brand       string `json:"brand"`
+	Model       string `json:"model"`
 	Platform    string `json:"platform"`
 	Status      string `json:"status"`
 	Lifecycle   string `json:"lifecycle"`
@@ -205,6 +209,7 @@ func PreviewImport(ctx context.Context, db *sql.DB, source io.Reader) (ImportPre
 	for _, row := range valid[:sampleSize] {
 		preview.Sample = append(preview.Sample, ImportPreviewRow{
 			Row: row.number, Name: row.fields.Name, Kind: row.fields.Kind,
+			Brand: row.fields.Brand, Model: row.fields.Model,
 			Platform: row.fields.Platform, Status: row.fields.Status, Lifecycle: row.fields.Lifecycle,
 			Address: row.fields.Address, CPU: row.fields.CPU, MemoryMiB: row.fields.MemoryMiB,
 			Owner: row.fields.Owner, Environment: row.fields.Environment, Notes: row.fields.Notes,
@@ -388,12 +393,13 @@ func decodeImportRow(record []string, columns map[string]int, rowNumber int) (Fi
 		return Fields{}, err
 	}
 	fields := Fields{
-		Kind: kind, Name: name, Platform: platform, Status: status, Lifecycle: lifecycle,
+		Kind: kind, Name: name, Brand: value("brand"), Model: value("model"),
+		Platform: platform, Status: status, Lifecycle: lifecycle,
 		Owner: value("owner"), Environment: value("environment"), Address: value("address"),
 		CPU: int(cpu), MemoryMiB: memory, Notes: value("notes"),
 	}
 	if err := validateFields(&fields); err != nil {
-		return Fields{}, importRowError(rowNumber, "%s", err)
+		return Fields{}, importRowError(rowNumber, "%s", strings.TrimPrefix(err.Error(), ErrInvalid.Error()+": "))
 	}
 	return fields, nil
 }

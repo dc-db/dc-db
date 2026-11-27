@@ -125,6 +125,9 @@ func (s *Server) bulkUpdateAssets(w http.ResponseWriter, r *http.Request) {
 		Lifecycle   *string `json:"lifecycle"`
 		Owner       *string `json:"owner"`
 		Environment *string `json:"environment"`
+		TeamID      *int64  `json:"teamId"`
+		Brand       *string `json:"brand"`
+		Model       *string `json:"model"`
 	}
 	if err := decode(w, r, &input); err != nil {
 		fail(w, http.StatusBadRequest, err.Error())
@@ -149,6 +152,7 @@ func (s *Server) bulkUpdateAssets(w http.ResponseWriter, r *http.Request) {
 	updated, err := BulkUpdateAssets(r.Context(), s.db, ids, BulkAssetPatch{
 		Status: input.Status, Platform: input.Platform, Lifecycle: input.Lifecycle,
 		Owner: input.Owner, Environment: input.Environment,
+		TeamID: input.TeamID, Brand: input.Brand, Model: input.Model,
 	}, currentUser(r).Username)
 	if err != nil {
 		s.databaseError(w, err)
@@ -176,7 +180,7 @@ func (s *Server) saveAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := validateFields(&input.Fields); err != nil {
-		fail(w, http.StatusBadRequest, err.Error())
+		fail(w, http.StatusBadRequest, strings.TrimPrefix(err.Error(), ErrInvalid.Error()+": "))
 		return
 	}
 	asset, err := SaveAsset(r.Context(), s.db, id, input.Version, input.Fields, currentUser(r).Username)
@@ -196,6 +200,9 @@ func validateFields(fields *Fields) error {
 	fields.Address = strings.TrimSpace(fields.Address)
 	fields.Owner = strings.TrimSpace(fields.Owner)
 	fields.Environment = strings.TrimSpace(fields.Environment)
+	if err := normalizeAndValidateBrandModel(fields); err != nil {
+		return err
+	}
 
 	switch fields.Kind {
 	case "host", "vm", "switch", "router", "firewall", "load_balancer":
@@ -237,6 +244,9 @@ func validateFields(fields *Fields) error {
 	}
 	if fields.RoomID < 0 {
 		return errors.New("数据中心编号无效")
+	}
+	if fields.TeamID < 0 {
+		return errors.New("团队编号无效")
 	}
 	return nil
 }
