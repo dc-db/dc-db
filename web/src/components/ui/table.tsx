@@ -12,7 +12,7 @@ function Table({
     <div
       data-slot="table-container"
       className={cn(
-        "relative w-full max-h-[var(--table-max-height)] overflow-auto rounded-md border border-border bg-background",
+        "relative isolate w-full max-h-[var(--table-max-height)] overflow-auto rounded-md border border-border bg-background",
         containerClassName
       )}
     >
@@ -30,7 +30,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
     <thead
       data-slot="table-header"
       className={cn(
-        "sticky top-0 z-20 bg-background [&_tr]:border-b-0 [&_th]:sticky [&_th]:top-0 [&_th]:z-20 [&_th]:bg-background [&_th]:[box-shadow:inset_0_-1px_0_var(--border)] [&_th]:transition-colors [&_tr:hover_th]:bg-[var(--table-header-hover-opaque)]",
+        "bg-background [&_tr]:border-b-0 [&_th]:sticky [&_th]:top-0 [&_th:not([data-pinned])]:z-20 [&_th]:bg-background [&_th:not([data-pinned])]:[box-shadow:inset_0_-1px_0_var(--border)] [&_th]:transition-colors [&_tr:hover_th]:bg-[var(--table-header-hover-opaque)]",
         className
       )}
       {...props}
@@ -42,7 +42,10 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
   return (
     <tbody
       data-slot="table-body"
-      className={cn("[&_tr:last-child]:border-0", className)}
+      className={cn(
+        "[&_td:not([data-pinned])]:[box-shadow:inset_0_-1px_0_var(--table-divider)] [&_td[data-pinned=left]]:[box-shadow:inset_-1px_0_0_var(--border),inset_0_-1px_0_var(--table-divider)] [&_tr:last-child_td:not([data-pinned])]:[box-shadow:none] [&_tr:last-child_td[data-pinned=left]]:[box-shadow:inset_-1px_0_0_var(--border)]",
+        className
+      )}
       {...props}
     />
   )
@@ -66,7 +69,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "group/row border-b border-border transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        "group/row border-b-0 transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted data-[state=selected]:hover:bg-muted data-[state=selected]:has-aria-expanded:bg-muted hover:[&_td[data-pinned=left]]:bg-[var(--table-header-hover-opaque)] has-aria-expanded:[&_td[data-pinned=left]]:bg-[var(--table-header-hover-opaque)] data-[state=selected]:[&_td[data-pinned=left]]:bg-[var(--table-row-selected)] data-[state=selected]:hover:[&_td[data-pinned=left]]:bg-[var(--table-row-selected)] data-[state=selected]:has-aria-expanded:[&_td[data-pinned=left]]:bg-[var(--table-row-selected)]",
         className
       )}
       {...props}

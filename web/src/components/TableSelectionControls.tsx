@@ -186,8 +186,10 @@ export function createRowSelectionColumn<TData>(
     enableSorting: false,
     enableHiding: false,
     meta: {
-      headerClassName: 'w-12 px-2 text-center',
-      cellClassName: 'w-12 px-2 text-center',
+      headerClassName:
+        'sticky top-0 left-0 z-30 w-12 min-w-12 px-2 text-center bg-background [box-shadow:inset_-1px_0_0_var(--border),inset_0_-1px_0_var(--border)]',
+      cellClassName:
+        'sticky left-0 z-10 w-12 min-w-12 px-2 text-center bg-background transition-colors group-hover/row:bg-[var(--table-header-hover-opaque)] group-data-[state=selected]/row:bg-[var(--table-row-selected)]',
     },
     header: ({ table }) => {
       const pageRows = table.getRowModel().rows

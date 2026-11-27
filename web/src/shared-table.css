@@ -1,7 +1,7 @@
 /* Shared visual baseline for asset and facility tables (1:1 tablecn). */
-div.shared-table-wrap { max-height: var(--table-max-height); overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); box-shadow: none; }
+div.shared-table-wrap { max-height: var(--table-max-height); overflow: auto; isolation: isolate; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); box-shadow: none; }
 table.shared-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
-table.shared-table thead { position: sticky; top: 0; z-index: 20; background: var(--bg); }
+table.shared-table thead { background: var(--bg); }
 table.shared-table thead tr { background: var(--bg); border-bottom: 0; }
 table.shared-table th { position: sticky; top: 0; z-index: 20; height: 40px; padding: 0 12px; background: var(--bg); box-shadow: inset 0 -1px 0 var(--border); color: var(--text); font-size: 14px; font-weight: 500; text-align: left; white-space: nowrap; transition: background-color .15s ease; }
 table.shared-table thead tr:hover th { background: var(--table-header-hover-opaque); }
@@ -10,13 +10,29 @@ table.shared-table th button:not([role="checkbox"])[data-filtered="true"] { back
 table.shared-table th button:not([role="checkbox"]):hover,
 table.shared-table th button:not([role="checkbox"])[data-state="open"] { background: var(--hover); color: var(--text); }
 table.shared-table th button:not([role="checkbox"]):focus-visible { outline: none; box-shadow: 0 0 0 1px var(--ring); }
-table.shared-table td { padding: 8px 12px; border-bottom: 1px solid var(--table-divider); color: var(--text); font-size: 14px; vertical-align: middle; white-space: nowrap; }
+table.shared-table td { padding: 8px 12px; border-bottom: 0; box-shadow: inset 0 -1px 0 var(--table-divider); color: var(--text); font-size: 14px; vertical-align: middle; white-space: nowrap; }
 table.shared-table th.col-select,
 table.shared-table td.col-select,
 table.shared-table th.shared-table-select-col,
-table.shared-table td.shared-table-select-col { width: 48px; padding: 0 8px; text-align: center; }
+table.shared-table td.shared-table-select-col { width: 48px; min-width: 48px; padding: 0 8px; text-align: center; }
+table.shared-table th.col-select,
+table.shared-table th.shared-table-select-col { position: sticky; top: 0; left: 0; z-index: 30; background: var(--bg); box-shadow: inset -1px 0 0 var(--border), inset 0 -1px 0 var(--border); }
+table.shared-table td.col-select,
+table.shared-table td.shared-table-select-col { position: sticky; left: 0; z-index: 10; background: var(--bg); box-shadow: inset -1px 0 0 var(--border), inset 0 -1px 0 var(--table-divider); transition: background-color .15s ease; }
 table.shared-table tbody tr { transition: background-color .15s ease; }
-table.shared-table tbody tr:last-child td { border-bottom: 0; }
+table.shared-table tbody tr:last-child td { box-shadow: none; }
+table.shared-table tbody tr:last-child td.col-select,
+table.shared-table tbody tr:last-child td.shared-table-select-col { box-shadow: inset -1px 0 0 var(--border); }
 table.shared-table tbody tr:hover { background: var(--table-row-hover); }
+table.shared-table tbody tr:hover td.col-select,
+table.shared-table tbody tr:hover td.shared-table-select-col { background: var(--table-header-hover-opaque); }
 table.shared-table tbody tr[data-state="selected"],
 table.shared-table tbody tr.is-selected { background: var(--table-row-selected); }
+table.shared-table tbody tr[data-state="selected"] td.col-select,
+table.shared-table tbody tr[data-state="selected"]:hover td.col-select,
+table.shared-table tbody tr[data-state="selected"] td.shared-table-select-col,
+table.shared-table tbody tr[data-state="selected"]:hover td.shared-table-select-col,
+table.shared-table tbody tr.is-selected td.col-select,
+table.shared-table tbody tr.is-selected:hover td.col-select,
+table.shared-table tbody tr.is-selected td.shared-table-select-col,
+table.shared-table tbody tr.is-selected:hover td.shared-table-select-col { background: var(--table-row-selected); }

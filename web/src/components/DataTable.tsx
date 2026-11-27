@@ -68,6 +68,7 @@ export function DataTable<T>({
           {table.getHeaderGroups().map(group => (
             <TableRow key={group.id}>
               {group.headers.map(header => {
+                const isPinnedLeft = header.column.id === 'select'
                 const system = isSystemColumn(header.column.id)
                 const canSort = !system && header.column.getCanSort()
                 const canHide = !system && header.column.getCanHide() && canStillHide
@@ -79,6 +80,7 @@ export function DataTable<T>({
                 return (
                   <TableHead
                     key={header.id}
+                    data-pinned={isPinnedLeft ? 'left' : undefined}
                     className={meta?.headerClassName}
                     aria-sort={canSort ? (sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none') : undefined}
                   >
@@ -126,9 +128,14 @@ export function DataTable<T>({
                 onClick={onRowClick ? event => onRowClick(row.original, event) : undefined}
               >
                 {row.getVisibleCells().map(cell => {
+                  const isPinnedLeft = cell.column.id === 'select'
                   const meta = cell.column.columnDef.meta as { cellClassName?: string } | undefined
                   return (
-                    <TableCell key={cell.id} className={meta?.cellClassName}>
+                    <TableCell
+                      key={cell.id}
+                      data-pinned={isPinnedLeft ? 'left' : undefined}
+                      className={meta?.cellClassName}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   )
