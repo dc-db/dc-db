@@ -1,14 +1,16 @@
 import { type FormEvent, type JSX, useEffect, useMemo, useState } from 'react'
-import { AlertCircle, Search } from 'lucide-react'
+import { AlertCircle, Check, ChevronDown, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { api, APIError, type Asset, type Group, type ServiceEntry, type ServiceInput } from '../api'
 import { SERVICE_CATEGORIES, serviceCatalog, serviceDefaultPort } from '../serviceCatalog'
 import { OptionSelect } from './OptionSelect'
 import { ServiceIcon } from './ServiceIcon'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
-import { Checkbox } from './ui/checkbox'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { Textarea } from './ui/textarea'
 
 export interface ServiceFormDialogProps {
@@ -21,13 +23,6 @@ export interface ServiceFormDialogProps {
   onSaved: (saved: ServiceEntry, isEdit: boolean) => void
 }
 
-const BUILTIN_ITEMS = serviceCatalog.flatMap(group =>
-  group.names.map(name => ({ name, category: group.category, port: serviceDefaultPort(name) })),
-)
-const BUILTIN_CATEGORY_OPTIONS = [
-  { value: '', label: '全部分类' },
-  ...serviceCatalog.map(group => ({ value: group.category, label: group.category })),
-]
 const CATEGORY_OPTIONS = SERVICE_CATEGORIES.map(cat => ({ value: cat, label: cat }))
 
 function toggleId(list: number[], id: number): number[] {
@@ -45,21 +40,24 @@ export function ServiceFormDialog({
   const [description, setDescription] = useState('')
   const [selectedAssetIds, setSelectedAssetIds] = useState<number[]>([])
   const [selectedProjectIds, setSelectedProjectIds] = useState<number[]>([])
-  const [builtinCategory, setBuiltinCategory] = useState('')
-  const [builtinQuery, setBuiltinQuery] = useState('')
-  const [assetQuery, setAssetQuery] = useState('')
-  const [projectQuery, setProjectQuery] = useState('')
+  const [builtinOpen, setBuiltinOpen] = useState(false)
+  const [assetOpen, setAssetOpen] = useState(false)
+  const [projectOpen, setProjectOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      setBuiltinOpen(false)
+      setAssetOpen(false)
+      setProjectOpen(false)
+      return
+    }
     setError('')
     setSaving(false)
-    setBuiltinCategory('')
-    setBuiltinQuery('')
-    setAssetQuery('')
-    setProjectQuery('')
+    setBuiltinOpen(false)
+    setAssetOpen(false)
+    setProjectOpen(false)
     if (editing) {
       setName(editing.name)
       setCategory(editing.category || '其他')
@@ -85,43 +83,39 @@ export function ServiceFormDialog({
     [existingNames],
   )
 
-  const filteredBuiltins = useMemo(() => {
-    const q = builtinQuery.trim().toLowerCase()
-    return BUILTIN_ITEMS.filter(item => {
-      if (builtinCategory && item.category !== builtinCategory) return false
-      return !q || item.name.toLowerCase().includes(q) || item.category.toLowerCase().includes(q)
-    })
-  }, [builtinCategory, builtinQuery])
+  const nodeAssets = useMemo(
+    () => assets.filter(asset => asset.kind === 'host' || asset.kind === 'vm'),
+    [assets],
+  )
 
-  const nodeAssets = useMemo(() => {
-    const q = assetQuery.trim().toLowerCase()
-    return assets.filter(asset => {
-      if (asset.kind !== 'host' && asset.kind !== 'vm') return false
-      return !q || asset.name.toLowerCase().includes(q) || asset.address.toLowerCase().includes(q)
-    })
-  }, [assets, assetQuery])
+  const selectedAssets = useMemo(() => {
+    const byId = new Map(nodeAssets.map(asset => [asset.id, asset]))
+    return selectedAssetIds.map(id => byId.get(id)).filter((asset): asset is Asset => Boolean(asset))
+  }, [nodeAssets, selectedAssetIds])
 
-  const filteredGroups = useMemo(() => {
-    const q = projectQuery.trim().toLowerCase()
-    return q ? groups.filter(g => g.name.toLowerCase().includes(q)) : groups
-  }, [groups, projectQuery])
+  const selectedProjects = useMemo(() => {
+    const byId = new Map(groups.map(group => [group.id, group]))
+    return selectedProjectIds.map(id => byId.get(id)).filter((group): group is Group => Boolean(group))
+  }, [groups, selectedProjectIds])
 
   function switchMode(next: 'builtin' | 'custom') {
     if (next === mode) return
     setMode(next)
+    setBuiltinOpen(false)
     setError('')
     setName('')
     setPort('')
     setBuiltin(next === 'builtin')
-    setCategory(next === 'builtin' ? '' : '业务应用')
+    setCategory('业务应用')
   }
 
-  function selectBuiltin(item: (typeof BUILTIN_ITEMS)[number]) {
-    setName(item.name)
-    setCategory(item.category)
-    setPort(item.port ? String(item.port) : '')
+  function selectBuiltin(svcName: string, svcCategory: string, defaultPort: number | undefined) {
+    setName(svcName)
+    setCategory(svcCategory)
+    setPort(defaultPort ? String(defaultPort) : '')
     setBuiltin(true)
     setError('')
+    setBuiltinOpen(false)
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -173,93 +167,124 @@ export function ServiceFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+        <DialogHeader className="shrink-0 border-b border-border px-5 py-4 pr-11">
           <DialogTitle>{editing ? '编辑服务' : '新增服务'}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              <AlertCircle className="size-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {!editing && (
-            <div className="grid grid-cols-2 rounded-md border border-border bg-muted/50 p-0.5 text-sm">
-              {([['builtin', '选择内置服务'], ['custom', '自定义服务']] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => switchMode(value)}
-                  className={`rounded-sm px-3 py-1.5 font-medium transition-colors ${
-                    mode === value
-                      ? 'bg-background text-foreground shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {!editing && mode === 'builtin' ? (
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <OptionSelect
-                  value={builtinCategory}
-                  onChange={setBuiltinCategory}
-                  options={BUILTIN_CATEGORY_OPTIONS}
-                  label="服务分类"
-                  className="w-36 shrink-0"
-                />
-                <div className="relative flex-1">
-                  <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={builtinQuery}
-                    onChange={e => setBuiltinQuery(e.target.value)}
-                    placeholder="搜索内置服务…"
-                    className="pl-8"
-                  />
-                </div>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+            {error && (
+              <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <AlertCircle className="size-4 shrink-0" />
+                <span>{error}</span>
               </div>
-              <div className="grid max-h-44 grid-cols-2 gap-1.5 overflow-y-auto rounded-md border border-border p-1.5">
-                {filteredBuiltins.map(item => {
-                  const exists = existingSet.has(item.name.toLowerCase())
-                  const selected = name === item.name
-                  return (
-                    <button
-                      key={item.name}
+            )}
+
+            {!editing && (
+              <div className="grid grid-cols-2 rounded-md border border-border bg-muted/50 p-0.5 text-sm">
+                {([['builtin', '选择内置服务'], ['custom', '自定义服务']] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => switchMode(value)}
+                    className={cn(
+                      'rounded-sm px-3 py-1.5 font-medium transition-colors',
+                      mode === value
+                        ? 'bg-background text-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {!editing && mode === 'builtin' ? (
+              <div className="space-y-1.5">
+                <label htmlFor="service-builtin" className="text-sm font-medium">内置服务</label>
+                <Popover open={builtinOpen} onOpenChange={setBuiltinOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="service-builtin"
                       type="button"
-                      disabled={exists}
-                      onClick={() => selectBuiltin(item)}
-                      className={`flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-sm transition-colors ${
-                        exists
-                          ? 'cursor-not-allowed border-transparent bg-muted/40 text-muted-foreground opacity-60'
-                          : selected
-                            ? 'border-foreground bg-accent text-foreground'
-                            : 'border-transparent hover:bg-accent/60'
-                      }`}
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={builtinOpen}
+                      className="h-9 w-full justify-between px-3 font-normal"
                     >
-                      <span className="flex min-w-0 items-center gap-2">
-                        <ServiceIcon name={item.name} category={item.category} />
-                        <span className="truncate font-medium">{item.name}</span>
-                      </span>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {exists ? '已添加' : item.port ? `:${item.port}` : ''}
-                      </span>
-                    </button>
-                  )
-                })}
-                {filteredBuiltins.length === 0 && (
-                  <p className="col-span-2 py-4 text-center text-xs text-muted-foreground">无匹配的内置服务</p>
-                )}
+                      {name ? (
+                        <span className="flex min-w-0 items-center gap-2">
+                          <ServiceIcon name={name} category={category} />
+                          <span className="truncate font-medium text-foreground">{name}</span>
+                          {port && (
+                            <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
+                              :{port}
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">请选择系统内置服务…</span>
+                      )}
+                      <ChevronDown
+                        className={cn(
+                          'ml-2 size-4 shrink-0 text-muted-foreground transition-transform',
+                          builtinOpen && 'rotate-180',
+                        )}
+                      />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
+                    <Command>
+                      <CommandInput placeholder="搜索内置服务名称或分类…" className="h-8 text-sm" />
+                      <CommandList className="max-h-64 overflow-y-auto" onWheel={e => e.stopPropagation()}>
+                        <CommandEmpty>未找到匹配的内置服务</CommandEmpty>
+                        {serviceCatalog.map(group => (
+                          <CommandGroup key={group.category} heading={group.category}>
+                            {group.names.map(svcName => {
+                              const exists = existingSet.has(svcName.toLowerCase())
+                              const selected = name === svcName
+                              const defaultPort = serviceDefaultPort(svcName)
+                              return (
+                                <CommandItem
+                                  key={svcName}
+                                  value={`${svcName} ${group.category}`}
+                                  disabled={exists}
+                                  onSelect={() => {
+                                    if (exists) return
+                                    selectBuiltin(svcName, group.category, defaultPort)
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                                >
+                                  <ServiceIcon name={svcName} category={group.category} />
+                                  <span className="min-w-0 truncate">{svcName}</span>
+                                  {defaultPort && (
+                                    <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
+                                      :{defaultPort}
+                                    </span>
+                                  )}
+                                  {exists ? (
+                                    <span className="ml-auto shrink-0 text-xs text-muted-foreground">已添加</span>
+                                  ) : (
+                                    <Check
+                                      className={cn(
+                                        'ml-auto size-4 shrink-0 text-foreground',
+                                        selected ? 'opacity-100' : 'opacity-0',
+                                      )}
+                                    />
+                                  )}
+                                </CommandItem>
+                              )
+                            })}
+                          </CommandGroup>
+                        ))}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
+            ) : (
               <div className="space-y-1.5">
                 <label htmlFor="service-name" className="text-sm font-medium">服务名称</label>
                 <div className="flex items-center gap-2">
@@ -274,122 +299,208 @@ export function ServiceFormDialog({
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label htmlFor="service-category" className="text-sm font-medium">分类</label>
-                  <OptionSelect
-                    id="service-category"
-                    value={category}
-                    onChange={setCategory}
-                    options={CATEGORY_OPTIONS}
-                    className="w-full"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label htmlFor="service-port" className="text-sm font-medium">默认端口</label>
-                  <Input
-                    id="service-port"
-                    type="number"
-                    min={1}
-                    max={65535}
-                    value={port}
-                    onChange={e => setPort(e.target.value)}
-                    placeholder="可选，如 8080"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+            )}
 
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">部署节点 ({selectedAssetIds.length})</span>
-            </div>
-            <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={assetQuery}
-                onChange={e => setAssetQuery(e.target.value)}
-                placeholder="搜索服务器或虚拟机名称、IP…"
-                className="h-8 pl-8 text-sm"
-              />
-            </div>
-            <div className="max-h-36 space-y-0.5 overflow-y-auto rounded-md border border-border p-1.5">
-              {nodeAssets.map(asset => {
-                const checked = selectedAssetIds.includes(asset.id)
-                return (
-                  <label
-                    key={asset.id}
-                    className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-accent/60"
-                  >
-                    <Checkbox
-                      checked={checked}
-                      onCheckedChange={() => setSelectedAssetIds(prev => toggleId(prev, asset.id))}
-                    />
-                    <span className="min-w-0 flex-1 truncate">{asset.name}</span>
-                    <Badge variant="outline" className="shrink-0 text-[11px]">
-                      {asset.kind === 'host' ? '服务器' : '虚拟机'}
-                    </Badge>
-                    {asset.address && (
-                      <span className="shrink-0 font-mono text-xs text-muted-foreground">{asset.address}</span>
-                    )}
-                  </label>
-                )
-              })}
-              {nodeAssets.length === 0 && (
-                <p className="py-3 text-center text-xs text-muted-foreground">暂无可选部署节点</p>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <span className="text-sm font-medium">依赖项目 ({selectedProjectIds.length})</span>
-            {groups.length > 6 && (
-              <div className="relative">
-                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={projectQuery}
-                  onChange={e => setProjectQuery(e.target.value)}
-                  placeholder="搜索项目名称…"
-                  className="h-8 pl-8 text-sm"
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label htmlFor="service-category" className="text-sm font-medium">分类</label>
+                <OptionSelect
+                  id="service-category"
+                  value={category}
+                  onChange={setCategory}
+                  options={CATEGORY_OPTIONS}
+                  className="w-full"
                 />
               </div>
-            )}
-            <div className="max-h-32 space-y-0.5 overflow-y-auto rounded-md border border-border p-1.5">
-              {filteredGroups.map(group => {
-                const checked = selectedProjectIds.includes(group.id)
-                return (
-                  <label
-                    key={group.id}
-                    className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-accent/60"
+              <div className="space-y-1.5">
+                <label htmlFor="service-port" className="text-sm font-medium">默认端口</label>
+                <Input
+                  id="service-port"
+                  type="number"
+                  min={1}
+                  max={65535}
+                  value={port}
+                  onChange={e => setPort(e.target.value)}
+                  placeholder="可选，如 8080"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="service-assets" className="text-sm font-medium">部署节点</label>
+              <Popover open={assetOpen} onOpenChange={setAssetOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="service-assets"
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={assetOpen}
+                    className="h-9 w-full justify-between px-3 font-normal"
                   >
-                    <Checkbox
-                      checked={checked}
-                      onCheckedChange={() => setSelectedProjectIds(prev => toggleId(prev, group.id))}
+                    <span className={cn('truncate', selectedAssetIds.length === 0 && 'text-muted-foreground')}>
+                      {selectedAssetIds.length > 0 ? `已选择 ${selectedAssetIds.length} 台节点` : '选择部署主机或虚拟机…'}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        'ml-2 size-4 shrink-0 text-muted-foreground transition-transform',
+                        assetOpen && 'rotate-180',
+                      )}
                     />
-                    <span className="min-w-0 flex-1 truncate">{group.name}</span>
-                  </label>
-                )
-              })}
-              {filteredGroups.length === 0 && (
-                <p className="py-3 text-center text-xs text-muted-foreground">暂无可选项目</p>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
+                  <Command>
+                    <CommandInput placeholder="搜索主机名或 IP…" className="h-8 text-sm" />
+                    <CommandList className="max-h-56 overflow-y-auto" onWheel={e => e.stopPropagation()}>
+                      <CommandEmpty>未找到匹配的部署节点</CommandEmpty>
+                      <CommandGroup>
+                        {nodeAssets.map(asset => {
+                          const checked = selectedAssetIds.includes(asset.id)
+                          const kindLabel = asset.kind === 'host' ? '服务器' : '虚拟机'
+                          return (
+                            <CommandItem
+                              key={asset.id}
+                              value={`${asset.name} ${asset.address ?? ''} ${kindLabel}`}
+                              onSelect={() => setSelectedAssetIds(prev => toggleId(prev, asset.id))}
+                              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                            >
+                              <span
+                                className={cn(
+                                  'flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors',
+                                  checked
+                                    ? 'border-foreground bg-foreground text-background'
+                                    : 'border-input bg-background',
+                                )}
+                              >
+                                {checked && <Check className="size-3 text-background" />}
+                              </span>
+                              <span className="min-w-0 flex-1 truncate">{asset.name}</span>
+                              <Badge variant="outline" className="shrink-0 text-[11px]">
+                                {kindLabel}
+                              </Badge>
+                              {asset.address && (
+                                <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
+                                  {asset.address}
+                                </span>
+                              )}
+                            </CommandItem>
+                          )
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {selectedAssets.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {selectedAssets.map(asset => (
+                    <Badge key={asset.id} variant="secondary" className="gap-1 pr-1 font-normal">
+                      <span className="max-w-[180px] truncate">{asset.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAssetIds(prev => prev.filter(id => id !== asset.id))}
+                        className="rounded-sm p-0.5 text-muted-foreground transition-colors hover:bg-background/60 hover:text-foreground"
+                        aria-label={`移除 ${asset.name}`}
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
               )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="service-projects" className="text-sm font-medium">依赖项目</label>
+              <Popover open={projectOpen} onOpenChange={setProjectOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="service-projects"
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={projectOpen}
+                    className="h-9 w-full justify-between px-3 font-normal"
+                  >
+                    <span className={cn('truncate', selectedProjectIds.length === 0 && 'text-muted-foreground')}>
+                      {selectedProjectIds.length > 0 ? `已选择 ${selectedProjectIds.length} 个项目` : '选择依赖项目…'}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        'ml-2 size-4 shrink-0 text-muted-foreground transition-transform',
+                        projectOpen && 'rotate-180',
+                      )}
+                    />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
+                  <Command>
+                    <CommandInput placeholder="搜索项目名称…" className="h-8 text-sm" />
+                    <CommandList className="max-h-52 overflow-y-auto" onWheel={e => e.stopPropagation()}>
+                      <CommandEmpty>未找到匹配的项目</CommandEmpty>
+                      <CommandGroup>
+                        {groups.map(group => {
+                          const checked = selectedProjectIds.includes(group.id)
+                          return (
+                            <CommandItem
+                              key={group.id}
+                              value={group.name}
+                              onSelect={() => setSelectedProjectIds(prev => toggleId(prev, group.id))}
+                              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                            >
+                              <span
+                                className={cn(
+                                  'flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors',
+                                  checked
+                                    ? 'border-foreground bg-foreground text-background'
+                                    : 'border-input bg-background',
+                                )}
+                              >
+                                {checked && <Check className="size-3 text-background" />}
+                              </span>
+                              <span className="min-w-0 flex-1 truncate">{group.name}</span>
+                            </CommandItem>
+                          )
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {selectedProjects.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {selectedProjects.map(group => (
+                    <Badge key={group.id} variant="secondary" className="gap-1 pr-1 font-normal">
+                      <span className="max-w-[180px] truncate">{group.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedProjectIds(prev => prev.filter(id => id !== group.id))}
+                        className="rounded-sm p-0.5 text-muted-foreground transition-colors hover:bg-background/60 hover:text-foreground"
+                        aria-label={`移除 ${group.name}`}
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="service-description" className="text-sm font-medium">备注</label>
+              <Textarea
+                id="service-description"
+                maxLength={300}
+                rows={2}
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="可选，填写用途或说明"
+              />
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label htmlFor="service-description" className="text-sm font-medium">备注</label>
-            <Textarea
-              id="service-description"
-              maxLength={300}
-              rows={2}
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="可选，填写用途或说明"
-            />
-          </div>
-
-          <DialogFooter>
+          <DialogFooter className="m-0 shrink-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
               取消
             </Button>

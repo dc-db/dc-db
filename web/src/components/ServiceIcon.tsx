@@ -34,7 +34,7 @@ export function ServiceIcon({ name, category }: { name: string; category?: strin
     } as CSSProperties
     return (
       <span className="service-icon is-brand" title={brand.title} style={style}>
-        <svg viewBox="0 0 24 24" className="service-brand-svg" aria-hidden="true">
+        <svg viewBox="0 0 24 24" className="service-brand-svg text-current" aria-hidden="true">
           <path d={brand.path} fill="currentColor" />
         </svg>
       </span>
