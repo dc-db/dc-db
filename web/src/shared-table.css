@@ -5,7 +5,7 @@ table.shared-table thead { background: var(--bg); }
 table.shared-table thead tr { background: var(--bg); border-bottom: 0; }
 table.shared-table th { position: sticky; top: 0; z-index: 20; height: 40px; padding: 0 12px; background: var(--bg); box-shadow: inset 0 -1px 0 var(--border); color: var(--text); font-size: 14px; font-weight: 500; text-align: left; white-space: nowrap; transition: background-color .15s ease; }
 table.shared-table thead tr:hover th { background: var(--table-header-hover-opaque); }
-table.shared-table th button:not([role="checkbox"]) { display: inline-flex; align-items: center; gap: 6px; height: 32px; max-width: 100%; min-width: 0; margin-left: -6px; padding: 6px 8px; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text); font-size: 14px; font-weight: 500; line-height: 1.25; cursor: pointer; transition: color .15s ease, background-color .15s ease; }
+table.shared-table th button:not([role="checkbox"]) { display: inline-flex; align-items: center; gap: 6px; height: 32px; margin-left: -6px; padding: 6px 8px; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text); font-size: 14px; font-weight: 500; line-height: 1.25; white-space: nowrap; cursor: pointer; transition: color .15s ease, background-color .15s ease; }
 table.shared-table th button:not([role="checkbox"])[data-filtered="true"] { background: color-mix(in srgb, var(--hover) 70%, transparent); color: var(--text); }
 table.shared-table th button:not([role="checkbox"]):hover,
 table.shared-table th button:not([role="checkbox"])[data-state="open"] { background: var(--hover); color: var(--text); }

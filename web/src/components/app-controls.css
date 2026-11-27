@@ -83,7 +83,7 @@ html[data-theme="dark"] .control-alert.error { color: var(--danger); border-colo
 .control-table td.col-select { width: 48px; min-width: 48px; padding: 0 8px; text-align: center; }
 .control-table th.col-select { position: sticky; top: 0; left: 0; z-index: 30; background: var(--bg); box-shadow: inset -1px 0 0 var(--border), inset 0 -1px 0 var(--border); }
 .control-table td.col-select { position: sticky; left: 0; z-index: 10; background: var(--bg); box-shadow: inset -1px 0 0 var(--border), inset 0 -1px 0 var(--table-divider); transition: background-color .15s ease; }
-.control-table th button.control-sort-button { display: inline-flex; align-items: center; gap: 6px; height: 32px; max-width: 100%; min-width: 0; margin-left: -6px; padding: 6px 8px; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text); font-size: 14px; font-weight: 500; line-height: 1.25; cursor: pointer; transition: color .15s ease, background-color .15s ease; }
+.control-table th button.control-sort-button { display: inline-flex; align-items: center; gap: 6px; height: 32px; margin-left: -6px; padding: 6px 8px; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text); font-size: 14px; font-weight: 500; line-height: 1.25; white-space: nowrap; cursor: pointer; transition: color .15s ease, background-color .15s ease; }
 .control-table th button.control-sort-button:hover,
 .control-table th button.control-sort-button[data-state="open"] { color: var(--text); background: var(--hover); }
 .control-table th button.control-sort-button:focus-visible { outline: none; box-shadow: 0 0 0 1px var(--ring); }

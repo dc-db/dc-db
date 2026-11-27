@@ -317,11 +317,11 @@ export function ColumnHeaderMenu({
             type="button"
             onClick={e => e.stopPropagation()}
             className={cn(
-              '-ml-1.5 inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[state=open]:bg-accent',
+              '-ml-1.5 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium whitespace-nowrap text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[state=open]:bg-accent',
               className,
             )}
           >
-            <span className="truncate">{title}</span>
+            <span className="whitespace-nowrap">{title}</span>
             {canSort && (
               sortDirection === 'asc'
                 ? <ChevronUp className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -405,14 +405,14 @@ export function ColumnHeaderMenu({
           data-filtered={activeFilterCount > 0 ? 'true' : undefined}
           onClick={e => e.stopPropagation()}
           className={cn(
-            '-ml-1.5 inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[state=open]:bg-accent',
+            '-ml-1.5 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[state=open]:bg-accent',
             activeFilterCount > 0
               ? 'bg-accent/70 text-foreground hover:bg-accent'
               : 'text-foreground hover:bg-accent',
             className,
           )}
         >
-          <span className="truncate">{title}</span>
+          <span className="whitespace-nowrap">{title}</span>
           {activeFilterCount > 0 && (
             <span
               className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-sm bg-primary px-1 text-[11px] font-medium leading-none text-primary-foreground tabular-nums"
