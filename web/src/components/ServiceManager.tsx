@@ -381,8 +381,13 @@ export function ServiceManager({ editable, assets, groups, onOpenAsset, onSessio
       existingNames={existingNames}
       assets={assets}
       groups={groups}
-      onOpenChange={setFormOpen}
+      onOpenChange={next => {
+        setFormOpen(next)
+        if (!next) setEditing(null)
+      }}
       onSaved={(saved, isEdit) => {
+        setFormOpen(false)
+        setEditing(null)
         void load()
         onChanged?.()
         setFeedback(isEdit ? `服务「${saved.name}」已更新` : `服务「${saved.name}」已添加`)

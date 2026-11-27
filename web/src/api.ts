@@ -55,7 +55,14 @@ export interface AssetFields {
   roomId: number
 }
 
-export interface ServiceInstance { name: string }
+export interface ServiceInstance {
+  id?: number
+  serviceId?: number
+  name: string
+  category?: string
+}
+
+export type AssetServiceInstance = ServiceInstance
 
 export interface ServiceRef {
   id: number

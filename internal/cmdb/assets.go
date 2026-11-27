@@ -28,26 +28,26 @@ const (
 )
 
 type Fields struct {
-	Services     *[]ServiceInstance `json:"services,omitempty"`
-	Kind         string             `json:"kind"`
-	Name         string             `json:"name"`
-	Brand        string             `json:"brand"`
-	Model        string             `json:"model"`
-	Platform     string             `json:"platform"`
-	Status       string             `json:"status"`
-	Lifecycle    string             `json:"lifecycle"`
-	Owner        string             `json:"owner"`
-	Environment  string             `json:"environment"`
-	Address      string             `json:"address"`
-	ProbeEnabled bool               `json:"probeEnabled"`
-	CPU          int                `json:"cpu"`
-	MemoryMiB    int64              `json:"memoryMiB"`
-	Disks        []DiskSpec         `json:"disks"`
-	TeamID       int64              `json:"teamId"`
-	PersonID     int64              `json:"personId"`
-	GroupID      int64              `json:"groupId"`
-	Notes        string             `json:"notes"`
-	RoomID       int64              `json:"roomId"`
+	Services     *[]AssetServiceInstance `json:"services,omitempty"`
+	Kind         string                  `json:"kind"`
+	Name         string                  `json:"name"`
+	Brand        string                  `json:"brand"`
+	Model        string                  `json:"model"`
+	Platform     string                  `json:"platform"`
+	Status       string                  `json:"status"`
+	Lifecycle    string                  `json:"lifecycle"`
+	Owner        string                  `json:"owner"`
+	Environment  string                  `json:"environment"`
+	Address      string                  `json:"address"`
+	ProbeEnabled bool                    `json:"probeEnabled"`
+	CPU          int                     `json:"cpu"`
+	MemoryMiB    int64                   `json:"memoryMiB"`
+	Disks        []DiskSpec              `json:"disks"`
+	TeamID       int64                   `json:"teamId"`
+	PersonID     int64                   `json:"personId"`
+	GroupID      int64                   `json:"groupId"`
+	Notes        string                  `json:"notes"`
+	RoomID       int64                   `json:"roomId"`
 }
 
 type Asset struct {
@@ -132,20 +132,24 @@ func ListAssets(ctx context.Context, db *sql.DB) ([]Asset, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	serviceRows, err := db.QueryContext(ctx, "SELECT asset_id,name FROM asset_service_instances ORDER BY asset_id,id")
+	serviceRows, err := db.QueryContext(ctx, `
+		SELECT asi.asset_id, asi.id, asi.service_id, s.name, s.category
+		FROM asset_service_instances asi
+		JOIN services s ON s.id = asi.service_id
+		ORDER BY asi.asset_id, asi.id`)
 	if err != nil {
 		return nil, err
 	}
 	defer serviceRows.Close()
 	for serviceRows.Next() {
-		var id int64
-		var item ServiceInstance
-		if err := serviceRows.Scan(&id, &item.Name); err != nil {
+		var assetID int64
+		var item AssetServiceInstance
+		if err := serviceRows.Scan(&assetID, &item.ID, &item.ServiceID, &item.Name, &item.Category); err != nil {
 			return nil, err
 		}
-		if index, ok := indices[id]; ok {
+		if index, ok := indices[assetID]; ok {
 			if assets[index].Services == nil {
-				empty := []ServiceInstance{}
+				empty := []AssetServiceInstance{}
 				assets[index].Services = &empty
 			}
 			*assets[index].Services = append(*assets[index].Services, item)
@@ -312,7 +316,9 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 		if _, err := replaceAssetServices(ctx, tx, asset.ID, requestedServices, actor, asset.Name); err != nil {
 			return Asset{}, err
 		}
-		asset.Services = requestedServices
+		if requestedServices != nil {
+			asset.Services = assetServicesPtr(*requestedServices)
+		}
 		return asset, tx.Commit()
 	}
 
@@ -339,7 +345,15 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 				return Asset{}, err
 			}
 		}
-		before.Services = requestedServices
+		if requestedServices != nil {
+			before.Services = assetServicesPtr(*requestedServices)
+		} else {
+			currentServices, err := listAssetServices(ctx, tx, id)
+			if err != nil {
+				return Asset{}, err
+			}
+			before.Services = assetServicesPtr(currentServices)
+		}
 		return before, tx.Commit()
 	}
 
@@ -367,7 +381,15 @@ func SaveAsset(ctx context.Context, db *sql.DB, id int64, version int, fields Fi
 	if _, err := replaceAssetServices(ctx, tx, id, requestedServices, actor, asset.Name); err != nil {
 		return Asset{}, err
 	}
-	asset.Services = requestedServices
+	if requestedServices != nil {
+		asset.Services = assetServicesPtr(*requestedServices)
+	} else {
+		currentServices, err := listAssetServices(ctx, tx, id)
+		if err != nil {
+			return Asset{}, err
+		}
+		asset.Services = assetServicesPtr(currentServices)
+	}
 	return asset, tx.Commit()
 }
 

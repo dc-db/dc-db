@@ -6,7 +6,7 @@ import { SearchableSelect } from './SearchableSelect'
 import { Textarea } from './ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Plus, Trash2 } from 'lucide-react'
-import type { Asset, AssetFields, DiskSpec, DiskType, Group, Kind, Person, ServiceInstance, Team } from '../api'
+import type { Asset, AssetFields, DiskSpec, DiskType, Group, Kind, Person, ServiceEntry, ServiceInstance, Team } from '../api'
 import { ALL_KINDS, NETWORK_KINDS, isNetworkKind, KIND_LABELS } from '../kinds'
 import { ServicePicker } from './ServicePicker'
 import { formatMemory, parseMemory } from '../lib/memory'
@@ -50,6 +50,7 @@ interface Props {
   groups: Group[]
   people: Person[]
   teams: Team[]
+  services?: ServiceEntry[]
   rooms?: { id: number; name: string }[]
   defaultRoomId?: number
   mountedRoomId?: number
@@ -92,7 +93,7 @@ function Choice({ value, options, onChange, disabled, className, ariaLabel }: {
   </Select>
 }
 
-export function AssetEditor({ asset, defaultKind, busy, error, groups, people, teams, rooms, defaultRoomId, mountedRoomId, createFromList = false, onSave, onCancel }: Props) {
+export function AssetEditor({ asset, defaultKind, busy, error, groups, people, teams, services, rooms, defaultRoomId, mountedRoomId, createFromList = false, onSave, onCancel }: Props) {
   const [fields, setFields] = useState<AssetFields>(() => buildInitialFields(asset, defaultKind))
   const [serviceRows, setServiceRows] = useState<ServiceInstance[]>(() => (asset?.services ?? []).map(item => ({ ...item })))
   const [diskRows, setDiskRows] = useState<DiskRow[]>(() => buildInitialDiskRows(asset))
@@ -219,6 +220,18 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, people, t
       return
     }
     setValidation('')
+    const dedupedServices: ServiceInstance[] = []
+    if (!networkDevice) {
+      const seen = new Set<string>()
+      for (const row of serviceRows) {
+        const trimmed = row.name.trim()
+        if (!trimmed) continue
+        const key = trimmed.toLowerCase()
+        if (seen.has(key)) continue
+        seen.add(key)
+        dedupedServices.push({ name: trimmed })
+      }
+    }
     onSave({
       ...fields,
       name,
@@ -231,7 +244,7 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, people, t
       disks: networkDevice ? [] : parsedDisks,
       groupId: Number(fields.groupId || 0),
       ...(!networkDevice ? { personId: 0, owner: '' } : {}),
-      services: networkDevice ? undefined : serviceRows,
+      services: networkDevice ? undefined : dedupedServices,
       version: asset?.version ?? 0,
     })
   }
@@ -420,10 +433,23 @@ export function AssetEditor({ asset, defaultKind, busy, error, groups, people, t
       /></div>}
       {!networkDevice && <div className="col-span-2 grid gap-3 asset-create-services">
         <div>运行服务</div>
-        {serviceRows.map((service, index) => <div key={index} className="flex items-end gap-2">
-          <div className="min-w-0 flex-1"><ServicePicker value={service.name} onChange={value => setServiceRows(rows => rows.map((row, i) => i === index ? { name: value } : row))} /></div>
-          <Button type="button" variant="ghost" size="icon" aria-label="删除服务" onClick={() => setServiceRows(rows => rows.filter((_, i) => i !== index))}><Trash2 /></Button>
-        </div>)}
+        {serviceRows.map((service, index) => {
+          const excludedNames = serviceRows
+            .filter((_, i) => i !== index)
+            .map(row => row.name.trim())
+            .filter(Boolean)
+          return <div key={index} className="flex items-end gap-2">
+            <div className="min-w-0 flex-1">
+              <ServicePicker
+                value={service.name}
+                registeredServices={services}
+                excludedNames={excludedNames}
+                onChange={value => setServiceRows(rows => rows.map((row, i) => i === index ? { name: value } : row))}
+              />
+            </div>
+            <Button type="button" variant="ghost" size="icon" aria-label="删除服务" title="删除服务" onClick={() => setServiceRows(rows => rows.filter((_, i) => i !== index))}><Trash2 /></Button>
+          </div>
+        })}
         <Button type="button" variant="outline" onClick={() => setServiceRows(rows => [...rows, { name: '' }])}><Plus />添加服务</Button>
       </div>}
       {asset && <label className="col-span-2 grid gap-2 asset-field-lifecycle">生命周期<Choice value={fields.lifecycle} onChange={value => update('lifecycle', value as AssetFields['lifecycle'])} options={[{ value: 'active', label: '在册' }, { value: 'retired', label: '已退役' }]} /></label>}

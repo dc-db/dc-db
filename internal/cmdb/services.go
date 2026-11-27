@@ -3,15 +3,74 @@ package cmdb
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 	"time"
 	"unicode/utf8"
 )
 
-type ServiceInstance struct {
-	Name string `json:"name"`
+type AssetServiceInstance struct {
+	ID        int64  `json:"id,omitempty"`
+	ServiceID int64  `json:"serviceId,omitempty"`
+	Name      string `json:"name"`
+	Category  string `json:"category,omitempty"`
+}
+
+// ServiceInstance aliases AssetServiceInstance for backwards compatibility within package callers.
+type ServiceInstance = AssetServiceInstance
+
+type builtinServiceSpec struct {
+	Name     string
+	Category string
+}
+
+// builtinServiceCatalog mirrors web/src/serviceCatalog.ts (28 built-in services).
+var builtinServiceCatalog = map[string]builtinServiceSpec{
+	// Web 服务
+	"nginx":        {Name: "nginx", Category: "Web 服务"},
+	"caddy":        {Name: "caddy", Category: "Web 服务"},
+	"apache-httpd": {Name: "apache-httpd", Category: "Web 服务"},
+	// 数据库
+	"mysql":      {Name: "mysql", Category: "数据库"},
+	"postgresql": {Name: "postgresql", Category: "数据库"},
+	"mongodb":    {Name: "mongodb", Category: "数据库"},
+	"clickhouse": {Name: "clickhouse", Category: "数据库"},
+	// 缓存
+	"redis":     {Name: "redis", Category: "缓存"},
+	"memcached": {Name: "memcached", Category: "缓存"},
+	// 消息队列
+	"kafka":    {Name: "kafka", Category: "消息队列"},
+	"rabbitmq": {Name: "rabbitmq", Category: "消息队列"},
+	"nats":     {Name: "nats", Category: "消息队列"},
+	// 搜索
+	"elasticsearch": {Name: "elasticsearch", Category: "搜索"},
+	// 监控
+	"prometheus": {Name: "prometheus", Category: "监控"},
+	"grafana":    {Name: "grafana", Category: "监控"},
+	"loki":       {Name: "loki", Category: "监控"},
+	"zabbix":     {Name: "zabbix", Category: "监控"},
+	// 存储
+	"minio": {Name: "minio", Category: "存储"},
+	"ceph":  {Name: "ceph", Category: "存储"},
+	// 研发工具
+	"gitlab":   {Name: "gitlab", Category: "研发工具"},
+	"gitea":    {Name: "gitea", Category: "研发工具"},
+	"jenkins":  {Name: "jenkins", Category: "研发工具"},
+	"harbor":   {Name: "harbor", Category: "研发工具"},
+	"registry": {Name: "registry", Category: "研发工具"},
+	// 基础设施
+	"etcd":      {Name: "etcd", Category: "基础设施"},
+	"zookeeper": {Name: "zookeeper", Category: "基础设施"},
+	"consul":    {Name: "consul", Category: "基础设施"},
+	"vault":     {Name: "vault", Category: "基础设施"},
+}
+
+const defaultCustomServiceCategory = "业务应用"
+
+func lookupBuiltinService(name string) (builtinServiceSpec, bool) {
+	spec, ok := builtinServiceCatalog[strings.ToLower(strings.TrimSpace(name))]
+	return spec, ok
 }
 
 type ServiceRef struct {
@@ -117,11 +176,11 @@ func loadServiceEntry(ctx context.Context, q serviceQuerier, id int64) (ServiceE
 	}
 
 	assetRows, err := q.QueryContext(ctx, `
-		SELECT DISTINCT a.id, a.name, a.kind
+		SELECT a.id, a.name, a.kind
 		FROM asset_service_instances asi
 		JOIN assets a ON a.id = asi.asset_id
-		WHERE lower(asi.name) = lower($1)
-		ORDER BY a.name, a.id`, entry.Name)
+		WHERE asi.service_id = $1
+		ORDER BY a.name, a.id`, entry.ID)
 	if err != nil {
 		return ServiceEntry{}, err
 	}
@@ -167,6 +226,10 @@ func loadServiceEntry(ctx context.Context, q serviceQuerier, id int64) (ServiceE
 	return entry, nil
 }
 
+func GetService(ctx context.Context, db *sql.DB, id int64) (ServiceEntry, error) {
+	return loadServiceEntry(ctx, db, id)
+}
+
 func ListServices(ctx context.Context, db *sql.DB) ([]ServiceEntry, error) {
 	rows, err := db.QueryContext(ctx, "SELECT "+serviceColumns+" FROM services ORDER BY lower(name), id")
 	if err != nil {
@@ -193,9 +256,9 @@ func ListServices(ctx context.Context, db *sql.DB) ([]ServiceEntry, error) {
 	}
 
 	assetRows, err := db.QueryContext(ctx, `
-		SELECT DISTINCT s.id, a.id, a.name, a.kind
+		SELECT asi.service_id, a.id, a.name, a.kind
 		FROM services s
-		JOIN asset_service_instances asi ON lower(asi.name) = lower(s.name)
+		JOIN asset_service_instances asi ON asi.service_id = s.id
 		JOIN assets a ON a.id = asi.asset_id
 		ORDER BY a.name, a.id`)
 	if err != nil {
@@ -263,15 +326,18 @@ func SaveService(ctx context.Context, db *sql.DB, id int64, input ServiceInput, 
 		for i, assetID := range *input.AssetIDs {
 			args[i] = assetID
 		}
-		var count int
+		var totalCount, nodeCount int
 		err := tx.QueryRowContext(ctx,
-			"SELECT count(*) FROM assets WHERE id IN ("+placeholders(1, len(args))+")",
-			args...).Scan(&count)
+			"SELECT count(*), count(*) FILTER (WHERE kind IN ('host', 'vm')) FROM assets WHERE id IN ("+placeholders(1, len(args))+")",
+			args...).Scan(&totalCount, &nodeCount)
 		if err != nil {
 			return ServiceEntry{}, err
 		}
-		if count != len(*input.AssetIDs) {
+		if totalCount != len(*input.AssetIDs) {
 			return ServiceEntry{}, fmt.Errorf("%w: 所选资产不存在", ErrInvalid)
+		}
+		if nodeCount != len(*input.AssetIDs) {
+			return ServiceEntry{}, fmt.Errorf("%w: 只能关联服务器或虚拟机", ErrInvalid)
 		}
 	}
 
@@ -330,24 +396,17 @@ func SaveService(ctx context.Context, db *sql.DB, id int64, input ServiceInput, 
 			}
 			return ServiceEntry{}, err
 		}
-		if existing.Name != input.Name {
-			if _, err := tx.ExecContext(ctx,
-				"UPDATE asset_service_instances SET name=$1 WHERE lower(name)=lower($2)",
-				input.Name, existing.Name); err != nil {
-				return ServiceEntry{}, err
-			}
-		}
 	}
 
 	if input.AssetIDs != nil {
 		if _, err := tx.ExecContext(ctx,
-			"DELETE FROM asset_service_instances WHERE lower(name)=lower($1)", input.Name); err != nil {
+			"DELETE FROM asset_service_instances WHERE service_id=$1", savedID); err != nil {
 			return ServiceEntry{}, err
 		}
 		for _, assetID := range *input.AssetIDs {
 			if _, err := tx.ExecContext(ctx,
-				"INSERT INTO asset_service_instances (asset_id, name) VALUES ($1, $2)",
-				assetID, input.Name); err != nil {
+				"INSERT INTO asset_service_instances (asset_id, service_id) VALUES ($1, $2) ON CONFLICT (asset_id, service_id) DO NOTHING",
+				assetID, savedID); err != nil {
 				return ServiceEntry{}, err
 			}
 		}
@@ -360,7 +419,7 @@ func SaveService(ctx context.Context, db *sql.DB, id int64, input ServiceInput, 
 		}
 		for _, groupID := range *input.ProjectIDs {
 			if _, err := tx.ExecContext(ctx,
-				"INSERT INTO service_projects (service_id, group_id) VALUES ($1, $2)",
+				"INSERT INTO service_projects (service_id, group_id) VALUES ($1, $2) ON CONFLICT (service_id, group_id) DO NOTHING",
 				savedID, groupID); err != nil {
 				return ServiceEntry{}, err
 			}
@@ -391,10 +450,6 @@ func DeleteService(ctx context.Context, db *sql.DB, id int64, actor string) erro
 	if err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx,
-		"DELETE FROM asset_service_instances WHERE lower(name)=lower($1)", existing.Name); err != nil {
-		return err
-	}
 	if _, err := tx.ExecContext(ctx, "DELETE FROM services WHERE id=$1", id); err != nil {
 		return err
 	}
@@ -404,7 +459,7 @@ func DeleteService(ctx context.Context, db *sql.DB, id int64, actor string) erro
 	return tx.Commit()
 }
 
-func validateServiceInstances(kind string, entries *[]ServiceInstance) error {
+func validateServiceInstances(kind string, entries *[]AssetServiceInstance) error {
 	if entries == nil {
 		return nil
 	}
@@ -414,47 +469,141 @@ func validateServiceInstances(kind string, entries *[]ServiceInstance) error {
 	if len(*entries) > 100 {
 		return fmt.Errorf("%w: 最多添加 100 个服务", ErrInvalid)
 	}
-	for i := range *entries {
-		e := &(*entries)[i]
-		e.Name = strings.TrimSpace(e.Name)
-		if e.Name == "" || utf8.RuneCountInString(e.Name) > 120 {
+	deduped := make([]AssetServiceInstance, 0, len(*entries))
+	seen := make(map[string]bool, len(*entries))
+	for _, e := range *entries {
+		name := strings.TrimSpace(e.Name)
+		if name == "" || utf8.RuneCountInString(name) > 120 {
 			return fmt.Errorf("%w: 服务名称无效", ErrInvalid)
 		}
+		key := strings.ToLower(name)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		deduped = append(deduped, AssetServiceInstance{Name: name})
 	}
+	*entries = deduped
 	return nil
 }
-func replaceAssetServices(ctx context.Context, tx *sql.Tx, assetID int64, entries *[]ServiceInstance, actor, name string) (bool, error) {
+
+func ensureServiceTx(ctx context.Context, tx *sql.Tx, rawName string) (int64, string, string, error) {
+	trimmed := strings.TrimSpace(rawName)
+	var serviceID int64
+	var canonicalName, category string
+	err := tx.QueryRowContext(ctx,
+		"SELECT id, name, category FROM services WHERE lower(name) = lower($1)",
+		trimmed,
+	).Scan(&serviceID, &canonicalName, &category)
+	if err == nil {
+		return serviceID, canonicalName, category, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return 0, "", "", err
+	}
+
+	insertName := trimmed
+	insertCategory := defaultCustomServiceCategory
+	builtin := false
+	if spec, ok := lookupBuiltinService(trimmed); ok {
+		insertName = spec.Name
+		insertCategory = spec.Category
+		builtin = true
+	}
+
+	err = tx.QueryRowContext(ctx, `
+		INSERT INTO services (name, category, builtin, description)
+		VALUES ($1, $2, $3, '')
+		ON CONFLICT (lower(name)) DO NOTHING
+		RETURNING id, name, category`,
+		insertName, insertCategory, builtin,
+	).Scan(&serviceID, &canonicalName, &category)
+	if err == nil {
+		return serviceID, canonicalName, category, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return 0, "", "", err
+	}
+	// Concurrent insert won the race; re-read the canonical row.
+	if err := tx.QueryRowContext(ctx,
+		"SELECT id, name, category FROM services WHERE lower(name) = lower($1)",
+		insertName,
+	).Scan(&serviceID, &canonicalName, &category); err != nil {
+		return 0, "", "", err
+	}
+	return serviceID, canonicalName, category, nil
+}
+
+func listAssetServices(ctx context.Context, q serviceQuerier, assetID int64) ([]AssetServiceInstance, error) {
+	rows, err := q.QueryContext(ctx, `
+		SELECT asi.id, asi.service_id, s.name, s.category
+		FROM asset_service_instances asi
+		JOIN services s ON s.id = asi.service_id
+		WHERE asi.asset_id = $1
+		ORDER BY asi.id`, assetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]AssetServiceInstance, 0)
+	for rows.Next() {
+		var item AssetServiceInstance
+		if err := rows.Scan(&item.ID, &item.ServiceID, &item.Name, &item.Category); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func assetServicesPtr(items []AssetServiceInstance) *[]AssetServiceInstance {
+	if len(items) == 0 {
+		return nil
+	}
+	copied := make([]AssetServiceInstance, len(items))
+	copy(copied, items)
+	return &copied
+}
+
+func replaceAssetServices(ctx context.Context, tx *sql.Tx, assetID int64, entries *[]AssetServiceInstance, actor, name string) (bool, error) {
 	if entries == nil {
 		return false, nil
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT name FROM asset_service_instances WHERE asset_id=$1 ORDER BY id", assetID)
+	before, err := listAssetServices(ctx, tx, assetID)
 	if err != nil {
 		return false, err
 	}
-	before := []ServiceInstance{}
-	for rows.Next() {
-		var e ServiceInstance
-		if err := rows.Scan(&e.Name); err != nil {
-			rows.Close()
-			return false, err
+	same := len(before) == len(*entries)
+	if same {
+		for i := range before {
+			if !strings.EqualFold(before[i].Name, (*entries)[i].Name) {
+				same = false
+				break
+			}
 		}
-		before = append(before, e)
 	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return false, err
-	}
-	rows.Close()
-	if reflect.DeepEqual(before, *entries) {
+	if same {
+		*entries = before
 		return false, nil
 	}
 	if _, err := tx.ExecContext(ctx, "DELETE FROM asset_service_instances WHERE asset_id=$1", assetID); err != nil {
 		return false, err
 	}
 	for _, e := range *entries {
-		if _, err := tx.ExecContext(ctx, "INSERT INTO asset_service_instances (asset_id,name) VALUES ($1,$2)", assetID, e.Name); err != nil {
+		serviceID, _, _, err := ensureServiceTx(ctx, tx, e.Name)
+		if err != nil {
+			return false, err
+		}
+		if _, err := tx.ExecContext(ctx,
+			"INSERT INTO asset_service_instances (asset_id, service_id) VALUES ($1, $2) ON CONFLICT (asset_id, service_id) DO NOTHING",
+			assetID, serviceID); err != nil {
 			return false, err
 		}
 	}
-	return true, writeNamedChange(ctx, tx, &assetID, name, actor, "asset_services", before, *entries)
+	after, err := listAssetServices(ctx, tx, assetID)
+	if err != nil {
+		return false, err
+	}
+	*entries = after
+	return true, writeNamedChange(ctx, tx, &assetID, name, actor, "asset_services", before, after)
 }

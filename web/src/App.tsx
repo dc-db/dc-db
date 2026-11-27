@@ -28,7 +28,7 @@ import {
   totalDiskGiB,
 } from './lib/hardware'
 import { downloadCSV } from './csv'
-import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, Person, Subnet, Team, User, VLAN } from './api'
+import type { Asset, AssetFields, Captcha, Change, Group, ImportPreview, Kind, Link, LinkKind, Person, ServiceEntry, Subnet, Team, User, VLAN } from './api'
 import { assetLocations, assetRoomId, buildRoomCounts, locationLabel, matchesRoomFilter } from './facilities'
 import type { AssetLocation, Facilities } from './facilities'
 import { isNetworkKind, KIND_LABELS, kindLabel, NETWORK_KINDS } from './kinds'
@@ -329,6 +329,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
   const [ipFilterSubnetId, setIpFilterSubnetId] = useState<number | null>(null)
 
   const [assets, setAssets] = useState<Asset[]>([])
+  const [registeredServices, setRegisteredServices] = useState<ServiceEntry[]>([])
   const [links, setLinks] = useState<Link[]>([])
   const [changes, setChanges] = useState<Change[]>([])
   const [facilities, setFacilities] = useState<Facilities>({ regions: [], rooms: [], racks: [], placements: [] })
@@ -824,10 +825,10 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     setBusy(true)
     setError('')
     try {
-      const [nextAssets, nextLinks, nextChanges, nextFacilities, nextSubnets, nextGroups, nextPeople, nextTeams] = await Promise.all([
+      const [nextAssets, nextLinks, nextChanges, nextFacilities, nextSubnets, nextGroups, nextPeople, nextTeams, nextServices] = await Promise.all([
         api<Asset[]>('/assets'), api<Link[]>('/links'), api<Change[]>('/changes'),
         api<Facilities>('/facilities'), api<Subnet[]>('/subnets'), api<Group[]>('/groups'),
-        api<Person[]>('/people'), api<Team[]>('/teams'),
+        api<Person[]>('/people'), api<Team[]>('/teams'), api<ServiceEntry[]>('/services'),
       ])
       setAssets(nextAssets)
       setLinks(nextLinks)
@@ -837,10 +838,24 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       setGroups(nextGroups)
       setPeople(nextPeople)
       setTeams(nextTeams)
+      setRegisteredServices(nextServices)
     } catch (e) {
       handleError(e)
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function refreshAssetsAndServices() {
+    try {
+      const [nextAssets, nextServices] = await Promise.all([
+        api<Asset[]>('/assets'),
+        api<ServiceEntry[]>('/services'),
+      ])
+      setAssets(nextAssets)
+      setRegisteredServices(nextServices)
+    } catch (e) {
+      handleError(e)
     }
   }
 
@@ -926,6 +941,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       closeDrawer()
       setUser(null)
       setAssets([])
+      setRegisteredServices([])
       setPeople([])
       setTeams([])
       setLinks([])
@@ -944,6 +960,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
     closeDrawer()
     setUser(null)
     setAssets([])
+    setRegisteredServices([])
     setPeople([])
     setTeams([])
     setLinks([])
@@ -1470,7 +1487,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
           const remaining = bound.slice(1).map(item => item.name).join('、')
           return <div className="flex min-w-0 items-center gap-2">
             <button type="button" className="asset-service-chip min-w-0" onClick={() => void openAsset(asset.id)} aria-label={`${service.name}，查看${asset.name}详情`} title={service.name}>
-              <ServiceIcon name={service.name} category={serviceCategory(service.name)} /><span className="truncate">{service.name}</span>
+              <ServiceIcon name={service.name} category={service.category || serviceCategory(service.name)} /><span className="truncate">{service.name}</span>
             </button>
             {remaining && <Tooltip title={remaining}><span className="shrink-0 text-muted-foreground" tabIndex={0} aria-label={`另外 ${bound.length - 1} 个服务：${remaining}`}>+{bound.length - 1}</span></Tooltip>}
           </div>
@@ -1665,7 +1682,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
         </div>
       ),
     }] : []),
-    ...(selected.services?.length ? [{ key: 'services', label: '运行服务', children: <div className="flex flex-wrap gap-2">{selected.services.map((service, index) => <span key={index} className="asset-service-chip" title={service.name}><ServiceIcon name={service.name} category={serviceCategory(service.name)} />{service.name}</span>)}</div> }] : []),
+    ...(selected.services?.length ? [{ key: 'services', label: '运行服务', children: <div className="flex flex-wrap gap-2">{selected.services.map((service, index) => <span key={index} className="asset-service-chip" title={service.name}><ServiceIcon name={service.name} category={service.category || serviceCategory(service.name)} />{service.name}</span>)}</div> }] : []),
     {
       key: 'updated', label: '最近更新',
       children: new Date(selected.updatedAt).toLocaleString('zh-CN', { hour12: false }),
@@ -1828,6 +1845,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
         {editor ? (
           <AssetEditor
             asset={selected} defaultKind={newKind} busy={saving} error={drawerError} groups={groups} people={people} teams={teams}
+            services={registeredServices}
             rooms={facilities.rooms}
             defaultRoomId={typeof roomFilter === 'number' ? roomFilter : undefined}
             mountedRoomId={selectedLocation?.room.id}
@@ -1961,7 +1979,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
               groups={groups}
               onOpenAsset={id => void openAsset(id)}
               onSessionError={e => handleError(e)}
-              onChanged={() => void loadAll()}
+              onChanged={() => { void refreshAssetsAndServices() }}
             />
           )}
 
@@ -2162,6 +2180,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       >
         {createOpen && <AssetEditor
           asset={null} defaultKind={newKind} createFromList busy={saving} error={drawerError} groups={groups} people={people} teams={teams}
+          services={registeredServices}
           rooms={facilities.rooms} defaultRoomId={typeof roomFilter === 'number' ? roomFilter : undefined}
           onSave={fields => void saveAsset(fields)}
           onCancel={() => closeCreate()}

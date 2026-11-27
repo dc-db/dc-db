@@ -16,7 +16,8 @@ SELECT CASE WHEN
     EXISTS (SELECT 1 FROM rooms) OR EXISTS (SELECT 1 FROM racks) OR
     EXISTS (SELECT 1 FROM rack_placements) OR EXISTS (SELECT 1 FROM vlans) OR
     EXISTS (SELECT 1 FROM subnets) OR EXISTS (SELECT 1 FROM ip_allocations) OR
-    EXISTS (SELECT 1 FROM interfaces) OR EXISTS (SELECT 1 FROM asset_service_instances) OR
+    EXISTS (SELECT 1 FROM interfaces) OR EXISTS (SELECT 1 FROM services) OR
+    EXISTS (SELECT 1 FROM service_projects) OR EXISTS (SELECT 1 FROM asset_service_instances) OR
     EXISTS (SELECT 1 FROM changes)
     THEN 0 ELSE 1 END;
 
@@ -488,17 +489,67 @@ FROM generate_series(1, 35) AS s
 CROSS JOIN generate_series(1, 3) AS k
 WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
 
--- 9. 为示例资产添加各自的服务实例。
-INSERT INTO asset_service_instances (asset_id, name)
-SELECT 2000 + i, (ARRAY['nginx','mysql','postgresql','redis','kafka','prometheus'])[1 + ((i - 1) % 6)]
-FROM generate_series(1, 252) AS i WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
-INSERT INTO asset_service_instances (asset_id, name)
-SELECT 1000 + i, (ARRAY['prometheus','zabbix','etcd','consul'])[1 + ((i - 1) % 4)]
-FROM generate_series(1, 126) AS i WHERE i % 2 = 0 AND EXISTS (SELECT 1 FROM demo_empty_guard);
-INSERT INTO asset_service_instances (asset_id, name)
-SELECT m.asset_id, m.service_name FROM (VALUES
- (3::bigint,'nginx'), (19,'nginx'), (4,'postgresql'), (3,'redis'), (10,'grafana'), (1,'etcd')
-) AS m(asset_id, service_name) WHERE EXISTS (SELECT 1 FROM demo_empty_guard);
+-- 9. 注册示例服务目录（10 个内置服务 + 2 个虚构自定义业务服务），并为示例服务器与虚拟机关联服务及项目。
+INSERT INTO services (name, category, builtin, description)
+SELECT v.name, v.category, v.builtin, v.description FROM (VALUES
+    ('nginx', 'Web 服务', true, '反向代理与静态资源 Web 服务'),
+    ('postgresql', '数据库', true, '关系型主业务数据库服务'),
+    ('redis', '缓存', true, '内存缓存与会话存储服务'),
+    ('mysql', '数据库', true, '通用关系型业务数据库服务'),
+    ('kafka', '消息队列', true, '分布式事件流与异步消息队列'),
+    ('prometheus', '监控', true, '指标采集与时序告警监控服务'),
+    ('zabbix', '监控', true, '主机与基础设施状态监控服务'),
+    ('consul', '基础设施', true, '服务发现与分布式配置中心'),
+    ('etcd', '基础设施', true, '高可用分布式键值协调存储'),
+    ('grafana', '监控', true, '监控指标可视化与仪表盘服务'),
+    ('order-api', '业务应用', false, '虚构订单核心接口服务'),
+    ('billing-worker', '业务应用', false, '虚构计费异步任务服务')
+) AS v(name, category, builtin, description)
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO asset_service_instances (asset_id, service_id)
+SELECT v.asset_id, s.id
+FROM (
+    SELECT (2000 + i)::bigint AS asset_id,
+           (ARRAY['nginx','mysql','postgresql','redis','kafka','prometheus'])[1 + ((i - 1) % 6)] AS svc_name
+    FROM generate_series(1, 252) AS i
+    UNION ALL
+    SELECT (1000 + i)::bigint AS asset_id,
+           (ARRAY['prometheus','zabbix','etcd','consul'])[1 + (((i / 2) - 1) % 4)] AS svc_name
+    FROM generate_series(1, 126) AS i
+    WHERE i % 2 = 0
+    UNION ALL
+    SELECT (2000 + i)::bigint AS asset_id,
+           'order-api'::text AS svc_name
+    FROM generate_series(1, 252) AS i
+    WHERE i % 16 = 1
+    UNION ALL
+    SELECT (2000 + i)::bigint AS asset_id,
+           'billing-worker'::text AS svc_name
+    FROM generate_series(1, 252) AS i
+    WHERE i % 16 = 5
+    UNION ALL
+    SELECT m.asset_id, m.svc_name FROM (VALUES
+        (3::bigint, 'nginx'),
+        (19::bigint, 'nginx'),
+        (4::bigint, 'postgresql'),
+        (3::bigint, 'redis'),
+        (10::bigint, 'grafana'),
+        (1::bigint, 'etcd')
+    ) AS m(asset_id, svc_name)
+) AS v
+JOIN services s ON lower(s.name) = lower(v.svc_name)
+WHERE EXISTS (SELECT 1 FROM demo_empty_guard)
+ON CONFLICT (asset_id, service_id) DO NOTHING;
+
+INSERT INTO service_projects (service_id, group_id)
+SELECT DISTINCT asi.service_id, a.group_id
+FROM asset_service_instances asi
+JOIN assets a ON a.id = asi.asset_id
+WHERE a.group_id IS NOT NULL
+  AND EXISTS (SELECT 1 FROM demo_empty_guard)
+ON CONFLICT DO NOTHING;
 
 -- 10. 为所有服务器（153 台）填充虚构品牌、型号、虚拟化平台（PVE/KVM/ESXi）与硬盘配置，为所有虚拟机（287 台）填充平台与硬盘配置，并清空服务器与虚拟机负责人字段。
 UPDATE assets
