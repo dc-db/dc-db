@@ -328,15 +328,11 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
         filters={
           <>
             <Input className="h-8 w-[240px]" placeholder={`搜索${title}名称或备注`} value={keyword} onChange={event => setKeyword(event.target.value)} />
+            <DataTableViewOptions table={table} align="start" />
             <ClearFiltersButton count={activeColumnFilterCount} onReset={() => setRoomColumnFilter([])} />
           </>
         }
-        actions={
-          <>
-            <DataTableViewOptions table={table} />
-            {editable && <Button size="sm" onClick={() => showForm(null)}><Plus />新增{title}</Button>}
-          </>
-        }
+        actions={editable && <Button size="sm" onClick={() => showForm(null)}><Plus />新增{title}</Button>}
       />
       {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
       <DataTable

@@ -1824,10 +1824,8 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
                     placeholder={`搜索${pageLabel}…`}
                     value={keyword} onChange={(event: React.ChangeEvent<HTMLInputElement>) => setKeyword(event.target.value)}
                   />
-                  <ClearFiltersButton count={activeFilterCount} onReset={clearAllColumnFilters} />
-                </Space>}
-                actions={<Space wrap>
                   <DataTableViewOptions
+                    align="start"
                     columns={availableAssetColumns.map(item => ({
                       id: item.key,
                       label: item.label,
@@ -1835,6 +1833,9 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
                     }))}
                     onToggle={toggleAssetColumn}
                   />
+                  <ClearFiltersButton count={activeFilterCount} onReset={clearAllColumnFilters} />
+                </Space>}
+                actions={<Space wrap>
                   {editable && <Button size="small" onClick={() => { setAssetImportFile(null); setAssetImportOpen(true) }}><DownloadOutlined /> 导入</Button>}
                   <Button size="small" disabled={!filtered.length} onClick={exportCSV}><UploadOutlined /> 导出</Button>
                   {editable && <Button size="small" type="primary" onClick={() => startNew()}><PlusOutlined /> 新增{pageLabel}</Button>}

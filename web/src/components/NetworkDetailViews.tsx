@@ -551,8 +551,9 @@ export function SubnetDetailView({
 
           <section className="svc-bound-section">
             <div className="svc-bound-head items-center">
-              <h3>已用 IP 清单</h3>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3>已用 IP 清单</h3>
+                <DataTableViewOptions align="start" table={usedTable} />
                 <ClearFiltersButton
                   count={usedActiveFilterCount}
                   onReset={() => {
@@ -561,11 +562,10 @@ export function SubnetDetailView({
                     setUsedRoleFilter([])
                   }}
                 />
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {usedActiveFilterCount > 0 ? `匹配 ${filteredUsedIps.length} / 共 ${usedIps.length} 个` : `共 ${usedIps.length} 个`}
-                </span>
-                <DataTableViewOptions table={usedTable} />
               </div>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {usedActiveFilterCount > 0 ? `匹配 ${filteredUsedIps.length} / 共 ${usedIps.length} 个` : `共 ${usedIps.length} 个`}
+              </span>
             </div>
             <DataTable
               table={usedTable}
@@ -914,19 +914,19 @@ export function VLANDetailView({
 
           <section className="svc-bound-section">
             <div className="svc-bound-head items-center">
-              <h3>关联网段清单</h3>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3>关联网段清单</h3>
+                <DataTableViewOptions align="start" table={subnetTable} />
                 <ClearFiltersButton
                   count={subnetStatusFilter.length}
                   onReset={() => setSubnetStatusFilter([])}
                 />
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {subnetStatusFilter.length > 0
-                    ? `匹配 ${filteredRelatedSubnets.length} / 共 ${relatedSubnets.length} 个 · 点击查看网段详情`
-                    : `共 ${relatedSubnets.length} 个 · 点击查看网段详情`}
-                </span>
-                <DataTableViewOptions table={subnetTable} />
               </div>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {subnetStatusFilter.length > 0
+                  ? `匹配 ${filteredRelatedSubnets.length} / 共 ${relatedSubnets.length} 个 · 点击查看网段详情`
+                  : `共 ${relatedSubnets.length} 个 · 点击查看网段详情`}
+              </span>
             </div>
             <DataTable
               table={subnetTable}

@@ -492,10 +492,10 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
     <div className="asset-interfaces">
       {error && <Alert type="error" showIcon message={error} className="drawer-alert" />}
       <div className="asset-interfaces-head">
-        <span className="muted">记录设备的网口与上联关系，连接后两端都会显示对端设备。</span>
-        <Space>
-          <ClearFiltersButton count={activeFilterCount} onReset={clearIfaceFilters} />
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="muted">记录设备的网口与上联关系，连接后两端都会显示对端设备。</span>
           <DataTableViewOptions
+            align="start"
             columns={dataColumns.map(item => ({
               id: item.key,
               label: item.label,
@@ -503,8 +503,9 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
             }))}
             onToggle={toggleColumn}
           />
-          {editable && <Button size="small" icon={<Plus size={14} />} onClick={startCreate}>添加接口</Button>}
-        </Space>
+          <ClearFiltersButton count={activeFilterCount} onReset={clearIfaceFilters} />
+        </div>
+        {editable && <Button size="small" icon={<Plus size={14} />} onClick={startCreate}>添加接口</Button>}
       </div>
       <Table<NetworkInterface>
         rowKey="id" columns={columns} dataSource={filteredItems} loading={busy || bulkDeleting} size="small"

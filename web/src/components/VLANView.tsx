@@ -319,6 +319,7 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       title={hideTitle ? undefined : 'VLAN'}
       filters={<>
         <Input className="h-8 w-[240px]" placeholder="搜索 VLAN ID、名称、描述或数据中心" value={keyword} onChange={event => setKeyword(event.target.value)} />
+        <DataTableViewOptions align="start" table={table} />
         <ClearFiltersButton
           count={activeFilterCount}
           onReset={() => {
@@ -328,7 +329,6 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
         />
       </>}
       actions={<>
-        <DataTableViewOptions table={table} />
         <Button size="sm" variant="outline" disabled={!visible.length} onClick={exportCSV}><Upload />导出</Button>
         <Button size="sm" variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
         {editable && <Button size="sm" onClick={() => showForm(null)}><Plus />新增 VLAN</Button>}

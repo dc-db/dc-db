@@ -381,26 +381,28 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
   return <>
     <PageHeader
       title={canManageUsers ? '用户管理' : '我的账号'}
-      filters={canManageUsers && (
+      filters={
         <>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            {roles.map(role => (
-              <span key={role} className="inline-flex items-center gap-1.5">
-                <Badge variant="outline" className={roleMeta[role].className}>{roleMeta[role].label}</Badge>
-                <span>{roleMeta[role].description}</span>
-              </span>
-            ))}
-          </div>
-          <ClearFiltersButton count={roleFilter.length} onReset={() => setRoleFilter([])} />
-        </>
-      )}
-      actions={
-        <>
-          {canManageUsers && <Button size="sm" variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>}
-          <DataTableViewOptions table={table} />
-          {canManageUsers && <Button size="sm" onClick={() => showForm(null)}><Plus />新增账号</Button>}
+          {canManageUsers && (
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+              {roles.map(role => (
+                <span key={role} className="inline-flex items-center gap-1.5">
+                  <Badge variant="outline" className={roleMeta[role].className}>{roleMeta[role].label}</Badge>
+                  <span>{roleMeta[role].description}</span>
+                </span>
+              ))}
+            </div>
+          )}
+          <DataTableViewOptions table={table} align="start" />
+          {canManageUsers && <ClearFiltersButton count={roleFilter.length} onReset={() => setRoleFilter([])} />}
         </>
       }
+      actions={canManageUsers && (
+        <>
+          <Button size="sm" variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
+          <Button size="sm" onClick={() => showForm(null)}><Plus />新增账号</Button>
+        </>
+      )}
     />
     {error && <div role="alert" className="mb-4 flex justify-between rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}<button aria-label="关闭" onClick={() => setError('')}>×</button></div>}
     {feedback && <div role="status" className="mb-4 flex justify-between rounded-md border border-success-border bg-success-soft p-3 text-sm text-success">{feedback}<button aria-label="关闭" onClick={() => setFeedback('')}>×</button></div>}

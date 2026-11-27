@@ -609,9 +609,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                 title="机柜"
                 filters={<>
                   <Input type="search" className="h-8 w-[200px]" aria-label="搜索机柜" placeholder="搜索机柜…" value={rackKeyword} onChange={event => setRackKeyword(event.target.value)} />
-                  {view === 'table' && (
-                    <ClearFiltersButton count={activeRackFilterCount} onReset={clearRackFilters} />
-                  )}
                   <div className="view-toggle view-switch" role="tablist" aria-label="机柜视图">
                     <button
                       type="button" role="tab" aria-selected={view === 'table'}
@@ -624,6 +621,26 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                       onClick={() => setView('elevations')}
                     >立面图</button>
                   </div>
+                  {view === 'table' && (
+                    <>
+                      <DataTableViewOptions
+                        align="start"
+                        columns={rackColumns.map(column => ({
+                          id: column.key,
+                          label: column.label,
+                          visible: visibleRackColumns.includes(column.key),
+                        }))}
+                        onToggle={(columnId, nextVisible) => {
+                          const key = columnId as RackColumn
+                          const selected = nextVisible
+                            ? [...visibleRackColumns, key]
+                            : visibleRackColumns.filter(item => item !== key)
+                          updateRackColumns(selected)
+                        }}
+                      />
+                      <ClearFiltersButton count={activeRackFilterCount} onReset={clearRackFilters} />
+                    </>
+                  )}
                   {view === 'elevations' && (
                     <div className="view-switch view-switch-face" role="group" aria-label="安装面">
                       <button
@@ -640,22 +657,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
                   )}
                 </>}
                 actions={<>
-                  {view === 'table' && (
-                    <DataTableViewOptions
-                      columns={rackColumns.map(column => ({
-                        id: column.key,
-                        label: column.label,
-                        visible: visibleRackColumns.includes(column.key),
-                      }))}
-                      onToggle={(columnId, nextVisible) => {
-                        const key = columnId as RackColumn
-                        const selected = nextVisible
-                          ? [...visibleRackColumns, key]
-                          : visibleRackColumns.filter(item => item !== key)
-                        updateRackColumns(selected)
-                      }}
-                    />
-                  )}
                   {editable && <Button size="sm" variant="outline" onClick={() => { setImportOpen(true); setImportFile(null); setImportError('') }}><Download />导入</Button>}
                   <Button size="sm" variant="outline" disabled={!rackRows.length} onClick={exportRacks}><Upload />导出</Button>
                   {editable && <Button size="sm" disabled={busy} onClick={() => editRack()}><Plus />新增机柜</Button>}

@@ -648,6 +648,7 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       title={hideTitle ? undefined : '网段'}
       filters={<>
         <Input className="h-8 w-[240px]" placeholder="搜索名称、CIDR、VLAN、用途" value={subnetSearch} onChange={event => setSubnetSearch(event.target.value)} />
+        <DataTableViewOptions align="start" columns={viewColumns} onToggle={toggleColumnVisibility} />
         <ClearFiltersButton
           count={activeFilterCount}
           onReset={() => {
@@ -657,7 +658,6 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
         />
       </>}
       actions={<>
-        <DataTableViewOptions columns={viewColumns} onToggle={toggleColumnVisibility} />
         {editable && <Button size="sm" variant="outline" onClick={() => { setImportFile(null); setImportError(''); setImportOpen(true) }}><Download />导入</Button>}
         <Button size="sm" variant="outline" disabled={!visibleSubnetRows.length} onClick={exportSubnets}><Upload />导出</Button>
         {editable && <Button size="sm" onClick={event => addSubnet(event.currentTarget)}><Plus />新增网段</Button>}

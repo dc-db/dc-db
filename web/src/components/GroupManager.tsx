@@ -235,13 +235,13 @@ export function GroupManager({ editable, hideTitle, onSessionError, onChanged }:
   return <>
     <PageHeader
       title={hideTitle ? undefined : '项目'}
-      filters={<Input className="h-8 w-[240px]" placeholder="搜索项目名称或备注" value={keyword} onChange={event => setKeyword(event.target.value)} />}
-      actions={
+      filters={
         <>
-          <DataTableViewOptions table={table} />
-          {editable && <Button size="sm" onClick={() => showForm(null)}><Plus />新增项目</Button>}
+          <Input className="h-8 w-[240px]" placeholder="搜索项目名称或备注" value={keyword} onChange={event => setKeyword(event.target.value)} />
+          <DataTableViewOptions table={table} align="start" />
         </>
       }
+      actions={editable && <Button size="sm" onClick={() => showForm(null)}><Plus />新增项目</Button>}
     />
     {error && <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
     <DataTable

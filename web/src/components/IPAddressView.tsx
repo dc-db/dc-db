@@ -501,6 +501,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       title={hideTitle ? undefined : 'IP 地址'}
       filters={<>
         <Input className="h-8 w-[240px]" placeholder="搜索 IP、DNS、资产、用途或网段" value={keyword} onChange={event => setKeyword(event.target.value)} />
+        <DataTableViewOptions align="start" table={table} />
         <ClearFiltersButton
           count={activeFilterCount}
           onReset={() => {
@@ -512,7 +513,6 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
         />
       </>}
       actions={<>
-        <DataTableViewOptions table={table} />
         <Button size="sm" variant="outline" disabled={!visible.length} onClick={exportCSV}><Upload />导出</Button>
         <Button size="sm" variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw />刷新</Button>
         {editable && <Button size="sm" onClick={() => showForm(null)}><Plus />分配 IP</Button>}

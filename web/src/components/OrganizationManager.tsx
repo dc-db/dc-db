@@ -453,15 +453,11 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
       filters={
         <>
           <Input type="search" aria-label={`搜索${title}`} placeholder={`搜索${title}名称或备注`} className="h-8 w-[240px]" value={keyword} onChange={event => setKeyword(event.target.value)} />
+          <DataTableViewOptions table={table} align="start" />
           <ClearFiltersButton count={activeFilterCount} onReset={resetColumnFilters} />
         </>
       }
-      actions={
-        <>
-          <DataTableViewOptions table={table} />
-          {editable && <Button size="sm" onClick={() => { void openEditor(null) }}><Plus />新增{title}</Button>}
-        </>
-      }
+      actions={editable && <Button size="sm" onClick={() => { void openEditor(null) }}><Plus />新增{title}</Button>}
     />
     {bulkError && (
       <div role="alert" className="mb-4 flex justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
