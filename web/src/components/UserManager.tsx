@@ -293,7 +293,7 @@ export function UserManager({ currentUser, onChangePassword, onSessionError }: P
     {
       accessorKey: 'role',
       header: '角色',
-      sortingFn: (a, b) => roles.indexOf(a.original.role) - roles.indexOf(b.original.role),
+      enableSorting: false,
       meta: {
         cellClassName: 'whitespace-nowrap',
         ...(canManageUsers

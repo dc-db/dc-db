@@ -156,34 +156,24 @@ function flattenSubnetTree(nodes: SubnetNode[], collapsed: Set<number>): SubnetR
 }
 
 type SubnetColumnKey = 'name' | 'cidr' | 'status' | 'vlan' | 'gateway' | 'usable' | 'used' | 'free' | 'utilization'
-type SubnetSortKey = SubnetColumnKey
+type SubnetSortKey = 'name' | 'cidr' | 'usable' | 'used' | 'free' | 'utilization'
 
-const SUBNET_COLUMNS: { key: SubnetColumnKey; label: string }[] = [
-  { key: 'name', label: '网段名称' },
-  { key: 'cidr', label: 'CIDR' },
-  { key: 'status', label: '状态' },
-  { key: 'vlan', label: 'VLAN' },
-  { key: 'gateway', label: '网关' },
-  { key: 'usable', label: '地址数' },
-  { key: 'used', label: '已用' },
-  { key: 'free', label: '空闲' },
-  { key: 'utilization', label: '利用率' },
+type SubnetColumnConfig =
+  | { key: SubnetSortKey; label: string; sortable: true }
+  | { key: Exclude<SubnetColumnKey, SubnetSortKey>; label: string; sortable: false }
+
+const SUBNET_COLUMNS: SubnetColumnConfig[] = [
+  { key: 'name', label: '网段名称', sortable: true },
+  { key: 'cidr', label: 'CIDR', sortable: true },
+  { key: 'status', label: '状态', sortable: false },
+  { key: 'vlan', label: 'VLAN', sortable: false },
+  { key: 'gateway', label: '网关', sortable: false },
+  { key: 'usable', label: '地址数', sortable: true },
+  { key: 'used', label: '已用', sortable: true },
+  { key: 'free', label: '空闲', sortable: true },
+  { key: 'utilization', label: '利用率', sortable: true },
 ]
 const ALL_SUBNET_COLUMN_KEYS: SubnetColumnKey[] = SUBNET_COLUMNS.map(col => col.key)
-
-function compareOptionalIPv4(left: string, right: string, dir: 1 | -1): number {
-  const l = left.trim()
-  const r = right.trim()
-  if (!l && !r) return 0
-  if (!l) return 1
-  if (!r) return -1
-  const ln = ipv4Number(l)
-  const rn = ipv4Number(r)
-  if (ln !== null && rn !== null) return (ln - rn) * dir
-  if (ln !== null) return -1 * dir
-  if (rn !== null) return 1 * dir
-  return l.localeCompare(r, undefined, { numeric: true }) * dir
-}
 
 function compareSubnets(left: Subnet, right: Subnet, key: SubnetSortKey, direction: 'asc' | 'desc'): number {
   const dir: 1 | -1 = direction === 'asc' ? 1 : -1
@@ -204,33 +194,6 @@ function compareSubnets(left: Subnet, right: Subnet, key: SubnetSortKey, directi
       }
       break
     }
-    case 'status': {
-      const leftLabel = subnetStatusMeta[left.status]?.label ?? left.status
-      const rightLabel = subnetStatusMeta[right.status]?.label ?? right.status
-      result = leftLabel.localeCompare(rightLabel, 'zh-CN') * dir
-      break
-    }
-    case 'vlan': {
-      const lv = left.vlan.trim()
-      const rv = right.vlan.trim()
-      if (!lv && !rv) return 0
-      if (!lv) return 1
-      if (!rv) return -1
-      const ln = Number(lv)
-      const rn = Number(rv)
-      if (Number.isFinite(ln) && Number.isFinite(rn)) {
-        result = (ln - rn) * dir
-      } else {
-        result = lv.localeCompare(rv, 'zh-CN', { numeric: true }) * dir
-      }
-      if (result === 0) {
-        result = (left.vlanName ?? '').localeCompare(right.vlanName ?? '', 'zh-CN', { numeric: true }) * dir
-      }
-      break
-    }
-    case 'gateway':
-      result = compareOptionalIPv4(left.gateway, right.gateway, dir)
-      break
     case 'usable':
       result = (left.usable - right.usable) * dir
       break
@@ -680,17 +643,17 @@ export function IpamView({ editable, hideTitle, facilities, roomFilter, onRoomFi
                 />
               </th>
               {activeColumns.map(col => {
-                const sortDir: SortDirection = sort?.key === col.key ? sort.direction : false
+                const sortDir: SortDirection = col.sortable && sort?.key === col.key ? sort.direction : false
                 return (
                   <th
                     key={col.key}
-                    aria-sort={sortDir === 'asc' ? 'ascending' : sortDir === 'desc' ? 'descending' : 'none'}
+                    aria-sort={col.sortable ? (sortDir === 'asc' ? 'ascending' : sortDir === 'desc' ? 'descending' : 'none') : undefined}
                   >
                     <ColumnHeaderMenu
                       title={col.label}
-                      sortable
+                      sortable={col.sortable}
                       sortDirection={sortDir}
-                      onSortChange={next => setSort(next === false ? null : { key: col.key, direction: next })}
+                      onSortChange={col.sortable ? next => setSort(next === false ? null : { key: col.key, direction: next }) : undefined}
                       filter={columnFilters[col.key]}
                       hideable={visibleColumns.length > 1}
                       onHide={() => toggleColumnVisibility(col.key, false)}

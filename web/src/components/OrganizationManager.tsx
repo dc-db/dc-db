@@ -334,16 +334,7 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
       id: 'members',
       header: '成员',
       accessorFn: (row: Entry) => (row as Team).memberIds.length,
-      sortingFn: (a, b) => {
-        const left = a.original as Team
-        const right = b.original as Team
-        if (left.memberIds.length !== right.memberIds.length) {
-          return left.memberIds.length - right.memberIds.length
-        }
-        const leftNames = left.memberIds.map(id => peopleById.get(id)?.name).filter(Boolean).join('、')
-        const rightNames = right.memberIds.map(id => peopleById.get(id)?.name).filter(Boolean).join('、')
-        return leftNames.localeCompare(rightNames, 'zh-CN')
-      },
+      enableSorting: false,
       meta: {
         filter: {
           options: memberFilterOptions,
@@ -361,7 +352,7 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
       id: 'account',
       header: '登录账号',
       accessorFn: (row: Entry) => (row as Person).username ?? '',
-      sortingFn: (a, b) => ((a.original as Person).username ?? '').localeCompare((b.original as Person).username ?? '', 'zh-CN'),
+      enableSorting: false,
       meta: {
         cellClassName: 'whitespace-nowrap',
         filter: {
@@ -379,7 +370,7 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
       id: 'teams',
       header: '所属团队',
       accessorFn: (row: Entry) => teamNamesByPerson.get(row.id)?.join('、') ?? '',
-      sortingFn: (a, b) => (teamNamesByPerson.get(a.original.id)?.join('、') ?? '').localeCompare(teamNamesByPerson.get(b.original.id)?.join('、') ?? '', 'zh-CN'),
+      enableSorting: false,
       meta: {
         filter: {
           options: teamFilterOptions,
@@ -406,7 +397,7 @@ export function OrganizationManager({ kind, entries, people, teams, editable, ca
     {
       accessorKey: 'description',
       header: '备注',
-      sortingFn: (a, b) => (a.original.description ?? '').localeCompare(b.original.description ?? '', 'zh-CN'),
+      enableSorting: false,
       cell: ({ row }) => row.original.description
         ? <span className="text-muted-foreground">{row.original.description}</span>
         : <span className="text-muted-foreground">—</span>,

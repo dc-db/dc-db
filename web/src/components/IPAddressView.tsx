@@ -289,7 +289,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       id: 'state',
       accessorFn: row => stateMeta[row.state] ?? row.state,
       header: '状态',
-      sortingFn: (a, b) => compareText(a.getValue<string>('state'), b.getValue<string>('state')),
+      enableSorting: false,
       meta: {
         cellClassName: 'whitespace-nowrap',
         filter: {
@@ -305,7 +305,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       id: 'source',
       accessorFn: row => sourceMeta[row.source] ?? row.source,
       header: '来源',
-      sortingFn: (a, b) => compareText(a.getValue<string>('source'), b.getValue<string>('source')),
+      enableSorting: false,
       meta: {
         cellClassName: 'whitespace-nowrap',
         filter: {
@@ -321,8 +321,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       id: 'dnsName',
       accessorFn: row => row.dnsName?.trim() || undefined,
       header: 'DNS 名称',
-      sortUndefined: 'last',
-      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('dnsName'), b.getValue<string | undefined>('dnsName')),
+      enableSorting: false,
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => <span className="font-mono text-xs">{row.original.dnsName || <span className="text-muted-foreground">—</span>}</span>,
     },
@@ -330,8 +329,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       id: 'role',
       accessorFn: row => (roleLabels[row.role ?? ''] ?? row.role)?.trim() || undefined,
       header: '角色',
-      sortUndefined: 'last',
-      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('role'), b.getValue<string | undefined>('role')),
+      enableSorting: false,
       meta: {
         cellClassName: 'whitespace-nowrap',
         filter: {
@@ -347,8 +345,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       id: 'owner',
       accessorFn: row => [row.assetName, row.label].filter(Boolean).join(' / ') || undefined,
       header: '资产 / 用途',
-      sortUndefined: 'last',
-      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('owner'), b.getValue<string | undefined>('owner')),
+      enableSorting: false,
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => <span>{row.original.assetId && row.original.assetName ? <Button variant="link" className="h-auto p-0" onClick={() => onOpenAsset(row.original.assetId!)}>{row.original.assetName}</Button> : row.original.label || <span className="text-muted-foreground">—</span>}{row.original.assetId && row.original.label && <span className="text-muted-foreground"> / {row.original.label}</span>}</span>,
     },
@@ -356,7 +353,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       id: 'subnet',
       accessorFn: row => row.subnetName,
       header: '网段',
-      sortingFn: (a, b) => compareText(a.original.subnetName, b.original.subnetName),
+      enableSorting: false,
       meta: {
         cellClassName: 'whitespace-nowrap',
         filter: {
@@ -372,8 +369,7 @@ export function IPAddressView({ editable, hideTitle, initialSubnetId, onInitialS
       id: 'notes',
       accessorFn: row => row.notes?.trim() || undefined,
       header: '备注',
-      sortUndefined: 'last',
-      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('notes'), b.getValue<string | undefined>('notes')),
+      enableSorting: false,
       cell: ({ row }) => row.original.notes ? <span className="text-muted-foreground">{row.original.notes}</span> : <span className="text-muted-foreground">—</span>,
     },
     ...(editable ? [{

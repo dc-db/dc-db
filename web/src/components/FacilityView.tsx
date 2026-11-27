@@ -59,10 +59,10 @@ const rackColumns = [
 ] as const
 
 type RackColumn = typeof rackColumns[number]['key']
-type RackSortColumn = Exclude<RackColumn, 'name' | 'zone' | 'createdAt' | 'updatedAt'>
+type RackSortColumn = Exclude<RackColumn, 'zone' | 'height'>
 
 function isRackSortColumn(key: RackColumn): key is RackSortColumn {
-  return key !== 'name' && key !== 'zone' && key !== 'createdAt' && key !== 'updatedAt'
+  return key !== 'zone' && key !== 'height'
 }
 const defaultRackColumns: RackColumn[] = rackColumns.map(column => column.key)
 const rackColumnsStorageKey = 'dc-db-columns:racks-v2'
@@ -198,7 +198,6 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
       const placements = placementsByRack.get(item.id) ?? []
       const used = occupiedUnits(placements).size
       return [item.id, {
-        height: item.heightU,
         used,
         free: Math.max(0, item.heightU - used),
         usage: item.heightU > 0 ? Math.round(used / item.heightU * 100) : 0,
@@ -209,7 +208,18 @@ export function FacilityView({ roomId, onRoomChange, openRackId, onRackChange, l
   const sortedRackRows = useMemo(() => {
     if (!rackSort) return rackRows
     const factor = rackSort.direction === 'asc' ? 1 : -1
-    return [...rackRows].sort((a, b) => factor * (rackMetrics.get(a.id)![rackSort.key] - rackMetrics.get(b.id)![rackSort.key]))
+    return [...rackRows].sort((a, b) => {
+      switch (rackSort.key) {
+        case 'name':
+          return factor * a.name.localeCompare(b.name, 'zh-CN', { numeric: true })
+        case 'createdAt':
+          return factor * ((a.createdAt ? Date.parse(a.createdAt) : 0) - (b.createdAt ? Date.parse(b.createdAt) : 0))
+        case 'updatedAt':
+          return factor * ((a.updatedAt ? Date.parse(a.updatedAt) : 0) - (b.updatedAt ? Date.parse(b.updatedAt) : 0))
+        default:
+          return factor * (rackMetrics.get(a.id)![rackSort.key] - rackMetrics.get(b.id)![rackSort.key])
+      }
+    })
   }, [rackRows, rackMetrics, rackSort])
   const selectedRackIdSet = useMemo(() => new Set(selectedRackIds), [selectedRackIds])
   const selectedRacks = useMemo(() => {

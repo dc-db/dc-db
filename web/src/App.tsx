@@ -48,6 +48,7 @@ import {
   buildFacetedOptions,
   ClearFiltersButton,
   DataTableViewOptions,
+  EMPTY_FILTER_VALUE,
   matchesMultiFilter,
 } from './components/TableColumnControls'
 import { BulkActionBar } from './components/TableSelectionControls'
@@ -88,14 +89,20 @@ const NETWORK_KIND_CATALOG = NETWORK_KINDS.map(kind => ({ value: kind, label: KI
 const PROBE_CATALOG = [
   { value: 'reachable', label: '可达' },
   { value: 'unreachable', label: '不可达' },
-  { value: 'error', label: '探测异常' },
-  { value: 'pending', label: '待探测' },
-  { value: 'disabled', label: '未开启' },
-  { value: 'retired', label: '已停用' },
+  { value: 'unprobed', label: '未探测' },
 ]
 
 function platformLabel(asset: Pick<Asset, 'platform'>) {
   return asset.platform === 'pve' ? 'Proxmox VE' : asset.platform === 'kvm' ? 'KVM' : '—'
+}
+function capacityLabel(cpu: number, memoryMiB: number): string {
+  return `${cpu || 0} 核 / ${formatMemory(memoryMiB) || '—'}`
+}
+function capacityFilterValue(asset: Pick<Asset, 'kind' | 'cpu' | 'memoryMiB'>): string {
+  if (isNetworkKind(asset.kind)) return EMPTY_FILTER_VALUE
+  const cpu = asset.cpu || 0
+  const memoryMiB = asset.memoryMiB || 0
+  return cpu > 0 || memoryMiB > 0 ? `${cpu}:${memoryMiB}` : EMPTY_FILTER_VALUE
 }
 function probeOf(asset: Asset): { label: string; color: string } {
   if (!asset.probeEnabled) return { label: '未开启', color: 'default' }
@@ -108,14 +115,9 @@ function probeOf(asset: Asset): { label: string; color: string } {
   }
 }
 function probeFilterValue(asset: Asset): string {
-  if (!asset.probeEnabled || !asset.address) return 'disabled'
-  if (asset.lifecycle === 'retired') return 'retired'
-  switch (asset.probeStatus) {
-    case 'reachable': return 'reachable'
-    case 'unreachable': return 'unreachable'
-    case 'error': return 'error'
-    default: return 'pending'
-  }
+  if (!asset.probeEnabled || !asset.address || asset.lifecycle !== 'active') return 'unprobed'
+  if (asset.probeStatus === 'reachable' || asset.probeStatus === 'unreachable') return asset.probeStatus
+  return 'unprobed'
 }
 function assetFilterValues(
   asset: Asset,
@@ -129,6 +131,7 @@ function assetFilterValues(
     case 'platform': return asset.platform
     case 'meta': return vmRelations.get(asset.id) ?? []
     case 'address': return probeFilterValue(asset)
+    case 'capacity': return capacityFilterValue(asset)
     case 'services': return (asset.services ?? []).map(service => service.name)
     case 'group': return asset.groupId && projectNames.has(asset.groupId) ? String(asset.groupId) : ''
     case 'team': return asset.teamId && teamNames.has(asset.teamId) ? String(asset.teamId) : ''
@@ -420,6 +423,20 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN', { numeric: true })),
     [teams],
   )
+  const capacityCatalog = useMemo(() => {
+    const specs = new Map<string, { cpu: number; memoryMiB: number }>()
+    for (const asset of scoped) {
+      if (isNetworkKind(asset.kind)) continue
+      const cpu = asset.cpu || 0
+      const memoryMiB = asset.memoryMiB || 0
+      if (cpu <= 0 && memoryMiB <= 0) continue
+      const key = `${cpu}:${memoryMiB}`
+      if (!specs.has(key)) specs.set(key, { cpu, memoryMiB })
+    }
+    return Array.from(specs.entries())
+      .sort(([, left], [, right]) => left.cpu - right.cpu || left.memoryMiB - right.memoryMiB)
+      .map(([value, spec]) => ({ value, label: capacityLabel(spec.cpu, spec.memoryMiB) }))
+  }, [scoped])
   const baseFiltered = useMemo(() => {
     const query = keyword.trim().toLowerCase()
     return scoped.filter(asset => {
@@ -482,7 +499,21 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
         items: crossItems('address'),
         getEntries: asset => probeFilterValue(asset),
         catalog: PROBE_CATALOG,
+        includeZeroCatalog: true,
         selectedValues: columnFilters.address,
+      }),
+      capacity: buildFacetedOptions({
+        items: crossItems('capacity'),
+        getEntries: asset => {
+          const value = capacityFilterValue(asset)
+          return value === EMPTY_FILTER_VALUE
+            ? EMPTY_FILTER_VALUE
+            : { value, label: capacityLabel(asset.cpu || 0, asset.memoryMiB || 0) }
+        },
+        catalog: capacityCatalog,
+        includeEmpty: true,
+        emptyLabel: '未配置',
+        selectedValues: columnFilters.capacity,
       }),
       services: buildFacetedOptions({
         items: crossItems('services'),
@@ -530,7 +561,7 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
         selectedValues: columnFilters.environment,
       }),
     }
-  }, [baseFiltered, activeColumnFilterEntries, columnFilters, vmRelations, projectNames, teamNames, projectCatalog, teamCatalog])
+  }, [baseFiltered, activeColumnFilterEntries, columnFilters, vmRelations, projectNames, teamNames, projectCatalog, teamCatalog, capacityCatalog])
 
   function setColumnFilter(colKey: string, nextValues: string[]) {
     setColumnFilters(current => {
@@ -1157,7 +1188,6 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       key: 'kind', label: '设备类型',
       column: {
         title: '设备类型', key: 'kind', width: 120,
-        sorter: (left, right) => kindLabel(left.kind).localeCompare(kindLabel(right.kind), 'zh-CN'),
         filter: {
           options: assetColumnFilterOptions.kind,
           selectedValues: columnFilters.kind ?? [],
@@ -1175,7 +1205,6 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       key: 'platform', label: '平台',
       column: {
         title: '平台', key: 'platform', width: 130,
-        sorter: (left, right) => platformLabel(left).localeCompare(platformLabel(right), 'zh-CN'),
         filter: {
           options: assetColumnFilterOptions.platform,
           selectedValues: columnFilters.platform ?? [],
@@ -1189,7 +1218,6 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       key: 'meta', label: metaTitle,
       column: {
         title: metaTitle, key: 'meta', width: 130,
-        sorter: (left, right) => metaValue(left).localeCompare(metaValue(right), 'zh-CN'),
         filter: page === 'vm' ? {
           options: assetColumnFilterOptions.meta,
           selectedValues: columnFilters.meta ?? [],
@@ -1203,7 +1231,6 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       key: 'address', label: 'IP / 状态',
       column: {
         title: 'IP / 状态', dataIndex: 'address', key: 'address', width: 170,
-        sorter: (left, right) => left.address.localeCompare(right.address, 'zh-CN', { numeric: true }),
         filter: {
           options: assetColumnFilterOptions.address,
           selectedValues: columnFilters.address ?? [],
@@ -1248,7 +1275,6 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       key: 'team', label: '运维团队',
       column: {
         title: '运维团队', key: 'team', width: 120,
-        sorter: (left, right) => teamName(left.teamId).localeCompare(teamName(right.teamId), 'zh-CN'),
         filter: {
           options: assetColumnFilterOptions.team,
           selectedValues: columnFilters.team ?? [],
@@ -1262,7 +1288,6 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       key: 'owner', label: '负责人',
       column: {
         title: '负责人', dataIndex: 'owner', key: 'owner', width: 120,
-        sorter: (left, right) => left.owner.localeCompare(right.owner, 'zh-CN'),
         filter: {
           options: assetColumnFilterOptions.owner,
           selectedValues: columnFilters.owner ?? [],
@@ -1276,7 +1301,6 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       key: 'group', label: '项目',
       column: {
         title: '项目', key: 'group', width: 120,
-        sorter: (left, right) => groupName(left.groupId).localeCompare(groupName(right.groupId), 'zh-CN'),
         filter: {
           options: assetColumnFilterOptions.group,
           selectedValues: columnFilters.group ?? [],
@@ -1290,7 +1314,6 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       key: 'environment', label: '环境',
       column: {
         title: '环境', dataIndex: 'environment', key: 'environment', width: 100,
-        sorter: (left, right) => left.environment.localeCompare(right.environment, 'zh-CN'),
         filter: {
           options: assetColumnFilterOptions.environment,
           selectedValues: columnFilters.environment ?? [],
@@ -1304,8 +1327,13 @@ function Shell({ dark, themeMode, onThemeModeChange }: { dark: boolean; themeMod
       key: 'capacity', label: 'CPU / 内存',
       column: {
         title: 'CPU / 内存', key: 'capacity', width: 140,
-        sorter: (left, right) => left.cpu - right.cpu || left.memoryMiB - right.memoryMiB,
-        render: (_, asset) => isNetworkKind(asset.kind) ? '—' : `${asset.cpu || 0} 核 / ${formatMemory(asset.memoryMiB) || '—'}`,
+        filter: {
+          options: assetColumnFilterOptions.capacity,
+          selectedValues: columnFilters.capacity ?? [],
+          onChange: next => setColumnFilter('capacity', next),
+          searchPlaceholder: '搜索 CPU 或内存…',
+        },
+        render: (_, asset) => isNetworkKind(asset.kind) ? '—' : capacityLabel(asset.cpu, asset.memoryMiB),
       },
     },
     {

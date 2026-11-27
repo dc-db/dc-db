@@ -254,7 +254,7 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
     ...(withRoomTree ? [{
       accessorKey: 'roomName',
       header: '所属数据中心',
-      sortingFn: (a, b) => (a.original.roomName ?? '').localeCompare(b.original.roomName ?? '', 'zh-CN'),
+      enableSorting: false,
       meta: {
         headerClassName: 'w-[18%]',
         cellClassName: 'whitespace-nowrap',
@@ -280,7 +280,7 @@ export function MetadataManager({ kind, title, hideTitle, editable, facilities, 
     {
       accessorKey: 'description',
       header: '备注',
-      sortingFn: (a, b) => (a.original.description ?? '').localeCompare(b.original.description ?? '', 'zh-CN'),
+      enableSorting: false,
       cell: ({ row }) => row.original.description
         ? <span className="text-muted-foreground">{row.original.description}</span>
         : <span className="text-muted-foreground">—</span>,

@@ -167,7 +167,7 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       id: 'status',
       accessorFn: row => statusMeta[row.status]?.label ?? row.status,
       header: '状态',
-      sortingFn: (a, b) => (a.getValue<string>('status') ?? '').localeCompare(b.getValue<string>('status') ?? '', 'zh-CN'),
+      enableSorting: false,
       meta: {
         cellClassName: 'whitespace-nowrap',
         filter: {
@@ -183,8 +183,7 @@ export function VLANView({ editable, hideTitle, facilities, roomFilter, onRoomFi
       id: 'roomName',
       accessorFn: row => row.roomName?.trim() || undefined,
       header: '所属数据中心',
-      sortUndefined: 'last',
-      sortingFn: (a, b) => (a.getValue<string | undefined>('roomName') ?? '').localeCompare(b.getValue<string | undefined>('roomName') ?? '', 'zh-CN', { numeric: true }),
+      enableSorting: false,
       meta: {
         cellClassName: 'whitespace-nowrap',
         filter: {

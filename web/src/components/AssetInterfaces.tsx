@@ -381,7 +381,6 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
       column: {
         title: '介质',
         key: 'medium',
-        sorter: (left, right) => mediumLabel(left.medium).localeCompare(mediumLabel(right.medium), 'zh-CN'),
         filter: {
           options: mediaFilterOptions,
           selectedValues: ifaceFilters.media,
@@ -397,7 +396,6 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
       column: {
         title: '速率',
         key: 'speed',
-        sorter: (left, right) => (left.speedMbps ?? 0) - (right.speedMbps ?? 0),
         filter: {
           options: speedFilterOptions,
           selectedValues: ifaceFilters.speed,
@@ -413,7 +411,6 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
       column: {
         title: 'MAC',
         key: 'mac',
-        sorter: (left, right) => (left.mac || '').localeCompare(right.mac || '', 'zh-CN'),
         render: (_: unknown, item: NetworkInterface) => item.mac || '—',
       },
     },
@@ -423,7 +420,6 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
       column: {
         title: '状态',
         key: 'status',
-        sorter: (left, right) => statusLabel(left.status).localeCompare(statusLabel(right.status), 'zh-CN'),
         filter: {
           options: statusFilterOptions,
           selectedValues: ifaceFilters.status,
@@ -441,7 +437,6 @@ export function AssetInterfaces({ assetId, assets, editable }: Props) {
       column: {
         title: '对端',
         key: 'peer',
-        sorter: (left, right) => peerLabel(left).localeCompare(peerLabel(right), 'zh-CN'),
         render: (_: unknown, item: NetworkInterface) => item.peerId
           ? peerLabel(item)
           : <span className="muted">未连接</span>,

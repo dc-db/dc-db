@@ -271,7 +271,7 @@ export function SubnetDetailView({
       id: 'state',
       accessorFn: row => ipStateMeta[row.state]?.label ?? row.state,
       header: '状态',
-      sortingFn: (a, b) => compareText(a.getValue<string>('state'), b.getValue<string>('state')),
+      enableSorting: false,
       meta: {
         cellClassName: 'whitespace-nowrap',
         filter: {
@@ -290,7 +290,7 @@ export function SubnetDetailView({
       id: 'source',
       accessorFn: row => ipSourceMeta[row.source] ?? row.source,
       header: '来源',
-      sortingFn: (a, b) => compareText(a.getValue<string>('source'), b.getValue<string>('source')),
+      enableSorting: false,
       meta: {
         cellClassName: 'whitespace-nowrap',
         filter: {
@@ -306,8 +306,7 @@ export function SubnetDetailView({
       id: 'dnsName',
       accessorFn: row => row.dnsName?.trim() || undefined,
       header: 'DNS 名称',
-      sortUndefined: 'last',
-      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('dnsName'), b.getValue<string | undefined>('dnsName')),
+      enableSorting: false,
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => row.original.dnsName
         ? <span className="font-mono text-xs">{row.original.dnsName}</span>
@@ -317,8 +316,7 @@ export function SubnetDetailView({
       id: 'role',
       accessorFn: row => (ipRoleLabels[row.role ?? ''] ?? row.role)?.trim() || undefined,
       header: '角色',
-      sortUndefined: 'last',
-      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('role'), b.getValue<string | undefined>('role')),
+      enableSorting: false,
       meta: {
         cellClassName: 'whitespace-nowrap',
         filter: {
@@ -334,8 +332,7 @@ export function SubnetDetailView({
       id: 'asset',
       accessorFn: row => [row.assetName, row.label].filter(Boolean).join(' / ') || undefined,
       header: '关联资产 / 用途',
-      sortUndefined: 'last',
-      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('asset'), b.getValue<string | undefined>('asset')),
+      enableSorting: false,
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => (
         <span>
@@ -350,8 +347,7 @@ export function SubnetDetailView({
       id: 'notes',
       accessorFn: row => row.notes?.trim() || undefined,
       header: '备注',
-      sortUndefined: 'last',
-      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('notes'), b.getValue<string | undefined>('notes')),
+      enableSorting: false,
       cell: ({ row }) => row.original.notes
         ? <span className="text-muted-foreground">{row.original.notes}</span>
         : <span className="text-muted-foreground">—</span>,
@@ -719,7 +715,7 @@ export function VLANDetailView({
       id: 'status',
       accessorFn: row => subnetStatusMeta[row.status]?.label ?? row.status,
       header: '状态',
-      sortingFn: (a, b) => compareText(a.getValue<string>('status'), b.getValue<string>('status')),
+      enableSorting: false,
       meta: {
         cellClassName: 'whitespace-nowrap',
         filter: {
@@ -738,8 +734,7 @@ export function VLANDetailView({
       id: 'gateway',
       accessorFn: row => row.gateway?.trim() || undefined,
       header: '网关',
-      sortUndefined: 'last',
-      sortingFn: (a, b) => compareIP(a.getValue<string | undefined>('gateway'), b.getValue<string | undefined>('gateway')),
+      enableSorting: false,
       meta: { cellClassName: 'whitespace-nowrap' },
       cell: ({ row }) => row.original.gateway ? <span className="font-mono text-xs tabular-nums">{row.original.gateway}</span> : <span className="text-muted-foreground">—</span>,
     },
@@ -759,8 +754,7 @@ export function VLANDetailView({
       id: 'notes',
       accessorFn: row => row.notes?.trim() || undefined,
       header: '备注',
-      sortUndefined: 'last',
-      sortingFn: (a, b) => compareText(a.getValue<string | undefined>('notes'), b.getValue<string | undefined>('notes')),
+      enableSorting: false,
       cell: ({ row }) => row.original.notes ? <span className="text-muted-foreground">{row.original.notes}</span> : <span className="text-muted-foreground">—</span>,
     },
   ], [subnetStatusFilter, subnetStatusOptions])

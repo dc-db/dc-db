@@ -188,7 +188,7 @@ export function GroupManager({ editable, hideTitle, onSessionError, onChanged }:
     {
       accessorKey: 'description',
       header: '备注',
-      sortingFn: (a, b) => (a.original.description ?? '').localeCompare(b.original.description ?? '', 'zh-CN'),
+      enableSorting: false,
       cell: ({ row }) => row.original.description
         ? <span className="text-muted-foreground">{row.original.description}</span>
         : <span className="text-muted-foreground">—</span>,
